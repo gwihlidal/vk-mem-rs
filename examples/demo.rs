@@ -127,7 +127,7 @@ fn main() {
         //allocator.check_corruption(ash::vk::MemoryPropertyFlags::DEVICE_LOCAL);
         //allocator.check_corruption(ash::vk::MemoryPropertyFlags::all());
 
-        allocator.destroy_buffer(buffer, allocation);
+        allocator.destroy_buffer(buffer, &allocation);
     }
 
     unsafe {

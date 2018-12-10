@@ -69,7 +69,33 @@ impl Allocator {
     // TODO: vmaAllocateMemoryForBuffer
     // TODO: vmaAllocateMemoryForImage
     // TODO: vmaFreeMemory
-    // TODO: vmaResizeAllocation
+
+    pub fn free_memory(&mut self, allocation: &Allocation) {
+        unsafe {
+            ffi::vmaFreeMemory(
+                self.internal,
+                allocation.internal,
+            );
+        }
+    }
+
+    pub fn resize_allocation(&mut self, allocation: &Allocation, new_size: usize) {
+        let result = ffi_to_result(unsafe {
+            ffi::vmaResizeAllocation(
+                self.internal,
+                allocation.internal,
+                new_size as ffi::VkDeviceSize,
+            )
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("resize_allocation - error occurred! {}", result));
+            }
+        }
+    }
 
     pub fn get_allocation_info(&mut self, allocation: &mut Allocation) {
         unsafe {
@@ -81,7 +107,7 @@ impl Allocator {
         }
     }
 
-    pub fn touch_allocation(&mut self, allocation: Allocation) -> bool {
+    pub fn touch_allocation(&mut self, allocation: &Allocation) -> bool {
         let result = unsafe {
             ffi::vmaTouchAllocation(
                 self.internal,
@@ -95,7 +121,7 @@ impl Allocator {
         }
     }
 
-    pub fn set_allocation_user_data(&mut self, allocation: Allocation, user_data: *mut ::std::os::raw::c_void) {
+    pub fn set_allocation_user_data(&mut self, allocation: &Allocation, user_data: *mut ::std::os::raw::c_void) {
         unsafe {
             ffi::vmaSetAllocationUserData(
                 self.internal,
@@ -118,7 +144,7 @@ impl Allocator {
 
     // TODO: vmaMapMemory
 
-    pub fn unmap_memory(&mut self, allocation: Allocation) {
+    pub fn unmap_memory(&mut self, allocation: &Allocation) {
         unsafe {
             ffi::vmaUnmapMemory(
                 self.internal,
@@ -127,7 +153,7 @@ impl Allocator {
         }
     }
 
-    pub fn flush_allocation(&mut self, allocation: Allocation, offset: usize, size: usize) {
+    pub fn flush_allocation(&mut self, allocation: &Allocation, offset: usize, size: usize) {
         unsafe {
             ffi::vmaFlushAllocation(
                 self.internal,
@@ -138,7 +164,7 @@ impl Allocator {
         }
     }
 
-    pub fn invalidate_allocation(&mut self, allocation: Allocation, offset: usize, size: usize) {
+    pub fn invalidate_allocation(&mut self, allocation: &Allocation, offset: usize, size: usize) {
         unsafe {
             ffi::vmaInvalidateAllocation(
                 self.internal,
@@ -164,7 +190,7 @@ impl Allocator {
 
     // TODO: vmaDefragment
 
-    pub fn bind_buffer_memory(&mut self, buffer: ash::vk::Buffer, allocation: Allocation) {
+    pub fn bind_buffer_memory(&mut self, buffer: ash::vk::Buffer, allocation: &Allocation) {
         use ash::vk::Handle;
         let result = ffi_to_result(unsafe {
             ffi::vmaBindBufferMemory(
@@ -183,7 +209,7 @@ impl Allocator {
         }
     }
 
-    pub fn bind_image_memory(&mut self, image: ash::vk::Image, allocation: Allocation) {
+    pub fn bind_image_memory(&mut self, image: ash::vk::Image, allocation: &Allocation) {
         use ash::vk::Handle;
         let result = ffi_to_result(unsafe {
             ffi::vmaBindImageMemory(
@@ -238,7 +264,7 @@ impl Allocator {
         (ash::vk::Buffer::from_raw(ffi_buffer as u64), allocation)
     }
 
-    pub fn destroy_buffer(&mut self, buffer: ash::vk::Buffer, allocation: Allocation) {
+    pub fn destroy_buffer(&mut self, buffer: ash::vk::Buffer, allocation: &Allocation) {
         use ash::vk::Handle;
         unsafe {
             ffi::vmaDestroyBuffer(
@@ -251,7 +277,7 @@ impl Allocator {
 
     // TODO: vmaCreateImage
 
-    pub fn destroy_image(&mut self, image: ash::vk::Image, allocation: Allocation) {
+    pub fn destroy_image(&mut self, image: ash::vk::Image, allocation: &Allocation) {
         use ash::vk::Handle;
         unsafe {
             ffi::vmaDestroyImage(
