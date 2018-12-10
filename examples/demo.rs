@@ -117,14 +117,20 @@ fn main() {
         let stats1 = allocator.build_stats_string(true);
         println!("stats1:\n\n{}\n\n", stats1);
 
+        let allocation_info = vk_mem::AllocationCreateInfo {
+            usage: vk_mem::MemoryUsage::GpuOnly,
+            ..Default::default()
+        };
+
         let (buffer, allocation) = allocator.create_buffer(
-            ash::vk::BufferCreateInfo::builder()
+            &ash::vk::BufferCreateInfo::builder()
                 .size(65536)
                 .usage(
                     ash::vk::BufferUsageFlags::VERTEX_BUFFER
                         | ash::vk::BufferUsageFlags::TRANSFER_DST,
                 )
                 .build(),
+            &allocation_info,
         );
 
         let stats2 = allocator.build_stats_string(true);
