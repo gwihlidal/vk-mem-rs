@@ -106,7 +106,26 @@ fn main() {
     };
 
     // DO STUFF
-    println!("DO STUFF HERE");
+    {
+        let create_info = vk_mem::AllocatorCreateInfo {
+            physical_device,
+            device: device.handle(),
+        };
+
+        let mut allocator = vk_mem::Allocator::new(&create_info);
+
+        let (buffer, allocation) = allocator.create_buffer(
+            ash::vk::BufferCreateInfo::builder()
+                .size(65536)
+                .usage(
+                    ash::vk::BufferUsageFlags::VERTEX_BUFFER
+                        | ash::vk::BufferUsageFlags::TRANSFER_DST,
+                )
+                .build(),
+        );
+
+        allocator.destroy_buffer(buffer, allocation);
+    }
 
     unsafe {
         device.device_wait_idle().unwrap();
