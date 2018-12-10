@@ -70,7 +70,16 @@ impl Allocator {
     // TODO: vmaAllocateMemoryForImage
     // TODO: vmaFreeMemory
     // TODO: vmaResizeAllocation
-    // TODO: vmaGetAllocationInfo
+
+    pub fn get_allocation_info(&mut self, allocation: &mut Allocation) {
+        unsafe {
+            ffi::vmaGetAllocationInfo(
+                self.internal,
+                allocation.internal,
+                &mut allocation.info
+            )
+        }
+    }
 
     pub fn touch_allocation(&mut self, allocation: Allocation) -> bool {
         let result = unsafe {
