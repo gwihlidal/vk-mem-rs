@@ -53,7 +53,15 @@ impl Allocator {
     // TODO: vmaGetPhysicalDeviceProperties
     // TODO: vmaGetMemoryProperties
     // TODO: vmaGetMemoryTypeProperties
-    // TODO: vmaSetCurrentFrameIndex
+
+    pub fn set_current_frame_index(&self, frame_index: u32) {
+        unsafe {
+            ffi::vmaSetCurrentFrameIndex(
+                self.internal,
+                frame_index,
+            );
+        }
+    }
 
     pub fn calculate_stats(&self) -> ffi::VmaStats {
         let mut vma_stats: ffi::VmaStats = unsafe { std::mem::zeroed() };
