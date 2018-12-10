@@ -13,4 +13,4 @@ This crate provides an FFI layer and idiomatic rust wrappers for the excellent [
 - [Documentation](https://docs.rs/vk-mem)
 - [Release Notes](https://github.com/gwihlidal/vk-mem-rs/releases)
 
-
+`cargo run --example demo --features=link_vulkan`

@@ -3,7 +3,6 @@ extern crate bindgen;
 extern crate cc;
 
 use std::env;
-use std::path::PathBuf;
 
 fn main() {
     let mut build = cc::Build::new();
@@ -39,7 +38,9 @@ fn main() {
     generate_bindings("gen/bindings.rs");
 }
 
+#[cfg(feature = "link_vulkan")]
 fn link_vulkan() {
+    use std::path::PathBuf;
     let target = env::var("TARGET").unwrap();
     if target.contains("windows") {
         if let Ok(vulkan_sdk) = env::var("VULKAN_SDK") {
@@ -74,11 +75,14 @@ fn link_vulkan() {
                     lib_path
                 );
             }
-        }
 
-        println!("cargo:rustc-link-lib=dylib=vulkan");
+            println!("cargo:rustc-link-lib=dylib=vulkan");
+        }
     }
 }
+
+#[cfg(not(feature = "link_vulkan"))]
+fn link_vulkan() {}
 
 #[cfg(feature = "generate_bindings")]
 fn generate_bindings(output_file: &str) {

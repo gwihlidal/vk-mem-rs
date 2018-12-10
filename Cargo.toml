@@ -42,3 +42,4 @@ codegen-units = 1
 
 [features]
 generate_bindings=["bindgen"]
+link_vulkan=[]
