@@ -373,7 +373,41 @@ impl Allocator {
         }
     }
 
-    // TODO: vmaCreateImage
+    pub fn create_image(
+        &mut self,
+        create_info: ash::vk::ImageCreateInfo,
+    ) -> (ash::vk::Image, Allocation) {
+        use ash::vk::Handle;
+        let ffi_image_create_info: ffi::VkImageCreateInfo = unsafe {
+            std::mem::transmute::<ash::vk::ImageCreateInfo, ffi::VkImageCreateInfo>(create_info)
+        };
+        let mut ffi_allocation_create_info: ffi::VmaAllocationCreateInfo =
+            unsafe { std::mem::zeroed() };
+        ffi_allocation_create_info.usage = ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_ONLY;
+
+        let mut ffi_image: ffi::VkImage = unsafe { std::mem::zeroed() };
+        let mut allocation: Allocation = unsafe { std::mem::zeroed() };
+
+        let result = ffi_to_result(unsafe {
+            ffi::vmaCreateImage(
+                self.internal,
+                &ffi_image_create_info,
+                &ffi_allocation_create_info,
+                &mut ffi_image,
+                &mut allocation.internal,
+                &mut allocation.info,
+            )
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("create_image - error occurred! {}", result));
+            }
+        }
+        (ash::vk::Image::from_raw(ffi_image as u64), allocation)
+    }
 
     pub fn destroy_image(&mut self, image: ash::vk::Image, allocation: &Allocation) {
         use ash::vk::Handle;
