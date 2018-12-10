@@ -12,9 +12,7 @@ fn main() {
     build.include("wrapper/vulkan");
 
     // Add the files we build
-    let source_files = [
-        "wrapper/vma_lib.cpp",
-    ];
+    let source_files = ["wrapper/vma_lib.cpp"];
 
     for source_file in &source_files {
         build.file(&source_file);
