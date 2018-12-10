@@ -214,25 +214,45 @@ impl Allocator {
         memory_type_index
     }
 
-    // TODO: vmaFindMemoryTypeIndexForBufferInfo
-    /*
-    pub fn vmaFindMemoryTypeIndexForBufferInfo(
-        allocator: VmaAllocator,
-        pBufferCreateInfo: *const VkBufferCreateInfo,
-        pAllocationCreateInfo: *const VmaAllocationCreateInfo,
-        pMemoryTypeIndex: *mut u32,
-    ) -> VkResult;
-    */
+    pub fn find_memory_type_index_for_buffer_info(&self, buffer_info: &ash::vk::BufferCreateInfo, allocation_info: &AllocationCreateInfo) -> u32 {
+        let allocation_create_info = allocation_create_info_to_ffi(&allocation_info);
+        let buffer_create_info = unsafe {
+            mem::transmute::<&ash::vk::BufferCreateInfo, &ffi::VkBufferCreateInfo>(buffer_info)
+        };
+        let mut memory_type_index: u32 = 0;
+        let result = ffi_to_result(unsafe {
+            ffi::vmaFindMemoryTypeIndexForBufferInfo(self.internal, buffer_create_info, &allocation_create_info, &mut memory_type_index)
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("find_memory_type_index_for_buffer_info - error occurred! {}", result));
+            }
+        }
+        memory_type_index
+    }
 
-    // TODO: vmaFindMemoryTypeIndexForImageInfo
-    /*
-    pub fn vmaFindMemoryTypeIndexForImageInfo(
-        allocator: VmaAllocator,
-        pImageCreateInfo: *const VkImageCreateInfo,
-        pAllocationCreateInfo: *const VmaAllocationCreateInfo,
-        pMemoryTypeIndex: *mut u32,
-    ) -> VkResult;
-    */
+    pub fn find_memory_type_index_for_image_info(&self, image_info: &ash::vk::ImageCreateInfo, allocation_info: &AllocationCreateInfo) -> u32 {
+        let allocation_create_info = allocation_create_info_to_ffi(&allocation_info);
+        let image_create_info = unsafe {
+            mem::transmute::<&ash::vk::ImageCreateInfo, &ffi::VkImageCreateInfo>(image_info)
+        };
+        let mut memory_type_index: u32 = 0;
+        let result = ffi_to_result(unsafe {
+            ffi::vmaFindMemoryTypeIndexForImageInfo(self.internal, image_create_info, &allocation_create_info, &mut memory_type_index)
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("find_memory_type_index_for_image_info - error occurred! {}", result));
+            }
+        }
+        memory_type_index
+    }
 
     // TODO: vmaCreatePool
     /*
