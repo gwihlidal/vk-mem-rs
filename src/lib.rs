@@ -92,8 +92,44 @@ impl Allocator {
     }
 
     // TODO: vmaDefragment
-    // TODO: vmaBindBufferMemory
-    // TODO: vmaBindImageMemory
+
+    pub fn bind_buffer_memory(&mut self, buffer: ash::vk::Buffer, allocation: Allocation) {
+        use ash::vk::Handle;
+        let result = ffi_to_result(unsafe {
+            ffi::vmaBindBufferMemory(
+                self.internal,
+                allocation.internal,
+                buffer.as_raw() as ffi::VkBuffer
+            )
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("bind_buffer_memory - error occurred! {}", result));
+            }
+        }
+    }
+
+    pub fn bind_image_memory(&mut self, image: ash::vk::Image, allocation: Allocation) {
+        use ash::vk::Handle;
+        let result = ffi_to_result(unsafe {
+            ffi::vmaBindImageMemory(
+                self.internal,
+                allocation.internal,
+                image.as_raw() as ffi::VkImage
+            )
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("bind_image_memory - error occurred! {}", result));
+            }
+        }
+    }
 
     pub fn create_buffer(
         &mut self,
