@@ -1,0 +1,44 @@
+[package]
+name = "vk-mem"
+version = "0.1.0"
+authors = ["Graham Wihlidal <graham@wihlidal.ca>"]
+description = "Rust ffi bindings and idiomatic wrapper for AMD Vulkan Memory Allocator (VMA)"
+homepage = "https://github.com/gwihlidal/vk-mem-rs"
+repository = "https://github.com/gwihlidal/vk-mem-rs"
+documentation = "https://docs.rs/vk-mem"
+readme = "README.md"
+keywords = ["vulkan", "vk", "ash", "memory", "allocator"]
+categories = ["api-bindings", "rendering", "rendering::engine", "rendering::graphics-api", ]
+license = "MIT/Apache-2.0"
+build = "build.rs"
+include = [
+    "src/*.rs",
+    "gen/bindings.rs",
+    "build.rs",
+    "Cargo.toml",
+    "vendor/src/vk_mem_alloc.h",
+    "wrapper/vk_lib.cpp",
+]
+edition = "2018"
+
+[badges]
+travis-ci = { repository = "gwihlidal/vk-mem-rs" }
+maintenance = { status = "actively-developed" }
+
+[dependencies]
+ash = "0.26.2"
+
+[build-dependencies]
+cc = { version = "1.0.25", features = ["parallel"] }
+
+[build-dependencies.bindgen]
+version = "0.44.0"
+optional = true
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1
+
+[features]
+generate_bindings=["bindgen"]
