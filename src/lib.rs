@@ -385,27 +385,23 @@ impl Allocator {
         allocation
     }
 
-    // TODO: vmaAllocateMemory
-    /*
-    pub fn vmaAllocateMemory(
-        allocator: VmaAllocator,
-        pVkMemoryRequirements: *const VkMemoryRequirements,
-        pCreateInfo: *const VmaAllocationCreateInfo,
-        pAllocation: *mut VmaAllocation,
-        pAllocationInfo: *mut VmaAllocationInfo,
-    ) -> VkResult;
-    */
-
-    // TODO: vmaAllocateMemoryForBuffer
-    /*
-    pub fn vmaAllocateMemoryForBuffer(
-        allocator: VmaAllocator,
-        buffer: VkBuffer,
-        pCreateInfo: *const VmaAllocationCreateInfo,
-        pAllocation: *mut VmaAllocation,
-        pAllocationInfo: *mut VmaAllocationInfo,
-    ) -> VkResult;
-    */
+    pub fn allocate_memory_for_buffer(&mut self, buffer: ash::vk::Buffer, allocation_info: &AllocationCreateInfo) -> Allocation {
+        let ffi_buffer = buffer.as_raw() as ffi::VkBuffer;
+        let create_info = allocation_create_info_to_ffi(&allocation_info);
+        let mut allocation: Allocation = unsafe { mem::zeroed() };
+        let result = ffi_to_result(unsafe {
+            ffi::vmaAllocateMemoryForBuffer(self.internal, ffi_buffer, &create_info, &mut allocation.internal, &mut allocation.info)
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("allocate_memory_for_buffer - error occurred! {}", result));
+            }
+        }
+        allocation
+    }
 
     // TODO: vmaAllocateMemoryForImage
     /*
