@@ -139,30 +139,29 @@ impl Allocator {
         Allocator { internal }
     }
 
-    // TODO: vmaGetPhysicalDeviceProperties
-    /*
-    pub fn vmaGetPhysicalDeviceProperties(
-        allocator: VmaAllocator,
-        ppPhysicalDeviceProperties: *mut *const VkPhysicalDeviceProperties,
-    );
-    */
-    
-    // TODO: vmaGetMemoryProperties
-    /*
-    pub fn vmaGetMemoryProperties(
-        allocator: VmaAllocator,
-        ppPhysicalDeviceMemoryProperties: *mut *const VkPhysicalDeviceMemoryProperties,
-    );
-    */
+    pub fn get_physical_device_properties(&self) -> ash::vk::PhysicalDeviceProperties {
+        let mut ffi_properties: *const ffi::VkPhysicalDeviceProperties = unsafe { mem::zeroed() };
+        unsafe {
+            ffi::vmaGetPhysicalDeviceProperties(self.internal, &mut ffi_properties);
+            mem::transmute::<ffi::VkPhysicalDeviceProperties, ash::vk::PhysicalDeviceProperties>(*ffi_properties)
+        }
+    }
 
-    // TODO: vmaGetMemoryTypeProperties
-    /*
-    pub fn vmaGetMemoryTypeProperties(
-        allocator: VmaAllocator,
-        memoryTypeIndex: u32,
-        pFlags: *mut VkMemoryPropertyFlags,
-    );
-    */
+    pub fn get_memory_properties(&self) -> ash::vk::PhysicalDeviceMemoryProperties {
+        let mut ffi_properties: *const ffi::VkPhysicalDeviceMemoryProperties = unsafe { mem::zeroed() };
+        unsafe {
+            ffi::vmaGetMemoryProperties(self.internal, &mut ffi_properties);
+            mem::transmute::<ffi::VkPhysicalDeviceMemoryProperties, ash::vk::PhysicalDeviceMemoryProperties>(*ffi_properties)
+        }
+    }
+
+    pub fn get_memory_type_properties(&self, memory_type_index: u32) -> ash::vk::MemoryPropertyFlags {
+        let mut ffi_properties: ffi::VkMemoryPropertyFlags = unsafe { mem::zeroed() };
+        unsafe {
+            ffi::vmaGetMemoryTypeProperties(self.internal, memory_type_index, &mut ffi_properties);
+            mem::transmute::<ffi::VkMemoryPropertyFlags, ash::vk::MemoryPropertyFlags>(ffi_properties)
+        }
+    }
 
     pub fn set_current_frame_index(&self, frame_index: u32) {
         unsafe {
