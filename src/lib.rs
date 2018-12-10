@@ -19,6 +19,7 @@ pub struct AllocatorCreateInfo {
     pub device: ash::vk::Device,
 }
 
+#[inline]
 fn ffi_to_result(result: ffi::VkResult) -> ash::vk::Result {
     ash::vk::Result::from_raw(result)
 }
@@ -76,7 +77,17 @@ impl Allocator {
     // TODO: vmaMapMemory
     // TODO: vmaUnmapMemory
     // TODO: vmaFlushAllocation
-    // TODO: vmaInvalidateAllocation
+
+    pub fn invalidate_allocation(&mut self, allocation: Allocation, offset: usize, size: usize) {
+        unsafe {
+            ffi::vmaInvalidateAllocation(
+                self.internal,
+                allocation.internal,
+                offset as ffi::VkDeviceSize,
+                size as ffi::VkDeviceSize,
+            );
+        }
+    }
 
     pub fn check_corruption(&self, memory_types: ash::vk::MemoryPropertyFlags) {
         let result =
@@ -99,7 +110,7 @@ impl Allocator {
             ffi::vmaBindBufferMemory(
                 self.internal,
                 allocation.internal,
-                buffer.as_raw() as ffi::VkBuffer
+                buffer.as_raw() as ffi::VkBuffer,
             )
         });
         match result {
@@ -118,7 +129,7 @@ impl Allocator {
             ffi::vmaBindImageMemory(
                 self.internal,
                 allocation.internal,
-                image.as_raw() as ffi::VkImage
+                image.as_raw() as ffi::VkImage,
             )
         });
         match result {
