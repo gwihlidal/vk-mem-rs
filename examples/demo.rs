@@ -114,6 +114,9 @@ fn main() {
 
         let mut allocator = vk_mem::Allocator::new(&create_info);
 
+        let stats1 = allocator.build_stats_string(true);
+        println!("stats1:\n\n{}\n\n", stats1);
+
         let (buffer, allocation) = allocator.create_buffer(
             ash::vk::BufferCreateInfo::builder()
                 .size(65536)
@@ -124,10 +127,16 @@ fn main() {
                 .build(),
         );
 
+        let stats2 = allocator.build_stats_string(true);
+        println!("stats2:\n\n{}\n\n", stats2);
+
         //allocator.check_corruption(ash::vk::MemoryPropertyFlags::DEVICE_LOCAL);
         //allocator.check_corruption(ash::vk::MemoryPropertyFlags::all());
 
         allocator.destroy_buffer(buffer, &allocation);
+
+        let stats3 = allocator.build_stats_string(true);
+        println!("stats3:\n\n{}\n\n", stats3);
     }
 
     unsafe {

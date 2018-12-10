@@ -55,8 +55,22 @@ impl Allocator {
     // TODO: vmaGetMemoryTypeProperties
     // TODO: vmaSetCurrentFrameIndex
     // TODO: vmaCalculateStats
-    // TODO: vmaBuildStatsString
-    // TODO: vmaFreeStatsString
+    
+    pub fn build_stats_string(&self, detailed_map: bool) -> String {
+        let mut stats_string: *mut ::std::os::raw::c_char = ::std::ptr::null_mut();
+        //let stats_string_ptr = stats_string as *mut *mut ::std::os::raw::c_char;
+        unsafe {
+            ffi::vmaBuildStatsString(self.internal, &mut stats_string, if detailed_map { 1 } else { 0 });
+        }
+        if stats_string.is_null() {
+            String::new()
+        } else {
+            let result = unsafe { std::ffi::CStr::from_ptr(stats_string).to_string_lossy().into_owned() };
+            unsafe { ffi::vmaFreeStatsString(self.internal, stats_string); }
+            result
+        }
+    }
+
     // TODO: vmaFindMemoryTypeIndex
     // TODO: vmaFindMemoryTypeIndexForBufferInfo
     // TODO: vmaFindMemoryTypeIndexForImageInfo
@@ -68,7 +82,6 @@ impl Allocator {
     // TODO: vmaAllocateMemory
     // TODO: vmaAllocateMemoryForBuffer
     // TODO: vmaAllocateMemoryForImage
-    // TODO: vmaFreeMemory
 
     pub fn free_memory(&mut self, allocation: &Allocation) {
         unsafe {
