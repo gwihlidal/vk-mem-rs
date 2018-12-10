@@ -23,6 +23,9 @@ fn main() {
     if target.contains("darwin") {
         build
             .flag("-std=c++11")
+            .flag("-Wno-missing-field-initializers")
+            .flag("-Wno-unused-variable")
+            .flag("-Wno-unused-parameter")
             .cpp_link_stdlib("c++")
             .cpp_set_stdlib("c++")
             .cpp(true);
@@ -39,8 +42,6 @@ fn main() {
 fn link_vulkan() {
     let target = env::var("TARGET").unwrap();
     if target.contains("windows") {
-        println!("cargo:rustc-link-lib=dylib=vulkan-1");
-
         if let Ok(vulkan_sdk) = env::var("VULKAN_SDK") {
             let mut vulkan_sdk_path = PathBuf::from(vulkan_sdk);
 
@@ -55,7 +56,26 @@ fn link_vulkan() {
                 vulkan_sdk_path.to_str().unwrap()
             );
         }
+
+        println!("cargo:rustc-link-lib=dylib=vulkan-1");
     } else {
+        if target.contains("apple") {
+            if let Ok(vulkan_sdk) = env::var("VULKAN_SDK") {
+                let mut vulkan_sdk_path = PathBuf::from(vulkan_sdk);
+                vulkan_sdk_path.push("macOS/lib");
+                println!(
+                    "cargo:rustc-link-search=native={}",
+                    vulkan_sdk_path.to_str().unwrap()
+                );
+            } else {
+                let lib_path = "wrapper/macOS/lib";
+                println!(
+                    "cargo:rustc-link-search=native={}",
+                    lib_path
+                );
+            }
+        }
+
         println!("cargo:rustc-link-lib=dylib=vulkan");
     }
 }
