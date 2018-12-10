@@ -71,7 +71,20 @@ impl Allocator {
     // TODO: vmaFreeMemory
     // TODO: vmaResizeAllocation
     // TODO: vmaGetAllocationInfo
-    // TODO: vmaTouchAllocation
+
+    pub fn touch_allocation(&mut self, allocation: Allocation) -> bool {
+        let result = unsafe {
+            ffi::vmaTouchAllocation(
+                self.internal,
+                allocation.internal,
+            )
+        };
+        if result == 1 {
+            true
+        } else {
+            false
+        }
+    }
 
     pub fn set_allocation_user_data(&mut self, allocation: Allocation, user_data: *mut ::std::os::raw::c_void) {
         unsafe {
