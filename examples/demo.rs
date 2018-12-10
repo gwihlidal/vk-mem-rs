@@ -130,6 +130,8 @@ fn main() {
         let stats2 = allocator.build_stats_string(true);
         println!("stats2:\n\n{}\n\n", stats2);
 
+        let vma_stats = allocator.calculate_stats();
+
         //allocator.check_corruption(ash::vk::MemoryPropertyFlags::DEVICE_LOCAL);
         //allocator.check_corruption(ash::vk::MemoryPropertyFlags::all());
 

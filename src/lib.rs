@@ -54,11 +54,20 @@ impl Allocator {
     // TODO: vmaGetMemoryProperties
     // TODO: vmaGetMemoryTypeProperties
     // TODO: vmaSetCurrentFrameIndex
-    // TODO: vmaCalculateStats
-    
+
+    pub fn calculate_stats(&self) -> ffi::VmaStats {
+        let mut vma_stats: ffi::VmaStats = unsafe { std::mem::zeroed() };
+        unsafe {
+            ffi::vmaCalculateStats(
+                self.internal,
+                &mut vma_stats,
+            );
+        }
+        vma_stats
+    }
+
     pub fn build_stats_string(&self, detailed_map: bool) -> String {
         let mut stats_string: *mut ::std::os::raw::c_char = ::std::ptr::null_mut();
-        //let stats_string_ptr = stats_string as *mut *mut ::std::os::raw::c_char;
         unsafe {
             ffi::vmaBuildStatsString(self.internal, &mut stats_string, if detailed_map { 1 } else { 0 });
         }
