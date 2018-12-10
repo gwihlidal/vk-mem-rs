@@ -7,6 +7,11 @@ pub struct Allocator {
     pub(crate) internal: ffi::VmaAllocator,
 }
 
+#[derive(Debug)]
+pub struct AllocatorPool {
+    pub(crate) internal: ffi::VmaPool,
+}
+
 #[derive(Debug, Clone)]
 pub struct Allocation {
     pub(crate) internal: ffi::VmaAllocation,
@@ -92,8 +97,28 @@ impl Allocator {
     // TODO: vmaFindMemoryTypeIndexForBufferInfo
     // TODO: vmaFindMemoryTypeIndexForImageInfo
     // TODO: vmaCreatePool
-    // TODO: vmaDestroyPool
-    // TODO: vmaGetPoolStats
+
+    pub fn destroy_pool(&mut self, pool: &AllocatorPool) {
+        unsafe {
+            ffi::vmaDestroyPool(
+                self.internal,
+                pool.internal,
+            );
+        }
+    }
+
+    pub fn get_pool_stats(&self, pool: &AllocatorPool) -> ffi::VmaPoolStats {
+        let mut pool_stats: ffi::VmaPoolStats = unsafe { std::mem::zeroed() };
+        unsafe {
+            ffi::vmaGetPoolStats(
+                self.internal,
+                pool.internal,
+                &mut pool_stats,
+            );
+        }
+        pool_stats
+    }
+
     // TODO: vmaMakePoolAllocationsLost
     // TODO: vmaCheckPoolCorruption
     // TODO: vmaAllocateMemory
