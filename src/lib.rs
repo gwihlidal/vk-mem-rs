@@ -197,15 +197,22 @@ impl Allocator {
         }
     }
 
-    // TODO: vmaFindMemoryTypeIndex
-    /*
-    pub fn vmaFindMemoryTypeIndex(
-        allocator: VmaAllocator,
-        memoryTypeBits: u32,
-        pAllocationCreateInfo: *const VmaAllocationCreateInfo,
-        pMemoryTypeIndex: *mut u32,
-    ) -> VkResult;
-    */
+    pub fn find_memory_type_index(&self, memory_type_bits: u32, allocation_info: &AllocationCreateInfo) -> u32 {
+        let create_info = allocation_create_info_to_ffi(&allocation_info);
+        let mut memory_type_index: u32 = 0;
+        let result = ffi_to_result(unsafe {
+            ffi::vmaFindMemoryTypeIndex(self.internal, memory_type_bits, &create_info, &mut memory_type_index)
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("find_memory_type_index - error occurred! {}", result));
+            }
+        }
+        memory_type_index
+    }
 
     // TODO: vmaFindMemoryTypeIndexForBufferInfo
     /*
