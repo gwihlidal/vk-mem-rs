@@ -19,6 +19,10 @@ pub struct AllocatorCreateInfo {
     pub device: ash::vk::Device,
 }
 
+fn ffi_to_result(result: ffi::VkResult) -> ash::vk::Result {
+    ash::vk::Result::from_raw(result)
+}
+
 impl Allocator {
     pub fn new(create_info: &AllocatorCreateInfo) -> Self {
         use ash::vk::Handle;
@@ -27,16 +31,69 @@ impl Allocator {
             create_info.physical_device.as_raw() as ffi::VkPhysicalDevice;
         ffi_create_info.device = create_info.device.as_raw() as ffi::VkDevice;
         let mut internal: ffi::VmaAllocator = unsafe { std::mem::zeroed() };
-        let result = unsafe {
+        let result = ffi_to_result(unsafe {
             ffi::vmaCreateAllocator(
                 &ffi_create_info as *const ffi::VmaAllocatorCreateInfo,
                 &mut internal,
             )
-        };
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("new - error occurred! {}", result));
+            }
+        }
 
-        println!("result is {}", result);
         Allocator { internal }
     }
+
+    // TODO: vmaGetPhysicalDeviceProperties
+    // TODO: vmaGetMemoryProperties
+    // TODO: vmaGetMemoryTypeProperties
+    // TODO: vmaSetCurrentFrameIndex
+    // TODO: vmaCalculateStats
+    // TODO: vmaBuildStatsString
+    // TODO: vmaFreeStatsString
+    // TODO: vmaFindMemoryTypeIndex
+    // TODO: vmaFindMemoryTypeIndexForBufferInfo
+    // TODO: vmaFindMemoryTypeIndexForImageInfo
+    // TODO: vmaCreatePool
+    // TODO: vmaDestroyPool
+    // TODO: vmaGetPoolStats
+    // TODO: vmaMakePoolAllocationsLost
+    // TODO: vmaCheckPoolCorruption
+    // TODO: vmaAllocateMemory
+    // TODO: vmaAllocateMemoryForBuffer
+    // TODO: vmaAllocateMemoryForImage
+    // TODO: vmaFreeMemory
+    // TODO: vmaResizeAllocation
+    // TODO: vmaGetAllocationInfo
+    // TODO: vmaTouchAllocation
+    // TODO: vmaSetAllocationUserData
+    // TODO: vmaCreateLostAllocation
+    // TODO: vmaMapMemory
+    // TODO: vmaUnmapMemory
+    // TODO: vmaFlushAllocation
+    // TODO: vmaInvalidateAllocation
+
+    pub fn check_corruption(&self, memory_types: ash::vk::MemoryPropertyFlags) {
+        let result =
+            ffi_to_result(unsafe { ffi::vmaCheckCorruption(self.internal, memory_types.as_raw()) });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("check_corruption - error occurred! {}", result));
+            }
+        }
+    }
+
+    // TODO: vmaDefragment
+    // TODO: vmaBindBufferMemory
+    // TODO: vmaBindImageMemory
 
     pub fn create_buffer(
         &mut self,
@@ -53,7 +110,7 @@ impl Allocator {
         let mut ffi_buffer: ffi::VkBuffer = unsafe { std::mem::zeroed() };
         let mut allocation: Allocation = unsafe { std::mem::zeroed() };
 
-        let result = unsafe {
+        let result = ffi_to_result(unsafe {
             ffi::vmaCreateBuffer(
                 self.internal,
                 &ffi_buffer_create_info,
@@ -62,8 +119,15 @@ impl Allocator {
                 &mut allocation.internal,
                 &mut allocation.info,
             )
-        };
-        println!("result2 is {}", result);
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("create_buffer - error occurred! {}", result));
+            }
+        }
         (ash::vk::Buffer::from_raw(ffi_buffer as u64), allocation)
     }
 
@@ -73,6 +137,19 @@ impl Allocator {
             ffi::vmaDestroyBuffer(
                 self.internal,
                 buffer.as_raw() as ffi::VkBuffer,
+                allocation.internal,
+            );
+        }
+    }
+
+    // TODO: vmaCreateImage
+
+    pub fn destroy_image(&mut self, image: ash::vk::Image, allocation: Allocation) {
+        use ash::vk::Handle;
+        unsafe {
+            ffi::vmaDestroyImage(
+                self.internal,
+                image.as_raw() as ffi::VkImage,
                 allocation.internal,
             );
         }

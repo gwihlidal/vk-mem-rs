@@ -124,6 +124,9 @@ fn main() {
                 .build(),
         );
 
+        //allocator.check_corruption(ash::vk::MemoryPropertyFlags::DEVICE_LOCAL);
+        //allocator.check_corruption(ash::vk::MemoryPropertyFlags::all());
+
         allocator.destroy_buffer(buffer, allocation);
     }
 
