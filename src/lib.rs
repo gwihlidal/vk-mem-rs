@@ -60,6 +60,17 @@ fn allocation_create_info_to_ffi(info: &AllocationCreateInfo) -> ffi::VmaAllocat
     create_info
 }
 
+fn pool_create_info_to_ffi(info: &AllocatorPoolCreateInfo) -> ffi::VmaPoolCreateInfo {
+    let mut create_info: ffi::VmaPoolCreateInfo = unsafe { mem::zeroed() };
+    create_info.memoryTypeIndex = info.memory_type_index;
+    create_info.flags = info.flags.bits();
+    create_info.blockSize = info.block_size as ffi::VkDeviceSize;
+    create_info.minBlockCount = info.min_block_count;
+    create_info.maxBlockCount = info.max_block_count;
+    create_info.frameInUseCount = info.frame_in_use_count;
+    create_info
+}
+
 #[derive(Debug, Clone)]
 pub enum MemoryUsage {
     Unknown,
@@ -67,6 +78,16 @@ pub enum MemoryUsage {
     CpuOnly,
     CpuToGpu,
     GpuToCpu,
+}
+
+bitflags! {
+    pub struct AllocatorPoolCreateFlags: u32 {
+        const NONE = 0x00000000;
+        const IGNORE_BUFFER_IMAGE_GRANULARITY = 0x00000002;
+        const LINEAR_ALGORITHM = 0x00000004;
+        const BUDDY_ALGORITHM = 0x00000008;
+        const ALGORITHM_MASK = 0x00000004 | 0x00000008;
+    }
 }
 
 bitflags! {
@@ -110,6 +131,29 @@ impl Default for AllocationCreateInfo {
             memory_type_bits: 0,
             pool: AllocatorPool::default(),
             user_data: ::std::ptr::null_mut(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AllocatorPoolCreateInfo {
+    pub memory_type_index: u32,
+    pub flags: AllocatorPoolCreateFlags,
+    pub block_size: usize,
+    pub min_block_count: usize,
+    pub max_block_count: usize,
+    pub frame_in_use_count: u32,
+}
+
+impl Default for AllocatorPoolCreateInfo {
+    fn default() -> Self {
+        AllocatorPoolCreateInfo {
+            memory_type_index: 0,
+            flags: AllocatorPoolCreateFlags::NONE,
+            block_size: 0,
+            min_block_count: 0,
+            max_block_count: 0,
+            frame_in_use_count: 0,
         }
     }
 }
@@ -254,14 +298,28 @@ impl Allocator {
         memory_type_index
     }
 
-    // TODO: vmaCreatePool
-    /*
-    pub fn vmaCreatePool(
-        allocator: VmaAllocator,
-        pCreateInfo: *const VmaPoolCreateInfo,
-        pPool: *mut VmaPool,
-    ) -> VkResult;
-    */
+    pub fn create_pool(&mut self, pool_info: &AllocatorPoolCreateInfo) -> AllocatorPool {
+        let mut ffi_pool: ffi::VmaPool = unsafe { mem::zeroed() };
+        let create_info = pool_create_info_to_ffi(&pool_info);
+        let result = ffi_to_result(unsafe {
+            ffi::vmaCreatePool(
+                self.internal,
+                &create_info,
+                &mut ffi_pool,
+            )
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("create_pool - error occurred! {}", result));
+            }
+        }
+        AllocatorPool {
+            internal: ffi_pool,
+        }
+    }
 
     pub fn destroy_pool(&mut self, pool: &AllocatorPool) {
         unsafe {
@@ -432,7 +490,7 @@ impl Allocator {
             }
         }
         mapped_data as *mut u8
-        //unsafe { std::slice::from_raw_parts(mapped_data as *mut u8, 1) }
+        //unsafe { std::slice::from_raw_parts(mapped_data as *mut u8, size_bytes) }
     }
 
     pub fn unmap_memory(&mut self, allocation: &Allocation) {
