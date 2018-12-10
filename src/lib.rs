@@ -119,7 +119,18 @@ impl Allocator {
         pool_stats
     }
 
-    // TODO: vmaMakePoolAllocationsLost
+    pub fn make_pool_allocations_lost(&mut self, pool: &mut AllocatorPool) -> usize {
+        let mut lost_count: usize = 0;
+        unsafe {
+            ffi::vmaMakePoolAllocationsLost(
+                self.internal,
+                pool.internal,
+                &mut lost_count,
+            );
+        }
+        lost_count
+    }
+
     // TODO: vmaCheckPoolCorruption
     // TODO: vmaAllocateMemory
     // TODO: vmaAllocateMemoryForBuffer
