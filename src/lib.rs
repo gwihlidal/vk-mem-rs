@@ -76,7 +76,17 @@ impl Allocator {
     // TODO: vmaCreateLostAllocation
     // TODO: vmaMapMemory
     // TODO: vmaUnmapMemory
-    // TODO: vmaFlushAllocation
+
+    pub fn flush_allocation(&mut self, allocation: Allocation, offset: usize, size: usize) {
+        unsafe {
+            ffi::vmaFlushAllocation(
+                self.internal,
+                allocation.internal,
+                offset as ffi::VkDeviceSize,
+                size as ffi::VkDeviceSize,
+            );
+        }
+    }
 
     pub fn invalidate_allocation(&mut self, allocation: Allocation, offset: usize, size: usize) {
         unsafe {
