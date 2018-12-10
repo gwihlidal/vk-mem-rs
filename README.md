@@ -14,3 +14,6 @@ This crate provides an FFI layer and idiomatic rust wrappers for the excellent [
 - [Release Notes](https://github.com/gwihlidal/vk-mem-rs/releases)
 
 `cargo run --example demo --features=link_vulkan`
+
+- https://gpuopen.com/gaming-product/vulkan-memory-allocator/
+- https://gpuopen.com/vulkan-memory-allocator-2-1/
