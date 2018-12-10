@@ -96,6 +96,7 @@ impl Allocator {
     // TODO: vmaFindMemoryTypeIndex
     // TODO: vmaFindMemoryTypeIndexForBufferInfo
     // TODO: vmaFindMemoryTypeIndexForImageInfo
+
     // TODO: vmaCreatePool
 
     pub fn destroy_pool(&mut self, pool: &AllocatorPool) {
@@ -131,7 +132,19 @@ impl Allocator {
         lost_count
     }
 
-    // TODO: vmaCheckPoolCorruption
+    pub fn check_pool_corruption(&self, pool: &AllocatorPool) {
+        let result =
+            ffi_to_result(unsafe { ffi::vmaCheckPoolCorruption(self.internal, pool.internal) });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("check_pool_corruption - error occurred! {}", result));
+            }
+        }
+    }
+
     // TODO: vmaAllocateMemory
     // TODO: vmaAllocateMemoryForBuffer
     // TODO: vmaAllocateMemoryForImage
@@ -208,7 +221,26 @@ impl Allocator {
         allocation
     }
 
-    // TODO: vmaMapMemory
+    pub fn map_memory(&mut self, allocation: &Allocation) -> *mut u8 {
+        let mut mapped_data: *mut ::std::os::raw::c_void = ::std::ptr::null_mut();
+        let result = ffi_to_result(unsafe {
+            ffi::vmaMapMemory(
+                self.internal,
+                allocation.internal,
+                &mut mapped_data,
+            )
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("map_memory - error occurred! {}", result));
+            }
+        }
+        mapped_data as *mut u8
+        //unsafe { std::slice::from_raw_parts(mapped_data as *mut u8, 1) }
+    }
 
     pub fn unmap_memory(&mut self, allocation: &Allocation) {
         unsafe {
