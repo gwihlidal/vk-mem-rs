@@ -73,7 +73,21 @@ impl Allocator {
     // TODO: vmaGetAllocationInfo
     // TODO: vmaTouchAllocation
     // TODO: vmaSetAllocationUserData
-    // TODO: vmaCreateLostAllocation
+
+    pub fn create_lost_allocation(&mut self, allocation: Allocation) -> Allocation {
+        let mut allocation: Allocation = unsafe { std::mem::zeroed() };
+        unsafe {
+            ffi::vmaCreateLostAllocation(
+                self.internal,
+                &mut allocation.internal,
+            );
+        }
+        allocation
+    }
+
+    pub fn vmaCreateLostAllocation(allocator: VmaAllocator, pAllocation: *mut VmaAllocation);
+
+
     // TODO: vmaMapMemory
 
     pub fn unmap_memory(&mut self, allocation: Allocation) {
