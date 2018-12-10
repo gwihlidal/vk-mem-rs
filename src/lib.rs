@@ -56,8 +56,29 @@ impl Allocator {
     }
 
     // TODO: vmaGetPhysicalDeviceProperties
+    /*
+    pub fn vmaGetPhysicalDeviceProperties(
+        allocator: VmaAllocator,
+        ppPhysicalDeviceProperties: *mut *const VkPhysicalDeviceProperties,
+    );
+    */
+    
     // TODO: vmaGetMemoryProperties
+    /*
+    pub fn vmaGetMemoryProperties(
+        allocator: VmaAllocator,
+        ppPhysicalDeviceMemoryProperties: *mut *const VkPhysicalDeviceMemoryProperties,
+    );
+    */
+
     // TODO: vmaGetMemoryTypeProperties
+    /*
+    pub fn vmaGetMemoryTypeProperties(
+        allocator: VmaAllocator,
+        memoryTypeIndex: u32,
+        pFlags: *mut VkMemoryPropertyFlags,
+    );
+    */
 
     pub fn set_current_frame_index(&self, frame_index: u32) {
         unsafe {
@@ -94,10 +115,43 @@ impl Allocator {
     }
 
     // TODO: vmaFindMemoryTypeIndex
+    /*
+    pub fn vmaFindMemoryTypeIndex(
+        allocator: VmaAllocator,
+        memoryTypeBits: u32,
+        pAllocationCreateInfo: *const VmaAllocationCreateInfo,
+        pMemoryTypeIndex: *mut u32,
+    ) -> VkResult;
+    */
+
     // TODO: vmaFindMemoryTypeIndexForBufferInfo
+    /*
+    pub fn vmaFindMemoryTypeIndexForBufferInfo(
+        allocator: VmaAllocator,
+        pBufferCreateInfo: *const VkBufferCreateInfo,
+        pAllocationCreateInfo: *const VmaAllocationCreateInfo,
+        pMemoryTypeIndex: *mut u32,
+    ) -> VkResult;
+    */
+
     // TODO: vmaFindMemoryTypeIndexForImageInfo
+    /*
+    pub fn vmaFindMemoryTypeIndexForImageInfo(
+        allocator: VmaAllocator,
+        pImageCreateInfo: *const VkImageCreateInfo,
+        pAllocationCreateInfo: *const VmaAllocationCreateInfo,
+        pMemoryTypeIndex: *mut u32,
+    ) -> VkResult;
+    */
 
     // TODO: vmaCreatePool
+    /*
+    pub fn vmaCreatePool(
+        allocator: VmaAllocator,
+        pCreateInfo: *const VmaPoolCreateInfo,
+        pPool: *mut VmaPool,
+    ) -> VkResult;
+    */
 
     pub fn destroy_pool(&mut self, pool: &AllocatorPool) {
         unsafe {
@@ -146,8 +200,37 @@ impl Allocator {
     }
 
     // TODO: vmaAllocateMemory
+    /*
+    pub fn vmaAllocateMemory(
+        allocator: VmaAllocator,
+        pVkMemoryRequirements: *const VkMemoryRequirements,
+        pCreateInfo: *const VmaAllocationCreateInfo,
+        pAllocation: *mut VmaAllocation,
+        pAllocationInfo: *mut VmaAllocationInfo,
+    ) -> VkResult;
+    */
+
     // TODO: vmaAllocateMemoryForBuffer
+    /*
+    pub fn vmaAllocateMemoryForBuffer(
+        allocator: VmaAllocator,
+        buffer: VkBuffer,
+        pCreateInfo: *const VmaAllocationCreateInfo,
+        pAllocation: *mut VmaAllocation,
+        pAllocationInfo: *mut VmaAllocationInfo,
+    ) -> VkResult;
+    */
+
     // TODO: vmaAllocateMemoryForImage
+    /*
+    pub fn vmaAllocateMemoryForImage(
+        allocator: VmaAllocator,
+        image: VkImage,
+        pCreateInfo: *const VmaAllocationCreateInfo,
+        pAllocation: *mut VmaAllocation,
+        pAllocationInfo: *mut VmaAllocationInfo,
+    ) -> VkResult;
+    */
 
     pub fn free_memory(&mut self, allocation: &Allocation) {
         unsafe {
@@ -287,6 +370,16 @@ impl Allocator {
     }
 
     // TODO: vmaDefragment
+    /*
+    pub fn vmaDefragment(
+        allocator: VmaAllocator,
+        pAllocations: *mut VmaAllocation,
+        allocationCount: usize,
+        pAllocationsChanged: *mut VkBool32,
+        pDefragmentationInfo: *const VmaDefragmentationInfo,
+        pDefragmentationStats: *mut VmaDefragmentationStats,
+    ) -> VkResult;
+    */
 
     pub fn bind_buffer_memory(&mut self, buffer: ash::vk::Buffer, allocation: &Allocation) {
         use ash::vk::Handle;
