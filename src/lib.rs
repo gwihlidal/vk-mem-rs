@@ -1,15 +1,28 @@
 extern crate ash;
+#[macro_use]
+extern crate bitflags;
+
+use ash::vk::Handle;
+use std::mem;
 
 pub mod ffi;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Allocator {
     pub(crate) internal: ffi::VmaAllocator,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AllocatorPool {
     pub(crate) internal: ffi::VmaPool,
+}
+
+impl Default for AllocatorPool {
+    fn default() -> Self {
+        AllocatorPool {
+            internal: unsafe { mem::zeroed() },
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -29,14 +42,85 @@ fn ffi_to_result(result: ffi::VkResult) -> ash::vk::Result {
     ash::vk::Result::from_raw(result)
 }
 
+fn allocation_create_info_to_ffi(info: &AllocationCreateInfo) -> ffi::VmaAllocationCreateInfo {
+    let mut create_info: ffi::VmaAllocationCreateInfo = unsafe { mem::zeroed() };
+    create_info.usage = match &info.usage {
+        MemoryUsage::Unknown => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_UNKNOWN,
+        MemoryUsage::GpuOnly => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_ONLY,
+        MemoryUsage::CpuOnly => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_CPU_ONLY,
+        MemoryUsage::CpuToGpu => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_CPU_TO_GPU,
+        MemoryUsage::GpuToCpu => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_TO_CPU,
+    };
+    create_info.flags = info.flags.bits();
+    create_info.requiredFlags = info.required_flags.as_raw();
+    create_info.preferredFlags = info.preferred_flags.as_raw();
+    create_info.memoryTypeBits = info.memory_type_bits;
+    create_info.pool = info.pool.internal;
+    create_info.pUserData = info.user_data;
+    create_info
+}
+
+#[derive(Debug, Clone)]
+pub enum MemoryUsage {
+    Unknown,
+    GpuOnly,
+    CpuOnly,
+    CpuToGpu,
+    GpuToCpu,
+}
+
+bitflags! {
+    pub struct AllocationCreateFlags: u32 {
+        const NONE = 0x00000000;
+        const DEDICATED_MEMORY = 0x00000001;
+        const NEVER_ALLOCATE = 0x00000002;
+        const MAPPED = 0x00000004;
+        const CAN_BECOME_LOST = 0x00000008;
+        const CAN_MAKE_OTHER_LOST = 0x00000010;
+        const USER_DATA_COPY_STRING = 0x00000020;
+        const UPPER_ADDRESS = 0x00000040;
+        const STRATEGY_BEST_FIT = 0x00010000;
+        const STRATEGY_WORST_FIT = 0x00020000;
+        const STRATEGY_FIRST_FIT = 0x00040000;
+        const STRATEGY_MIN_MEMORY = 0x00010000;
+        const STRATEGY_MIN_TIME = 0x00040000;
+        const STRATEGY_MIN_FRAGMENTATION = 0x00020000;
+        const STRATEGY_MASK = 0x00010000 | 0x00020000 | 0x00040000;
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AllocationCreateInfo {
+    pub usage: MemoryUsage,
+    pub flags: AllocationCreateFlags,
+    pub required_flags: ash::vk::MemoryPropertyFlags,
+    pub preferred_flags: ash::vk::MemoryPropertyFlags,
+    pub memory_type_bits: u32,
+    pub pool: AllocatorPool,
+    pub user_data: *mut ::std::os::raw::c_void,
+}
+
+impl Default for AllocationCreateInfo {
+    fn default() -> Self {
+        AllocationCreateInfo {
+            usage: MemoryUsage::Unknown,
+            flags: AllocationCreateFlags::NONE,
+            required_flags: ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            preferred_flags: ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            memory_type_bits: 0,
+            pool: AllocatorPool::default(),
+            user_data: ::std::ptr::null_mut(),
+        }
+    }
+}
+
 impl Allocator {
     pub fn new(create_info: &AllocatorCreateInfo) -> Self {
-        use ash::vk::Handle;
-        let mut ffi_create_info: ffi::VmaAllocatorCreateInfo = unsafe { std::mem::zeroed() };
+        let mut ffi_create_info: ffi::VmaAllocatorCreateInfo = unsafe { mem::zeroed() };
         ffi_create_info.physicalDevice =
             create_info.physical_device.as_raw() as ffi::VkPhysicalDevice;
         ffi_create_info.device = create_info.device.as_raw() as ffi::VkDevice;
-        let mut internal: ffi::VmaAllocator = unsafe { std::mem::zeroed() };
+        let mut internal: ffi::VmaAllocator = unsafe { mem::zeroed() };
         let result = ffi_to_result(unsafe {
             ffi::vmaCreateAllocator(
                 &ffi_create_info as *const ffi::VmaAllocatorCreateInfo,
@@ -90,7 +174,7 @@ impl Allocator {
     }
 
     pub fn calculate_stats(&self) -> ffi::VmaStats {
-        let mut vma_stats: ffi::VmaStats = unsafe { std::mem::zeroed() };
+        let mut vma_stats: ffi::VmaStats = unsafe { mem::zeroed() };
         unsafe {
             ffi::vmaCalculateStats(
                 self.internal,
@@ -163,7 +247,7 @@ impl Allocator {
     }
 
     pub fn get_pool_stats(&self, pool: &AllocatorPool) -> ffi::VmaPoolStats {
-        let mut pool_stats: ffi::VmaPoolStats = unsafe { std::mem::zeroed() };
+        let mut pool_stats: ffi::VmaPoolStats = unsafe { mem::zeroed() };
         unsafe {
             ffi::vmaGetPoolStats(
                 self.internal,
@@ -294,7 +378,7 @@ impl Allocator {
     }
 
     pub fn create_lost_allocation(&mut self) -> Allocation {
-        let mut allocation: Allocation = unsafe { std::mem::zeroed() };
+        let mut allocation: Allocation = unsafe { mem::zeroed() };
         unsafe {
             ffi::vmaCreateLostAllocation(
                 self.internal,
@@ -382,7 +466,6 @@ impl Allocator {
     */
 
     pub fn bind_buffer_memory(&mut self, buffer: ash::vk::Buffer, allocation: &Allocation) {
-        use ash::vk::Handle;
         let result = ffi_to_result(unsafe {
             ffi::vmaBindBufferMemory(
                 self.internal,
@@ -401,7 +484,6 @@ impl Allocator {
     }
 
     pub fn bind_image_memory(&mut self, image: ash::vk::Image, allocation: &Allocation) {
-        use ash::vk::Handle;
         let result = ffi_to_result(unsafe {
             ffi::vmaBindImageMemory(
                 self.internal,
@@ -421,25 +503,22 @@ impl Allocator {
 
     pub fn create_buffer(
         &mut self,
-        create_info: ash::vk::BufferCreateInfo,
+        buffer_info: &ash::vk::BufferCreateInfo,
+        allocation_info: &AllocationCreateInfo,
     ) -> (ash::vk::Buffer, Allocation) {
-        use ash::vk::Handle;
-        let ffi_buffer_create_info: ffi::VkBufferCreateInfo = unsafe {
-            std::mem::transmute::<ash::vk::BufferCreateInfo, ffi::VkBufferCreateInfo>(create_info)
+        let buffer_create_info = unsafe {
+            mem::transmute::<&ash::vk::BufferCreateInfo, &ffi::VkBufferCreateInfo>(buffer_info)
         };
-        let mut ffi_allocation_create_info: ffi::VmaAllocationCreateInfo =
-            unsafe { std::mem::zeroed() };
-        ffi_allocation_create_info.usage = ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_ONLY;
-
-        let mut ffi_buffer: ffi::VkBuffer = unsafe { std::mem::zeroed() };
-        let mut allocation: Allocation = unsafe { std::mem::zeroed() };
+        let allocation_create_info = allocation_create_info_to_ffi(&allocation_info);
+        let mut buffer: ffi::VkBuffer = unsafe { mem::zeroed() };
+        let mut allocation: Allocation = unsafe { mem::zeroed() };
 
         let result = ffi_to_result(unsafe {
             ffi::vmaCreateBuffer(
                 self.internal,
-                &ffi_buffer_create_info,
-                &ffi_allocation_create_info,
-                &mut ffi_buffer,
+                buffer_create_info,
+                &allocation_create_info,
+                &mut buffer,
                 &mut allocation.internal,
                 &mut allocation.info,
             )
@@ -452,11 +531,10 @@ impl Allocator {
                 panic!(format!("create_buffer - error occurred! {}", result));
             }
         }
-        (ash::vk::Buffer::from_raw(ffi_buffer as u64), allocation)
+        (ash::vk::Buffer::from_raw(buffer as u64), allocation)
     }
 
     pub fn destroy_buffer(&mut self, buffer: ash::vk::Buffer, allocation: &Allocation) {
-        use ash::vk::Handle;
         unsafe {
             ffi::vmaDestroyBuffer(
                 self.internal,
@@ -468,25 +546,21 @@ impl Allocator {
 
     pub fn create_image(
         &mut self,
-        create_info: ash::vk::ImageCreateInfo,
+        image_info: &ash::vk::ImageCreateInfo,
+        allocation_info: &AllocationCreateInfo,
     ) -> (ash::vk::Image, Allocation) {
-        use ash::vk::Handle;
-        let ffi_image_create_info: ffi::VkImageCreateInfo = unsafe {
-            std::mem::transmute::<ash::vk::ImageCreateInfo, ffi::VkImageCreateInfo>(create_info)
+        let image_create_info = unsafe {
+            mem::transmute::<&ash::vk::ImageCreateInfo, &ffi::VkImageCreateInfo>(image_info)
         };
-        let mut ffi_allocation_create_info: ffi::VmaAllocationCreateInfo =
-            unsafe { std::mem::zeroed() };
-        ffi_allocation_create_info.usage = ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_ONLY;
-
-        let mut ffi_image: ffi::VkImage = unsafe { std::mem::zeroed() };
-        let mut allocation: Allocation = unsafe { std::mem::zeroed() };
-
+        let allocation_create_info = allocation_create_info_to_ffi(&allocation_info);
+        let mut image: ffi::VkImage = unsafe { mem::zeroed() };
+        let mut allocation: Allocation = unsafe { mem::zeroed() };
         let result = ffi_to_result(unsafe {
             ffi::vmaCreateImage(
                 self.internal,
-                &ffi_image_create_info,
-                &ffi_allocation_create_info,
-                &mut ffi_image,
+                image_create_info,
+                &allocation_create_info,
+                &mut image,
                 &mut allocation.internal,
                 &mut allocation.info,
             )
@@ -499,11 +573,10 @@ impl Allocator {
                 panic!(format!("create_image - error occurred! {}", result));
             }
         }
-        (ash::vk::Image::from_raw(ffi_image as u64), allocation)
+        (ash::vk::Image::from_raw(image as u64), allocation)
     }
 
     pub fn destroy_image(&mut self, image: ash::vk::Image, allocation: &Allocation) {
-        use ash::vk::Handle;
         unsafe {
             ffi::vmaDestroyImage(
                 self.internal,

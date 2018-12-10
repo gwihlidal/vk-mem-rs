@@ -27,6 +27,7 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 ash = "0.26.2"
+bitflags = "1.0.4"
 
 [build-dependencies]
 cc = { version = "1.0.25", features = ["parallel"] }
