@@ -403,16 +403,23 @@ impl Allocator {
         allocation
     }
 
-    // TODO: vmaAllocateMemoryForImage
-    /*
-    pub fn vmaAllocateMemoryForImage(
-        allocator: VmaAllocator,
-        image: VkImage,
-        pCreateInfo: *const VmaAllocationCreateInfo,
-        pAllocation: *mut VmaAllocation,
-        pAllocationInfo: *mut VmaAllocationInfo,
-    ) -> VkResult;
-    */
+    pub fn allocate_memory_for_image(&mut self, image: ash::vk::Image, allocation_info: &AllocationCreateInfo) -> Allocation {
+        let ffi_image = image.as_raw() as ffi::VkImage;
+        let create_info = allocation_create_info_to_ffi(&allocation_info);
+        let mut allocation: Allocation = unsafe { mem::zeroed() };
+        let result = ffi_to_result(unsafe {
+            ffi::vmaAllocateMemoryForImage(self.internal, ffi_image, &create_info, &mut allocation.internal, &mut allocation.info)
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("allocate_memory_for_image - error occurred! {}", result));
+            }
+        }
+        allocation
+    }
 
     pub fn free_memory(&mut self, allocation: &Allocation) {
         unsafe {
