@@ -367,6 +367,24 @@ impl Allocator {
         }
     }
 
+    pub fn allocate_memory(&mut self, memory_requirements: &ash::vk::MemoryRequirements, allocation_info: &AllocationCreateInfo) -> Allocation {
+        let ffi_requirements = unsafe { mem::transmute::<&ash::vk::MemoryRequirements, &ffi::VkMemoryRequirements>(memory_requirements) };
+        let create_info = allocation_create_info_to_ffi(&allocation_info);
+        let mut allocation: Allocation = unsafe { mem::zeroed() };
+        let result = ffi_to_result(unsafe {
+            ffi::vmaAllocateMemory(self.internal, ffi_requirements, &create_info, &mut allocation.internal, &mut allocation.info)
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("allocate_memory - error occurred! {}", result));
+            }
+        }
+        allocation
+    }
+
     // TODO: vmaAllocateMemory
     /*
     pub fn vmaAllocateMemory(
