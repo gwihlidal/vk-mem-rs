@@ -37,5 +37,5 @@ fn verify_result(result: ash::vk::Result) {
 */
 
 fn main() {
-    println!("TODO");
+    println!("TODO - port sample from VMA");
 }
