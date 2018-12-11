@@ -104,7 +104,7 @@ bitflags! {
         ///
         /// When this flag is set, you can experience following warnings reported by Vulkan
         /// validation layer. You can ignore them.
-        ///     `> vkBindBufferMemory(): Binding memory to buffer 0x2d but vkGetBufferMemoryRequirements() has not been called on that buffer.`
+        /// `> vkBindBufferMemory(): Binding memory to buffer 0x2d but vkGetBufferMemoryRequirements() has not been called on that buffer.`
         const KHR_DEDICATED_ALLOCATION = 0x0000_0002;
     }
 }
@@ -169,7 +169,7 @@ pub struct AllocatorCreateInfo {
     /// memory, because graphics driver doesn't necessary fail new allocations with
     /// `VK_ERROR_OUT_OF_DEVICE_MEMORY` result when memory capacity is exceeded. It may return success
     /// and just silently migrate some device memory" blocks to system RAM. This driver behavior can
-    /// also be controlled using the `VK_AMD_memory_overallocation_behavior extension`.
+    /// also be controlled using the `VK_AMD_memory_overallocation_behavior` extension.
     pub heap_size_limits: Option<Vec<ash::vk::DeviceSize>>,
 }
 
@@ -229,39 +229,192 @@ fn pool_create_info_to_ffi(info: &AllocatorPoolCreateInfo) -> ffi::VmaPoolCreate
 
 #[derive(Debug, Clone)]
 pub enum MemoryUsage {
+    /// No intended memory usage specified.
+    /// Use other members of `AllocationCreateInfo` to specify your requirements.
     Unknown,
+
+    /// Memory will be used on device only, so fast access from the device is preferred.
+    /// It usually means device-local GPU (video) memory.
+    /// No need to be mappable on host.
+    /// It is roughly equivalent of `D3D12_HEAP_TYPE_DEFAULT`.
+    ///
+    /// Usage:
+    ///
+    /// - Resources written and read by device, e.g. images used as attachments.
+    /// - Resources transferred from host once (immutable) or infrequently and read by
+    ///   device multiple times, e.g. textures to be sampled, vertex buffers, uniform
+    ///   (constant) buffers, and majority of other types of resources used on GPU.
+    ///
+    /// Allocation may still end up in `HOST_VISIBLE` memory on some implementations.
+    /// In such case, you are free to map it.
+    /// You can use `MAPPED` with this usage type.
     GpuOnly,
+
+    /// Memory will be mappable on host.
+    /// It usually means CPU (system) memory.
+    /// Guarantees to be `HOST_VISIBLE` and `HOST_COHERENT`.
+    /// CPU access is typically uncached. Writes may be write-combined.
+    /// Resources created in this pool may still be accessible to the device, but access to them can be slow.
+    /// It is roughly equivalent of `D3D12_HEAP_TYPE_UPLOAD`.
+    ///
+    /// Usage: Staging copy of resources used as transfer source.
     CpuOnly,
+
+    /// Memory that is both mappable on host (guarantees to be `HOST_VISIBLE`) and preferably fast to access by GPU.
+    /// CPU access is typically uncached. Writes may be write-combined.
+    ///
+    /// Usage: Resources written frequently by host (dynamic), read by device. E.g. textures, vertex buffers,
+    /// uniform buffers updated every frame or every draw call.
     CpuToGpu,
+
+    /// Memory mappable on host (guarantees to be `HOST_VISIBLE`) and cached.
+    /// It is roughly equivalent of `D3D12_HEAP_TYPE_READBACK`.
+    ///
+    /// Usage:
+    ///
+    /// - Resources written by device, read by host - results of some computations, e.g. screen capture, average scene luminance for HDR tone mapping.
+    /// - Any resources read or accessed randomly on host, e.g. CPU-side copy of vertex buffer used as source of transfer, but also used for collision detection.
     GpuToCpu,
 }
 
 bitflags! {
     pub struct AllocatorPoolCreateFlags: u32 {
         const NONE = 0x0000_0000;
+
+        /// Use this flag if you always allocate only buffers and linear images or only optimal images
+        /// out of this pool and so buffer-image granularity can be ignored.
+        ///
+        /// This is an optional optimization flag.
+        ///
+        /// If you always allocate using `Allocator::create_buffer`, `Allocator::create_image`,
+        /// `Allocator::allocate_memory_for_buffer`, then you don't need to use it because allocator
+        /// knows exact type of your allocations so it can handle buffer-image granularity
+        /// in the optimal way.
+        ///
+        /// If you also allocate using `Allocator::allocate_memory_for_image` or `Allocator::allocate_memory`,
+        /// exact type of such allocations is not known, so allocator must be conservative
+        /// in handling buffer-image granularity, which can lead to suboptimal allocation
+        /// (wasted memory). In that case, if you can make sure you always allocate only
+        /// buffers and linear images or only optimal images out of this pool, use this flag
+        /// to make allocator disregard buffer-image granularity and so make allocations
+        /// faster and more optimal.
         const IGNORE_BUFFER_IMAGE_GRANULARITY = 0x0000_0002;
+
+        /// Enables alternative, linear allocation algorithm in this pool.
+        ///
+        /// Specify this flag to enable linear allocation algorithm, which always creates
+        /// new allocations after last one and doesn't reuse space from allocations freed in
+        /// between. It trades memory consumption for simplified algorithm and data
+        /// structure, which has better performance and uses less memory for metadata.
+        ///
+        /// By using this flag, you can achieve behavior of free-at-once, stack,
+        /// ring buffer, and double stack.
+        ///
+        /// When using this flag, you must specify PoolCreateInfo::max_block_count == 1 (or 0 for default).
         const LINEAR_ALGORITHM = 0x0000_0004;
+
+        /// Enables alternative, buddy allocation algorithm in this pool.
+        ///
+        /// It operates on a tree of blocks, each having size that is a power of two and
+        /// a half of its parent's size. Comparing to default algorithm, this one provides
+        /// faster allocation and deallocation and decreased external fragmentation,
+        /// at the expense of more memory wasted (internal fragmentation).
         const BUDDY_ALGORITHM = 0x0000_0008;
+
+        /// Bit mask to extract only `*_ALGORITHM` bits from entire set of flags.
         const ALGORITHM_MASK = 0x0000_0004 | 0x0000_0008;
     }
 }
 
 bitflags! {
     pub struct AllocationCreateFlags: u32 {
+        /// Default configuration for allocation.
         const NONE = 0x0000_0000;
+
+        /// Set this flag if the allocation should have its own memory block.
+        ///
+        /// Use it for special, big resources, like fullscreen images used as attachments.
+        ///
+        /// This flag must also be used for host visible resources that you want to map
+        /// simultaneously because otherwise they might end up as regions of the same
+        /// `VkDeviceMemory`, while mapping same `VkDeviceMemory` multiple times
+        /// simultaneously is illegal.
+        ///
+        /// You should not use this flag if `AllocationCreateInfo::pool` is not `None`.
         const DEDICATED_MEMORY = 0x0000_0001;
+
+        /// Set this flag to only try to allocate from existing `VkDeviceMemory` blocks and never create new such block.
+        ///
+        /// If new allocation cannot be placed in any of the existing blocks, allocation
+        /// fails with `VK_ERROR_OUT_OF_DEVICE_MEMORY` error.
+        ///
+        /// You should not use `DEDICATED_MEMORY` and `NEVER_ALLOCATE` at the same time. It makes no sense.
+        ///
+        /// If `AllocationCreateInfo::pool` is not `None`, this flag is implied and ignored.
         const NEVER_ALLOCATE = 0x0000_0002;
+
+        /// Set this flag to use a memory that will be persistently mapped and retrieve pointer to it.
+        ///
+        /// Pointer to mapped memory will be returned through `Allocation::get_mapped_data()`.
+        ///
+        /// Is it valid to use this flag for allocation made from memory type that is not
+        /// `HOST_VISIBLE`. This flag is then ignored and memory is not mapped. This is
+        /// useful if you need an allocation that is efficient to use on GPU
+        /// (`DEVICE_LOCAL`) and still want to map it directly if possible on platforms that
+        /// support it (e.g. Intel GPU).
+        ///
+        /// You should not use this flag together with `CAN_BECOME_LOST`.
         const MAPPED = 0x0000_0004;
+
+        /// Allocation created with this flag can become lost as a result of another
+        /// allocation with `CAN_MAKE_OTHER_LOST` flag, so you must check it before use.
+        ///
+        /// To check if allocation is not lost, call `Allocator::get_allocation_info` and check if
+        /// AllocationInfo::device_memory is not null.
+        ///
+        /// You should not use this flag together with `MAPPED`.
         const CAN_BECOME_LOST = 0x0000_0008;
+
+        /// While creating allocation using this flag, other allocations that were
+        /// created with flag `CAN_BECOME_LOST` can become lost.
         const CAN_MAKE_OTHER_LOST = 0x0000_0010;
+
+        /// Set this flag to treat AllocationCreateInfo::user_data as pointer to a
+        /// null-terminated string. Instead of copying pointer value, a local copy of the
+        /// string is made and stored in allocation's `user_data`. The string is automatically
+        /// freed together with the allocation. It is also used in `Allocator::build_stats_string`.
         const USER_DATA_COPY_STRING = 0x0000_0020;
+
+        /// Allocation will be created from upper stack in a double stack pool.
+        ///
+        /// This flag is only allowed for custom pools created with `LINEAR_ALGORITHM` flag.
         const UPPER_ADDRESS = 0x0000_0040;
+
+        /// Allocation strategy that chooses smallest possible free range for the
+        /// allocation.
         const STRATEGY_BEST_FIT = 0x0001_0000;
+
+        /// Allocation strategy that chooses biggest possible free range for the
+        /// allocation.
         const STRATEGY_WORST_FIT = 0x0002_0000;
+
+        /// Allocation strategy that chooses first suitable free range for the
+        /// allocation.
+        ///
+        /// "First" doesn't necessarily means the one with smallest offset in memory,
+        /// but rather the one that is easiest and fastest to find.
         const STRATEGY_FIRST_FIT = 0x0004_0000;
+
+        /// Allocation strategy that tries to minimize memory usage.
         const STRATEGY_MIN_MEMORY = 0x0001_0000;
+
+        /// Allocation strategy that tries to minimize allocation time.
         const STRATEGY_MIN_TIME = 0x0004_0000;
+
+        /// Allocation strategy that tries to minimize memory fragmentation.
         const STRATEGY_MIN_FRAGMENTATION = 0x0002_0000;
+
+        /// A bit mask to extract only `*_STRATEGY` bits from entire set of flags.
         const STRATEGY_MASK = 0x0001_0000 | 0x0002_0000 | 0x0004_0000;
     }
 }
@@ -293,14 +446,37 @@ impl Default for AllocationCreateInfo {
 
 #[derive(Debug, Clone)]
 pub struct AllocatorPoolCreateInfo {
+    /// Vulkan memory type index to allocate this pool from.
     pub memory_type_index: u32,
+
+    /// Use combination of `AllocatorPoolCreateFlags`
     pub flags: AllocatorPoolCreateFlags,
+
+    /// Size of a single `VkDeviceMemory` block to be allocated as part of this
+    /// pool, in bytes. Optional.
+    ///
+    /// Specify non-zero to set explicit, constant size of memory blocks used by
+    /// this pool.
+    ///
+    /// Leave 0 to use default and let the library manage block sizes automatically.
+    /// Sizes of particular blocks may vary.
     pub block_size: usize,
+
+    /// Minimum number of blocks to be always allocated in this pool, even if they stay empty.
+    ///
+    /// Set to 0 to have no preallocated blocks and allow the pool be completely empty.
     pub min_block_count: usize,
+
+    /// Maximum number of blocks that can be allocated in this pool. Optional.
+    ///
+    /// Set to 0 to use default, which is no limit.
+    ///
+    /// Set to same value as `AllocatorPoolCreateInfo::min_block_count` to have fixed amount
+    /// of memory allocated throughout whole lifetime of this pool.
     pub max_block_count: usize,
 
     /// Maximum number of additional frames that are in use at the same time as current frame.
-    /// This value is used only when you make allocations with VMA_ALLOCATION_CREATE_CAN_BECOME_LOST_BIT flag.
+    /// This value is used only when you make allocations with `CAN_BECOME_LOST` flag.
     /// Such allocations cannot become lost if allocation.lastUseFrameIndex >= allocator.currentFrameIndex - frameInUseCount.
     ///
     /// For example, if you double-buffer your command buffers, so resources used for rendering
