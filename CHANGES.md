@@ -1,5 +1,9 @@
 # Changes
 
+## 0.1.2 (2018-12-11)
+
+* Minor documentation tweak
+
 ## 0.1.1 (2018-12-11)
 
 * Major refactors
