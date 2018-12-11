@@ -7,9 +7,11 @@ use std::mem;
 
 pub mod ffi;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Allocator {
     pub(crate) internal: ffi::VmaAllocator,
+    pub(crate) instance: ash::Instance,
+    pub(crate) device: ash::Device,
 }
 
 #[derive(Debug, Clone)]
@@ -31,10 +33,11 @@ pub struct Allocation {
     pub(crate) info: ffi::VmaAllocationInfo,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AllocatorCreateInfo {
     pub physical_device: ash::vk::PhysicalDevice,
-    pub device: ash::vk::Device,
+    pub device: ash::Device,
+    pub instance: ash::Instance,
 }
 
 #[inline]
@@ -183,10 +186,36 @@ pub struct DefragmentationStats {
 
 impl Allocator {
     pub fn new(create_info: &AllocatorCreateInfo) -> Self {
+        use ash::version::{DeviceV1_0, DeviceV1_1, InstanceV1_0};
+        let instance = create_info.instance.clone();
+        let device = create_info.device.clone();
         let mut ffi_create_info: ffi::VmaAllocatorCreateInfo = unsafe { mem::zeroed() };
         ffi_create_info.physicalDevice =
             create_info.physical_device.as_raw() as ffi::VkPhysicalDevice;
-        ffi_create_info.device = create_info.device.as_raw() as ffi::VkDevice;
+        ffi_create_info.device = create_info.device.handle().as_raw() as ffi::VkDevice;
+        let routed_functions = unsafe {
+            ffi::VmaVulkanFunctions {
+                vkGetPhysicalDeviceProperties: mem::transmute::<_, ffi::PFN_vkGetPhysicalDeviceProperties>(Some(instance.fp_v1_0().get_physical_device_properties)),
+                vkGetPhysicalDeviceMemoryProperties: mem::transmute::<_, ffi::PFN_vkGetPhysicalDeviceMemoryProperties>(Some(instance.fp_v1_0().get_physical_device_memory_properties)),
+                vkAllocateMemory: mem::transmute::<_, ffi::PFN_vkAllocateMemory>(Some(device.fp_v1_0().allocate_memory)),
+                vkFreeMemory: mem::transmute::<_, ffi::PFN_vkFreeMemory>(Some(device.fp_v1_0().free_memory)),
+                vkMapMemory: mem::transmute::<_, ffi::PFN_vkMapMemory>(Some(device.fp_v1_0().map_memory)),
+                vkUnmapMemory: mem::transmute::<_, ffi::PFN_vkUnmapMemory>(Some(device.fp_v1_0().unmap_memory)),
+                vkFlushMappedMemoryRanges: mem::transmute::<_, ffi::PFN_vkFlushMappedMemoryRanges>(Some(device.fp_v1_0().flush_mapped_memory_ranges)),
+                vkInvalidateMappedMemoryRanges: mem::transmute::<_, ffi::PFN_vkInvalidateMappedMemoryRanges>(Some(device.fp_v1_0().invalidate_mapped_memory_ranges)),
+                vkBindBufferMemory: mem::transmute::<_, ffi::PFN_vkBindBufferMemory>(Some(device.fp_v1_0().bind_buffer_memory)),
+                vkBindImageMemory: mem::transmute::<_, ffi::PFN_vkBindImageMemory>(Some(device.fp_v1_0().bind_image_memory)),
+                vkGetBufferMemoryRequirements: mem::transmute::<_, ffi::PFN_vkGetBufferMemoryRequirements>(Some(device.fp_v1_0().get_buffer_memory_requirements)),
+                vkGetImageMemoryRequirements: mem::transmute::<_, ffi::PFN_vkGetImageMemoryRequirements>(Some(device.fp_v1_0().get_image_memory_requirements)),
+                vkCreateBuffer: mem::transmute::<_, ffi::PFN_vkCreateBuffer>(Some(device.fp_v1_0().create_buffer)),
+                vkDestroyBuffer: mem::transmute::<_, ffi::PFN_vkDestroyBuffer>(Some(device.fp_v1_0().destroy_buffer)),
+                vkCreateImage: mem::transmute::<_, ffi::PFN_vkCreateImage>(Some(device.fp_v1_0().create_image)),
+                vkDestroyImage: mem::transmute::<_, ffi::PFN_vkDestroyImage>(Some(device.fp_v1_0().destroy_image)),
+                vkGetBufferMemoryRequirements2KHR: mem::transmute::<_, ffi::PFN_vkGetBufferMemoryRequirements2KHR>(Some(device.fp_v1_1().get_buffer_memory_requirements2)),
+                vkGetImageMemoryRequirements2KHR: mem::transmute::<_, ffi::PFN_vkGetImageMemoryRequirements2KHR>(Some(device.fp_v1_1().get_image_memory_requirements2)),
+            }
+        };
+        ffi_create_info.pVulkanFunctions = &routed_functions;
         let mut internal: ffi::VmaAllocator = unsafe { mem::zeroed() };
         let result = ffi_to_result(unsafe {
             ffi::vmaCreateAllocator(
@@ -203,7 +232,11 @@ impl Allocator {
             }
         }
 
-        Allocator { internal }
+        Allocator {
+            internal,
+            instance,
+            device,
+        }
     }
 
     pub fn get_physical_device_properties(&self) -> ash::vk::PhysicalDeviceProperties {

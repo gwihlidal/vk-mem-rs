@@ -11,6 +11,12 @@ fn main() {
     build.include("wrapper");
     build.include("wrapper/vulkan");
 
+    // We want to use the loader in ash, instead of requiring us to link
+    // in vulkan.dll/.dylib in addition to ash. This is especially important
+    // for MoltenVK, where there is no default installation path, unlike
+    // Linux (pkconfig) and Windows (VULKAN_SDK environment variable).
+    build.define("VMA_STATIC_VULKAN_FUNCTIONS", "0");
+
     // Add the files we build
     let source_files = ["wrapper/vma_lib.cpp"];
 
