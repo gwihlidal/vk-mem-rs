@@ -238,7 +238,7 @@ fn create_gpu_buffer_pool() {
         ..Default::default()
     };
     let pool = allocator.create_pool(&pool_info).unwrap();
-    allocation_info.pool = pool.clone();
+    allocation_info.pool = Some(pool.clone());
 
     let (buffer, allocation) = allocator
         .create_buffer(&buffer_info, &allocation_info)

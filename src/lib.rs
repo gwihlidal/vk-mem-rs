@@ -104,8 +104,11 @@ fn allocation_create_info_to_ffi(info: &AllocationCreateInfo) -> ffi::VmaAllocat
     create_info.requiredFlags = info.required_flags.as_raw();
     create_info.preferredFlags = info.preferred_flags.as_raw();
     create_info.memoryTypeBits = info.memory_type_bits;
-    create_info.pool = info.pool.internal;
-    create_info.pUserData = info.user_data;
+    create_info.pool = match &info.pool {
+        Some(pool) => pool.internal,
+        None => unsafe { mem::zeroed() },
+    };
+    create_info.pUserData = info.user_data.unwrap_or(::std::ptr::null_mut());
     create_info
 }
 
@@ -167,8 +170,8 @@ pub struct AllocationCreateInfo {
     pub required_flags: ash::vk::MemoryPropertyFlags,
     pub preferred_flags: ash::vk::MemoryPropertyFlags,
     pub memory_type_bits: u32,
-    pub pool: AllocatorPool,
-    pub user_data: *mut ::std::os::raw::c_void,
+    pub pool: Option<AllocatorPool>,
+    pub user_data: Option<*mut ::std::os::raw::c_void>
 }
 
 impl Default for AllocationCreateInfo {
@@ -179,8 +182,8 @@ impl Default for AllocationCreateInfo {
             required_flags: ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,
             preferred_flags: ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,
             memory_type_bits: 0,
-            pool: AllocatorPool::default(),
-            user_data: ::std::ptr::null_mut(),
+            pool: None,
+            user_data: None,
         }
     }
 }
