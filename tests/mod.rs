@@ -141,6 +141,7 @@ impl TestHarness {
             physical_device: self.physical_device,
             device: self.device.clone(),
             instance: self.instance.clone(),
+            ..Default::default()
         };
         vk_mem::Allocator::new(&create_info).unwrap()
     }

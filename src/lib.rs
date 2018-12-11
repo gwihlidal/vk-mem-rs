@@ -76,12 +76,115 @@ impl Allocation {
     }
 }
 
+bitflags! {
+    pub struct AllocatorCreateFlags: u32 {
+        /// No allocator configuration other than defaults.
+        const NONE = 0x0000_0000;
+
+        /// Allocator and all objects created from it will not be synchronized internally,
+        /// so you must guarantee they are used from only one thread at a time or synchronized
+        /// externally by you. Using this flag may increase performance because internal
+        /// mutexes are not used.
+        const EXTERNALLY_SYNCHRONIZED = 0x0000_0001;
+
+        /// Enables usage of `VK_KHR_dedicated_allocation` extension.
+        ///
+        /// Using this extenion will automatically allocate dedicated blocks of memory for
+        /// some buffers and images instead of suballocating place for them out of bigger
+        /// memory blocks (as if you explicitly used `AllocationCreateFlags::DEDICATED_MEMORY` flag) when it is 
+        /// recommended by the driver. It may improve performance on some GPUs.
+        /// 
+        /// You may set this flag only if you found out that following device extensions are
+        /// supported, you enabled them while creating Vulkan device passed as
+        /// `AllocatorCreateInfo::device`, and you want them to be used internally by this
+        /// library:
+        /// 
+        /// - VK_KHR_get_memory_requirements2
+        /// - VK_KHR_dedicated_allocation
+        /// 
+        /// When this flag is set, you can experience following warnings reported by Vulkan
+        /// validation layer. You can ignore them.
+        ///     `> vkBindBufferMemory(): Binding memory to buffer 0x2d but vkGetBufferMemoryRequirements() has not been called on that buffer.`
+        const KHR_DEDICATED_ALLOCATION = 0x0000_0002;
+    }
+}
+
+impl Default for AllocatorCreateFlags {
+    fn default() -> Self {
+        AllocatorCreateFlags::NONE
+    }
+}
+
 /// Description of an allocator to be created.
-#[derive(Clone)]
 pub struct AllocatorCreateInfo {
+    /// Vulkan physical device. It must be valid throughout whole lifetime of created allocator.
     pub physical_device: ash::vk::PhysicalDevice,
+
+    /// Vulkan device. It must be valid throughout whole lifetime of created allocator.
     pub device: ash::Device,
+
+    /// Vulkan instance. It must be valid throughout whole lifetime of created allocator.
     pub instance: ash::Instance,
+
+    /// Flags for created allocator.
+    pub flags: AllocatorCreateFlags,
+
+    /// Preferred size of a single `VkDeviceMemory` block to be allocated from large heaps > 1 GiB. Optional.
+    /// Set to 0 to use default, which is currently 256 MiB.
+    pub preferred_large_heap_block_size: usize,
+
+    /// Maximum number of additional frames that are in use at the same time as current frame.
+    /// 
+    /// This value is used only when you make allocations with `AllocationCreateFlags::CAN_BECOME_LOST` flag.
+    /// Such allocations cannot become lost if: 
+    /// `allocation.lastUseFrameIndex >= allocator.currentFrameIndex - frameInUseCount`
+    /// 
+    /// For example, if you double-buffer your command buffers, so resources used for
+    /// rendering in previous frame may still be in use by the GPU at the moment you
+    /// allocate resources needed for the current frame, set this value to 1.
+    /// 
+    /// If you want to allow any allocations other than used in the current frame to
+    /// become lost, set this value to 0.
+    pub frame_in_use_count: u32,
+
+    /// Either empty or an array of limits on maximum number of bytes that can be allocated
+    /// out of particular Vulkan memory heap.
+    /// 
+    /// If not empty, it must contain `VkPhysicalDeviceMemoryProperties::memoryHeapCount` elements,
+    /// defining limit on maximum number of bytes that can be allocated out of particular Vulkan
+    /// memory heap.
+    /// 
+    /// Any of the elements may be equal to `ash::vk::WHOLE_SIZE`, which means no limit on that
+    /// heap. This is also the default in case of an empty slice.
+    ///
+    /// If there is a limit defined for a heap:
+    /// 
+    /// * If user tries to allocate more memory from that heap using this allocator, the allocation
+    /// fails with `VK_ERROR_OUT_OF_DEVICE_MEMORY`.
+    /// 
+    /// * If the limit is smaller than heap size reported in `VkMemoryHeap::size`, the value of this
+    /// limit will be reported instead when using `Allocator::get_memory_properties`.
+    /// 
+    /// Warning! Using this feature may not be equivalent to installing a GPU with smaller amount of
+    /// memory, because graphics driver doesn't necessary fail new allocations with
+    /// `VK_ERROR_OUT_OF_DEVICE_MEMORY` result when memory capacity is exceeded. It may return success
+    /// and just silently migrate some device memory" blocks to system RAM. This driver behavior can
+    /// also be controlled using the `VK_AMD_memory_overallocation_behavior extension`.
+    pub heap_size_limits: Option<Vec<ash::vk::DeviceSize>>,
+}
+
+impl Default for AllocatorCreateInfo {
+    fn default() -> Self {
+        AllocatorCreateInfo {
+            physical_device: ash::vk::PhysicalDevice::null(),
+            device: unsafe { mem::zeroed() },
+            instance: unsafe { mem::zeroed() },
+            flags: AllocatorCreateFlags::NONE,
+            preferred_large_heap_block_size: 0,
+            frame_in_use_count: 0,
+            heap_size_limits: None,
+        }
+    }
 }
 
 /// Converts a raw result into an ash result.
@@ -250,10 +353,6 @@ impl Allocator {
         use ash::version::{DeviceV1_0, DeviceV1_1, InstanceV1_0};
         let instance = create_info.instance.clone();
         let device = create_info.device.clone();
-        let mut ffi_create_info: ffi::VmaAllocatorCreateInfo = unsafe { mem::zeroed() };
-        ffi_create_info.physicalDevice =
-            create_info.physical_device.as_raw() as ffi::VkPhysicalDevice;
-        ffi_create_info.device = create_info.device.handle().as_raw() as ffi::VkDevice;
         let routed_functions = unsafe {
             ffi::VmaVulkanFunctions {
                 vkGetPhysicalDeviceProperties: mem::transmute::<
@@ -333,7 +432,21 @@ impl Allocator {
                 )),
             }
         };
-        ffi_create_info.pVulkanFunctions = &routed_functions;
+        let ffi_create_info = ffi::VmaAllocatorCreateInfo {
+            physicalDevice: create_info.physical_device.as_raw() as ffi::VkPhysicalDevice,
+            device: create_info.device.handle().as_raw() as ffi::VkDevice,
+            flags: create_info.flags.bits(),
+            frameInUseCount: create_info.frame_in_use_count,
+            preferredLargeHeapBlockSize: create_info.preferred_large_heap_block_size as u64,
+            pHeapSizeLimit: match &create_info.heap_size_limits { 
+                None => ::std::ptr::null(),
+                Some(limits) => limits.as_ptr(),
+            },
+            pVulkanFunctions: &routed_functions,
+            pAllocationCallbacks: ::std::ptr::null(), // TODO: Add support
+            pDeviceMemoryCallbacks: ::std::ptr::null(), // TODO: Add support
+            pRecordSettings: ::std::ptr::null(), // TODO: Add support
+        };
         let mut internal: ffi::VmaAllocator = unsafe { mem::zeroed() };
         let result = ffi_to_result(unsafe {
             ffi::vmaCreateAllocator(
