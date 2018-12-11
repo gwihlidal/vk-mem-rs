@@ -45,7 +45,13 @@ fn main() {
             .cpp_set_stdlib("c++")
             .cpp(true);
     } else if target.contains("linux") {
-        build.flag("-std=c++11").cpp_link_stdlib("stdc++").cpp(true);
+        build
+            .flag("-std=c++11")
+            .flag("-Wno-missing-field-initializers")
+            .flag("-Wno-unused-variable")
+            .flag("-Wno-unused-parameter")
+            .cpp_link_stdlib("stdc++")
+            .cpp(true);
     }
 
     build.compile("vma_cpp");
