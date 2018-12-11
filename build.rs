@@ -76,10 +76,7 @@ fn link_vulkan() {
                 );
             } else {
                 let lib_path = "wrapper/macOS/lib";
-                println!(
-                    "cargo:rustc-link-search=native={}",
-                    lib_path
-                );
+                println!("cargo:rustc-link-search=native={}", lib_path);
             }
 
             println!("cargo:rustc-link-lib=dylib=vulkan");

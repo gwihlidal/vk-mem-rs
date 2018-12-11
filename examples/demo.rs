@@ -134,16 +134,18 @@ fn main() {
             ..Default::default()
         };
 
-        let (buffer, allocation) = allocator.create_buffer(
-            &ash::vk::BufferCreateInfo::builder()
-                .size(65536)
-                .usage(
-                    ash::vk::BufferUsageFlags::VERTEX_BUFFER
-                        | ash::vk::BufferUsageFlags::TRANSFER_DST,
-                )
-                .build(),
-            &allocation_info,
-        ).unwrap();
+        let (buffer, allocation) = allocator
+            .create_buffer(
+                &ash::vk::BufferCreateInfo::builder()
+                    .size(65536)
+                    .usage(
+                        ash::vk::BufferUsageFlags::VERTEX_BUFFER
+                            | ash::vk::BufferUsageFlags::TRANSFER_DST,
+                    )
+                    .build(),
+                &allocation_info,
+            )
+            .unwrap();
 
         let stats2 = allocator.build_stats_string(true).unwrap();
         println!("stats2:\n\n{}\n\n", stats2);
