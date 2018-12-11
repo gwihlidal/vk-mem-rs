@@ -302,11 +302,11 @@ pub struct AllocatorPoolCreateInfo {
     /// Maximum number of additional frames that are in use at the same time as current frame.
     /// This value is used only when you make allocations with VMA_ALLOCATION_CREATE_CAN_BECOME_LOST_BIT flag.
     /// Such allocations cannot become lost if allocation.lastUseFrameIndex >= allocator.currentFrameIndex - frameInUseCount.
-    /// 
+    ///
     /// For example, if you double-buffer your command buffers, so resources used for rendering
     /// in previous frame may still be in use by the GPU at the moment you allocate resources
     /// needed for the current frame, set this value to 1.
-    /// 
+    ///
     /// If you want to allow any allocations other than used in the current frame to become lost,
     /// set this value to 0.
     pub frame_in_use_count: u32,
