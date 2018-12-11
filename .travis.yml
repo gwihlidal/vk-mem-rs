@@ -29,7 +29,7 @@ matrix:
       rust: stable
       script:
         - cargo build --verbose --all --release
-        - cargo test --verbose --all --release
+        #- cargo test --verbose --all --release
         - cargo doc --verbose --all --release
 
     - os: osx
@@ -38,5 +38,5 @@ matrix:
 
 script:
 - cargo build --all --verbose
-- cargo test --all --verbose
+#- cargo test --all --verbose
 - cargo doc --all --verbose
