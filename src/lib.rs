@@ -158,6 +158,29 @@ impl Default for AllocatorPoolCreateInfo {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct DefragmentationInfo {
+    pub max_bytes_to_move: usize,
+    pub max_allocations_to_move: u32,
+}
+
+impl Default for DefragmentationInfo {
+    fn default() -> Self {
+        DefragmentationInfo {
+            max_bytes_to_move: ash::vk::WHOLE_SIZE as usize,
+            max_allocations_to_move: std::u32::MAX,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct DefragmentationStats {
+    pub bytes_moved: usize,
+    pub bytes_freed: usize,
+    pub allocations_moved: u32,
+    pub device_memory_blocks_freed: u32,
+}
+
 impl Allocator {
     pub fn new(create_info: &AllocatorCreateInfo) -> Self {
         let mut ffi_create_info: ffi::VmaAllocatorCreateInfo = unsafe { mem::zeroed() };
@@ -511,7 +534,6 @@ impl Allocator {
             }
         }
         mapped_data as *mut u8
-        //unsafe { std::slice::from_raw_parts(mapped_data as *mut u8, size_bytes) }
     }
 
     pub fn unmap_memory(&mut self, allocation: &Allocation) {
@@ -558,17 +580,36 @@ impl Allocator {
         }
     }
 
-    // TODO: vmaDefragment
-    /*
-    pub fn vmaDefragment(
-        allocator: VmaAllocator,
-        pAllocations: *mut VmaAllocation,
-        allocationCount: usize,
-        pAllocationsChanged: *mut VkBool32,
-        pDefragmentationInfo: *const VmaDefragmentationInfo,
-        pDefragmentationStats: *mut VmaDefragmentationStats,
-    ) -> VkResult;
-    */
+    pub fn defragment(&mut self, allocations: &[Allocation], defrag_info: &DefragmentationInfo) -> (DefragmentationStats, Vec<bool>) {
+        let mut ffi_allocations: Vec<ffi::VmaAllocation> = allocations.iter().map(|allocation| {
+            allocation.internal
+        })
+        .collect();
+        let mut ffi_change_list: Vec<ffi::VkBool32> = vec![0; ffi_allocations.len()];
+        let ffi_info = ffi::VmaDefragmentationInfo {
+            maxBytesToMove: defrag_info.max_bytes_to_move as ffi::VkDeviceSize,
+            maxAllocationsToMove: defrag_info.max_allocations_to_move,
+        };
+        let mut ffi_stats: ffi::VmaDefragmentationStats = unsafe { mem::zeroed() };
+        let result = ffi_to_result(unsafe {
+            ffi::vmaDefragment(self.internal, ffi_allocations.as_mut_ptr(), ffi_allocations.len(), ffi_change_list.as_mut_ptr(), &ffi_info, &mut ffi_stats)
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                // Success
+            }
+            _ => {
+                panic!(format!("defragment - error occurred! {}", result));
+            }
+        }
+        let change_list: Vec<bool> = Vec::new();
+        (DefragmentationStats {
+            bytes_moved: 0,
+            bytes_freed: 0,
+            allocations_moved: 0,
+            device_memory_blocks_freed: 0,
+        }, change_list)
+    }
 
     pub fn bind_buffer_memory(&mut self, buffer: ash::vk::Buffer, allocation: &Allocation) {
         let result = ffi_to_result(unsafe {
