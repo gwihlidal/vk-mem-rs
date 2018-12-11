@@ -16,8 +16,9 @@ include = [
     "gen/bindings.rs",
     "build.rs",
     "Cargo.toml",
+    "vendor/vulkan/*.h",
     "vendor/src/vk_mem_alloc.h",
-    "wrapper/vk_lib.cpp",
+    "wrapper/vma_lib.cpp",
 ]
 edition = "2018"
 
