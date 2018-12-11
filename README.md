@@ -109,6 +109,13 @@ let (buffer, allocation) = allocator
 allocator.destroy_buffer(buffer, &allocation).unwrap();
 ```
 
+With this one function call (`vk_mem::Allocator::create_buffer`):
+
+* `ash::vk::Buffer` (`VkBuffer`) is created.
+* `ash::vk::DeviceMemory` (`VkDeviceMemory`) block is allocated if needed.
+* An unused region of the memory block is bound to this buffer.
+* `vk_mem::Allocation` is created that represents memory assigned to this buffer. It can be queried for parameters like Vulkan memory handle and offset.
+
 ## MoltenVK
 
 For MoltenVK on macOS, you need to have the proper environment variables set. Something like:
@@ -126,7 +133,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vk-mem = "0.1.1"
+vk-mem = "0.1.2"
 ```
 
 and add this to your crate root:
