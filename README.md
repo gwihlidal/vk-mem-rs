@@ -17,3 +17,4 @@ This crate provides an FFI layer and idiomatic rust wrappers for the excellent [
 
 - https://gpuopen.com/gaming-product/vulkan-memory-allocator/
 - https://gpuopen.com/vulkan-memory-allocator-2-1/
+- https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
