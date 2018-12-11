@@ -76,6 +76,7 @@ impl Allocation {
     }
 }
 
+/// Description of an allocator to be created.
 #[derive(Clone)]
 pub struct AllocatorCreateInfo {
     pub physical_device: ash::vk::PhysicalDevice,
@@ -83,11 +84,13 @@ pub struct AllocatorCreateInfo {
     pub instance: ash::Instance,
 }
 
+/// Converts a raw result into an ash result.
 #[inline]
 fn ffi_to_result(result: ffi::VkResult) -> ash::vk::Result {
     ash::vk::Result::from_raw(result)
 }
 
+/// Converts an `AllocationCreateInfo` struct into the raw representation.
 fn allocation_create_info_to_ffi(info: &AllocationCreateInfo) -> ffi::VmaAllocationCreateInfo {
     let mut create_info: ffi::VmaAllocationCreateInfo = unsafe { mem::zeroed() };
     create_info.usage = match &info.usage {
@@ -106,6 +109,7 @@ fn allocation_create_info_to_ffi(info: &AllocationCreateInfo) -> ffi::VmaAllocat
     create_info
 }
 
+/// Converts an `AllocatorPoolCreateInfo` struct into the raw representation.
 fn pool_create_info_to_ffi(info: &AllocatorPoolCreateInfo) -> ffi::VmaPoolCreateInfo {
     let mut create_info: ffi::VmaPoolCreateInfo = unsafe { mem::zeroed() };
     create_info.memoryTypeIndex = info.memory_type_index;
@@ -188,6 +192,17 @@ pub struct AllocatorPoolCreateInfo {
     pub block_size: usize,
     pub min_block_count: usize,
     pub max_block_count: usize,
+
+    /// Maximum number of additional frames that are in use at the same time as current frame.
+    /// This value is used only when you make allocations with VMA_ALLOCATION_CREATE_CAN_BECOME_LOST_BIT flag.
+    /// Such allocations cannot become lost if allocation.lastUseFrameIndex >= allocator.currentFrameIndex - frameInUseCount.
+    /// 
+    /// For example, if you double-buffer your command buffers, so resources used for rendering
+    /// in previous frame may still be in use by the GPU at the moment you allocate resources
+    /// needed for the current frame, set this value to 1.
+    /// 
+    /// If you want to allow any allocations other than used in the current frame to become lost,
+    /// set this value to 0.
     pub frame_in_use_count: u32,
 }
 
@@ -520,6 +535,12 @@ impl Allocator {
         }
     }
 
+    #[doc = "General purpose memory allocation."]
+    #[doc = ""]
+    #[doc = "You should free the memory using `free_memory`."]
+    #[doc = ""]
+    #[doc = "It is recommended to use `allocate_memory_for_buffer`, `allocate_memory_for_image`,"]
+    #[doc = "`create_buffer`, `create_image` instead whenever possible."]
     pub fn allocate_memory(
         &mut self,
         memory_requirements: &ash::vk::MemoryRequirements,
