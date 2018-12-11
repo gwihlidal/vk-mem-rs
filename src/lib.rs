@@ -91,17 +91,17 @@ bitflags! {
         ///
         /// Using this extenion will automatically allocate dedicated blocks of memory for
         /// some buffers and images instead of suballocating place for them out of bigger
-        /// memory blocks (as if you explicitly used `AllocationCreateFlags::DEDICATED_MEMORY` flag) when it is 
+        /// memory blocks (as if you explicitly used `AllocationCreateFlags::DEDICATED_MEMORY` flag) when it is
         /// recommended by the driver. It may improve performance on some GPUs.
-        /// 
+        ///
         /// You may set this flag only if you found out that following device extensions are
         /// supported, you enabled them while creating Vulkan device passed as
         /// `AllocatorCreateInfo::device`, and you want them to be used internally by this
         /// library:
-        /// 
+        ///
         /// - VK_KHR_get_memory_requirements2
         /// - VK_KHR_dedicated_allocation
-        /// 
+        ///
         /// When this flag is set, you can experience following warnings reported by Vulkan
         /// validation layer. You can ignore them.
         ///     `> vkBindBufferMemory(): Binding memory to buffer 0x2d but vkGetBufferMemoryRequirements() has not been called on that buffer.`
@@ -134,37 +134,37 @@ pub struct AllocatorCreateInfo {
     pub preferred_large_heap_block_size: usize,
 
     /// Maximum number of additional frames that are in use at the same time as current frame.
-    /// 
+    ///
     /// This value is used only when you make allocations with `AllocationCreateFlags::CAN_BECOME_LOST` flag.
-    /// Such allocations cannot become lost if: 
+    /// Such allocations cannot become lost if:
     /// `allocation.lastUseFrameIndex >= allocator.currentFrameIndex - frameInUseCount`
-    /// 
+    ///
     /// For example, if you double-buffer your command buffers, so resources used for
     /// rendering in previous frame may still be in use by the GPU at the moment you
     /// allocate resources needed for the current frame, set this value to 1.
-    /// 
+    ///
     /// If you want to allow any allocations other than used in the current frame to
     /// become lost, set this value to 0.
     pub frame_in_use_count: u32,
 
     /// Either empty or an array of limits on maximum number of bytes that can be allocated
     /// out of particular Vulkan memory heap.
-    /// 
+    ///
     /// If not empty, it must contain `VkPhysicalDeviceMemoryProperties::memoryHeapCount` elements,
     /// defining limit on maximum number of bytes that can be allocated out of particular Vulkan
     /// memory heap.
-    /// 
+    ///
     /// Any of the elements may be equal to `ash::vk::WHOLE_SIZE`, which means no limit on that
     /// heap. This is also the default in case of an empty slice.
     ///
     /// If there is a limit defined for a heap:
-    /// 
+    ///
     /// * If user tries to allocate more memory from that heap using this allocator, the allocation
     /// fails with `VK_ERROR_OUT_OF_DEVICE_MEMORY`.
-    /// 
+    ///
     /// * If the limit is smaller than heap size reported in `VkMemoryHeap::size`, the value of this
     /// limit will be reported instead when using `Allocator::get_memory_properties`.
-    /// 
+    ///
     /// Warning! Using this feature may not be equivalent to installing a GPU with smaller amount of
     /// memory, because graphics driver doesn't necessary fail new allocations with
     /// `VK_ERROR_OUT_OF_DEVICE_MEMORY` result when memory capacity is exceeded. It may return success
@@ -274,7 +274,7 @@ pub struct AllocationCreateInfo {
     pub preferred_flags: ash::vk::MemoryPropertyFlags,
     pub memory_type_bits: u32,
     pub pool: Option<AllocatorPool>,
-    pub user_data: Option<*mut ::std::os::raw::c_void>
+    pub user_data: Option<*mut ::std::os::raw::c_void>,
 }
 
 impl Default for AllocationCreateInfo {
@@ -438,14 +438,14 @@ impl Allocator {
             flags: create_info.flags.bits(),
             frameInUseCount: create_info.frame_in_use_count,
             preferredLargeHeapBlockSize: create_info.preferred_large_heap_block_size as u64,
-            pHeapSizeLimit: match &create_info.heap_size_limits { 
+            pHeapSizeLimit: match &create_info.heap_size_limits {
                 None => ::std::ptr::null(),
                 Some(limits) => limits.as_ptr(),
             },
             pVulkanFunctions: &routed_functions,
             pAllocationCallbacks: ::std::ptr::null(), // TODO: Add support
             pDeviceMemoryCallbacks: ::std::ptr::null(), // TODO: Add support
-            pRecordSettings: ::std::ptr::null(), // TODO: Add support
+            pRecordSettings: ::std::ptr::null(),      // TODO: Add support
         };
         let mut internal: ffi::VmaAllocator = unsafe { mem::zeroed() };
         let result = ffi_to_result(unsafe {
@@ -924,11 +924,11 @@ impl Allocator {
 
     /// This function automatically creates a buffer, allocates appropriate memory
     /// for it, and binds the buffer with the memory.
-    /// 
+    ///
     /// If the function succeeded, you must destroy both buffer and allocation when you
     /// no longer need them using either convenience function `Allocator::destroy_buffer` or
     /// separately, using `ash::Device::destroy_buffer` and `Allocator::free_memory`.
-    /// 
+    ///
     /// If `AllocatorCreateFlags::KHR_DEDICATED_ALLOCATION` flag was used,
     /// VK_KHR_dedicated_allocation extension is used internally to query driver whether
     /// it requires or prefers the new buffer to have dedicated allocation. If yes,
@@ -980,11 +980,11 @@ impl Allocator {
 
     /// This function automatically creates an image, allocates appropriate memory
     /// for it, and binds the image with the memory.
-    /// 
+    ///
     /// If the function succeeded, you must destroy both image and allocation when you
     /// no longer need them using either convenience function `Allocator::destroy_image` or
     /// separately, using `ash::Device::destroy_image` and `Allocator::free_memory`.
-    /// 
+    ///
     /// If `AllocatorCreateFlags::KHR_DEDICATED_ALLOCATION` flag was used,
     /// `VK_KHR_dedicated_allocation extension` is used internally to query driver whether
     /// it requires or prefers the new image to have dedicated allocation. If yes,
