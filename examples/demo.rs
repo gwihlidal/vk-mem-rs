@@ -23,6 +23,17 @@ unsafe extern "system" fn vulkan_debug_callback(
     ash::vk::FALSE
 }
 
+fn _verify_result(result: ash::vk::Result) {
+    match result {
+        ash::vk::Result::SUCCESS => {
+            // Success
+        }
+        _ => {
+            panic!(format!("Vulkan/Allocator error occurred! {}", result));
+        }
+    }
+}
+
 fn main() {
     println!("Demo start");
 
@@ -113,9 +124,9 @@ fn main() {
             instance: instance.clone(),
         };
 
-        let mut allocator = vk_mem::Allocator::new(&create_info);
+        let mut allocator = vk_mem::Allocator::new(&create_info).unwrap();
 
-        let stats1 = allocator.build_stats_string(true);
+        let stats1 = allocator.build_stats_string(true).unwrap();
         println!("stats1:\n\n{}\n\n", stats1);
 
         let allocation_info = vk_mem::AllocationCreateInfo {
@@ -132,19 +143,19 @@ fn main() {
                 )
                 .build(),
             &allocation_info,
-        );
+        ).unwrap();
 
-        let stats2 = allocator.build_stats_string(true);
+        let stats2 = allocator.build_stats_string(true).unwrap();
         println!("stats2:\n\n{}\n\n", stats2);
 
-        let _vma_stats = allocator.calculate_stats();
+        let _vma_stats = allocator.calculate_stats().unwrap();
 
         //allocator.check_corruption(ash::vk::MemoryPropertyFlags::DEVICE_LOCAL);
         //allocator.check_corruption(ash::vk::MemoryPropertyFlags::all());
 
-        allocator.destroy_buffer(buffer, &allocation);
+        allocator.destroy_buffer(buffer, &allocation).unwrap();
 
-        let stats3 = allocator.build_stats_string(true);
+        let stats3 = allocator.build_stats_string(true).unwrap();
         println!("stats3:\n\n{}\n\n", stats3);
     }
 
