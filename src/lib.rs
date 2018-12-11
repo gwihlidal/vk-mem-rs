@@ -35,6 +35,47 @@ pub struct Allocation {
     pub(crate) info: ffi::VmaAllocationInfo,
 }
 
+impl Allocation {
+    #[inline(always)]
+    pub fn get_memory_type(&self) -> u32 {
+        self.info.memoryType
+    }
+
+    #[inline(always)]
+    pub fn get_device_memory(&self) -> ash::vk::DeviceMemory {
+        ash::vk::DeviceMemory::from_raw(self.info.deviceMemory as u64)
+    }
+
+    #[inline(always)]
+    pub fn get_offset(&self) -> usize {
+        self.info.offset as usize
+    }
+
+    #[inline(always)]
+    pub fn get_size(&self) -> usize {
+        self.info.size as usize
+    }
+
+    #[inline(always)]
+    pub fn get_mapped_data(&self) -> *mut u8 {
+        self.info.pMappedData as *mut u8
+    }
+
+    /*#[inline(always)]
+    pub fn get_mapped_slice(&self) -> Option<&mut &[u8]> {
+        if self.info.pMappedData.is_null() {
+            None
+        } else {
+            Some(unsafe { &mut ::std::slice::from_raw_parts(self.info.pMappedData as *mut u8, self.get_size()) })
+        }
+    }*/
+
+    #[inline(always)]
+    pub fn get_user_data(&self) -> *mut ::std::os::raw::c_void {
+        self.info.pUserData
+    }
+}
+
 #[derive(Clone)]
 pub struct AllocatorCreateInfo {
     pub physical_device: ash::vk::PhysicalDevice,
