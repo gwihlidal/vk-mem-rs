@@ -922,6 +922,19 @@ impl Allocator {
         }
     }
 
+    /// This function automatically creates a buffer, allocates appropriate memory
+    /// for it, and binds the buffer with the memory.
+    /// 
+    /// If the function succeeded, you must destroy both buffer and allocation when you
+    /// no longer need them using either convenience function `Allocator::destroy_buffer` or
+    /// separately, using `ash::Device::destroy_buffer` and `Allocator::free_memory`.
+    /// 
+    /// If `AllocatorCreateFlags::KHR_DEDICATED_ALLOCATION` flag was used,
+    /// VK_KHR_dedicated_allocation extension is used internally to query driver whether
+    /// it requires or prefers the new buffer to have dedicated allocation. If yes,
+    /// and if dedicated allocation is possible (AllocationCreateInfo::pool is null
+    /// and `AllocationCreateFlags::NEVER_ALLOCATE` is not used), it creates dedicated
+    /// allocation for this buffer, just like when using `AllocationCreateFlags::DEDICATED_MEMORY`.
     pub fn create_buffer(
         &mut self,
         buffer_info: &ash::vk::BufferCreateInfo,
@@ -965,6 +978,19 @@ impl Allocator {
         Ok(())
     }
 
+    /// This function automatically creates an image, allocates appropriate memory
+    /// for it, and binds the image with the memory.
+    /// 
+    /// If the function succeeded, you must destroy both image and allocation when you
+    /// no longer need them using either convenience function `Allocator::destroy_image` or
+    /// separately, using `ash::Device::destroy_image` and `Allocator::free_memory`.
+    /// 
+    /// If `AllocatorCreateFlags::KHR_DEDICATED_ALLOCATION` flag was used,
+    /// `VK_KHR_dedicated_allocation extension` is used internally to query driver whether
+    /// it requires or prefers the new image to have dedicated allocation. If yes,
+    /// and if dedicated allocation is possible (AllocationCreateInfo::pool is null
+    /// and `AllocationCreateFlags::NEVER_ALLOCATE` is not used), it creates dedicated
+    /// allocation for this image, just like when using `AllocationCreateFlags::DEDICATED_MEMORY`.
     pub fn create_image(
         &mut self,
         image_info: &ash::vk::ImageCreateInfo,
