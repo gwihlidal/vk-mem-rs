@@ -25,7 +25,7 @@ pub struct Allocator {
 }
 
 /// Represents custom memory pool
-/// 
+///
 /// Fill structure `AllocatorPoolCreateInfo` and call `Allocator::create_pool` to create it.
 /// Call `Allocator::destroy_pool` to destroy it.
 #[derive(Debug, Clone)]
@@ -44,20 +44,20 @@ impl Default for AllocatorPool {
 }
 
 /// Represents single memory allocation.
-/// 
+///
 /// It may be either dedicated block of `ash::vk::DeviceMemory` or a specific region of a
 /// bigger block of this type plus unique offset.
-/// 
+///
 /// Although the library provides convenience functions that create a Vulkan buffer or image,
 /// allocate memory for it and bind them together, binding of the allocation to a buffer or an
 /// image is out of scope of the allocation itself.
-/// 
+///
 /// Allocation object can exist without buffer/image bound, binding can be done manually by
 /// the user, and destruction of it can be done independently of destruction of the allocation.
-/// 
+///
 /// The object also remembers its size and some other information. To retrieve this information,
 /// use `Allocator::get_allocation_info` and use accessors on `Allocation`.
-/// 
+///
 /// Some kinds allocations can be in lost state.
 #[derive(Debug, Clone)]
 pub struct Allocation {
@@ -76,12 +76,12 @@ impl Allocation {
     }
 
     /// Handle to Vulkan memory object.
-    /// 
+    ///
     /// Same memory object can be shared by multiple allocations.
-    /// 
+    ///
     /// It can change after call to `Allocator::defragment` if this allocation is passed
     /// to the function, or if allocation is lost.
-    /// 
+    ///
     /// If the allocation is lost, it is equal to `ash::vk::DeviceMemory::null()`.
     #[inline(always)]
     pub fn get_device_memory(&self) -> ash::vk::DeviceMemory {
@@ -90,7 +90,7 @@ impl Allocation {
 
     /// Offset into device memory object to the beginning of this allocation, in bytes.
     /// (`get_device_memory()`, `get_offset()`) pair is unique to this allocation.
-    /// 
+    ///
     /// It can change after call to `Allocator::defragment` if this allocation is passed
     /// to the function, or if allocation is lost.
     #[inline(always)]
@@ -99,7 +99,7 @@ impl Allocation {
     }
 
     /// Size of this allocation, in bytes.
-    /// 
+    ///
     /// It never changes, unless allocation is lost.
     #[inline(always)]
     pub fn get_size(&self) -> usize {
@@ -107,10 +107,10 @@ impl Allocation {
     }
 
     /// Pointer to the beginning of this allocation as mapped data.
-    /// 
+    ///
     /// If the allocation hasn't been mapped using `Allocator::map_memory` and hasn't been
     /// created with `AllocationCreateFlags::MAPPED` flag, this value is null.
-    /// 
+    ///
     /// It can change after call to `Allocator::map_memory`, `Allocator::unmap_memory`.
     /// It can also change after call to `Allocator::defragment` if this allocation is
     /// passed to the function.
@@ -129,7 +129,7 @@ impl Allocation {
     }*/
 
     /// Custom general-purpose pointer that was passed as `AllocationCreateInfo::user_data` or set using `Allocator::set_allocation_user_data`.
-    /// 
+    ///
     /// It can change after a call to `Allocator::set_allocation_user_data` for this allocation.
     #[inline(always)]
     pub fn get_user_data(&self) -> *mut ::std::os::raw::c_void {
@@ -199,7 +199,7 @@ pub struct AllocatorCreateInfo {
     /// Maximum number of additional frames that are in use at the same time as current frame.
     ///
     /// This value is used only when you make allocations with `AllocationCreateFlags::CAN_BECOME_LOST` flag.
-    /// 
+    ///
     /// Such allocations cannot become lost if:
     /// `allocation.lastUseFrameIndex >= allocator.currentFrameIndex - frameInUseCount`
     ///
@@ -491,10 +491,10 @@ bitflags! {
 #[derive(Debug, Clone)]
 pub struct AllocationCreateInfo {
     /// Intended usage of memory.
-    /// 
+    ///
     /// You can leave `MemoryUsage::UNKNOWN` if you specify memory requirements
     /// in another way.
-    /// 
+    ///
     /// If `pool` is not `None`, this member is ignored.
     pub usage: MemoryUsage,
 
@@ -502,37 +502,37 @@ pub struct AllocationCreateInfo {
     pub flags: AllocationCreateFlags,
 
     /// Flags that must be set in a Memory Type chosen for an allocation.
-    /// 
+    ///
     /// Leave 0 if you specify memory requirements in other way.
-    /// 
+    ///
     /// If `pool` is not `None`, this member is ignored.
     pub required_flags: ash::vk::MemoryPropertyFlags,
 
     /// Flags that preferably should be set in a memory type chosen for an allocation.
-    /// 
+    ///
     /// Set to 0 if no additional flags are prefered.
-    /// 
+    ///
     /// If `pool` is not `None`, this member is ignored.
     pub preferred_flags: ash::vk::MemoryPropertyFlags,
 
     /// Bit mask containing one bit set for every memory type acceptable for this allocation.
-    /// 
+    ///
     /// Value 0 is equivalent to `std::u32::MAX` - it means any memory type is accepted if
     /// it meets other requirements specified by this structure, with no further restrictions
     /// on memory type index.
-    /// 
+    ///
     /// If `pool` is not `None`, this member is ignored.
     pub memory_type_bits: u32,
 
     /// Pool that this allocation should be created in.
-    /// 
+    ///
     /// Specify `None` to allocate from default pool. If not `None`, members:
     /// `usage`, `required_flags`, `preferred_flags`, `memory_type_bits` are ignored.
     pub pool: Option<AllocatorPool>,
 
     /// Custom general-purpose pointer that will be stored in `Allocation`, can be read
     /// as `Allocation::get_user_data()` and changed using `Allocator::set_allocation_user_data`.
-    /// 
+    ///
     /// If `AllocationCreateFlags::USER_DATA_COPY_STRING` is used, it must be either null or pointer to a
     /// null-terminated string. The string will be then copied to internal buffer, so it
     /// doesn't need to be valid after allocation call.
@@ -624,7 +624,7 @@ pub struct DefragmentationInfo {
     pub max_bytes_to_move: usize,
 
     /// Maximum number of allocations that can be moved to different place.
-    /// 
+    ///
     /// Default is `std::u32::MAX`, which means no limit.
     pub max_allocations_to_move: u32,
 }
@@ -799,7 +799,7 @@ impl Allocator {
     }
 
     /// Given a memory type index, returns `ash::vk::MemoryPropertyFlags` of this memory type.
-    /// 
+    ///
     /// This is just a convenience function; the same information can be obtained using
     /// `Allocator::get_memory_properties`.
     pub fn get_memory_type_properties(
@@ -816,7 +816,7 @@ impl Allocator {
     }
 
     /// Sets index of the current frame.
-    /// 
+    ///
     /// This function must be used if you make allocations with `AllocationCreateFlags::CAN_BECOME_LOST` and
     /// `AllocationCreateFlags::CAN_MAKE_OTHER_LOST` flags to inform the allocator when a new frame begins.
     /// Allocations queried using `Allocator::get_allocation_info` cannot become lost
@@ -863,14 +863,14 @@ impl Allocator {
     }
 
     /// Helps to find memory type index, given memory type bits and allocation info.
-    /// 
+    ///
     /// This algorithm tries to find a memory type that:
-    /// 
+    ///
     /// - Is allowed by memory type bits.
     /// - Contains all the flags from `allocation_info.required_flags`.
     /// - Matches intended usage.
     /// - Has as many flags from `allocation_info.preferred_flags` as possible.
-    /// 
+    ///
     /// Returns VK_ERROR_FEATURE_NOT_PRESENT if not found. Receiving such a result
     /// from this function or any other allocating function probably means that your
     /// device doesn't support any memory type with requested features for the specific
@@ -898,11 +898,11 @@ impl Allocator {
     }
 
     /// Helps to find memory type index, given buffer info and allocation info.
-    /// 
+    ///
     /// It can be useful e.g. to determine value to be used as `AllocatorPoolCreateInfo::memory_type_index`.
     /// It internally creates a temporary, dummy buffer that never has memory bound.
     /// It is just a convenience function, equivalent to calling:
-    /// 
+    ///
     /// - `ash::vk::Device::create_buffer`
     /// - `ash::vk::Device::get_buffer_memory_requirements`
     /// - `Allocator::find_memory_type_index`
@@ -932,11 +932,11 @@ impl Allocator {
     }
 
     /// Helps to find memory type index, given image info and allocation info.
-    /// 
+    ///
     /// It can be useful e.g. to determine value to be used as `AllocatorPoolCreateInfo::memory_type_index`.
     /// It internally creates a temporary, dummy image that never has memory bound.
     /// It is just a convenience function, equivalent to calling:
-    /// 
+    ///
     /// - `ash::vk::Device::create_image`
     /// - `ash::vk::Device::get_image_memory_requirements`
     /// - `Allocator::find_memory_type_index`
@@ -997,7 +997,7 @@ impl Allocator {
 
     /// Marks all allocations in given pool as lost if they are not used in current frame
     /// or AllocatorPoolCreateInfo::frame_in_use_count` back from now.
-    /// 
+    ///
     /// Returns the number of allocations marked as lost.
     pub fn make_pool_allocations_lost(&mut self, pool: &mut AllocatorPool) -> Result<usize> {
         let mut lost_count: usize = 0;
@@ -1008,13 +1008,13 @@ impl Allocator {
     }
 
     /// Checks magic number in margins around all allocations in given memory pool in search for corruptions.
-    /// 
+    ///
     /// Corruption detection is enabled only when `VMA_DEBUG_DETECT_CORRUPTION` macro is defined to nonzero,
     /// `VMA_DEBUG_MARGIN` is defined to nonzero and the pool is created in memory type that is
     /// `HOST_VISIBLE` and `HOST_COHERENT`.
-    /// 
+    ///
     /// Possible error values:
-    /// 
+    ///
     /// - `VK_ERROR_FEATURE_NOT_PRESENT` - corruption detection is not enabled for specified pool.
     /// - `VK_ERROR_VALIDATION_FAILED_EXT` - corruption detection has been performed and found memory corruptions around one of the allocations.
     ///   `VMA_ASSERT` is also fired in that case.
@@ -1029,9 +1029,9 @@ impl Allocator {
     }
 
     /// General purpose memory allocation.
-    /// 
+    ///
     /// You should free the memory using `Allocator::free_memory`.
-    /// 
+    ///
     /// It is recommended to use `Allocator::allocate_memory_for_buffer`, `Allocator::allocate_memory_for_image`,
     /// `Allocator::create_buffer`, `Allocator::create_image` instead whenever possible.
     pub fn allocate_memory(
@@ -1062,7 +1062,7 @@ impl Allocator {
     }
 
     /// Buffer specialized memory allocation.
-    /// 
+    ///
     /// You should free the memory using `Allocator::free_memory`.
     pub fn allocate_memory_for_buffer(
         &mut self,
@@ -1088,7 +1088,7 @@ impl Allocator {
     }
 
     /// Image specialized memory allocation.
-    /// 
+    ///
     /// You should free the memory using `Allocator::free_memory`.
     pub fn allocate_memory_for_image(
         &mut self,
@@ -1123,18 +1123,18 @@ impl Allocator {
     }
 
     /// Tries to resize an allocation in place, if there is enough free memory after it.
-    /// 
+    ///
     /// Tries to change allocation's size without moving or reallocating it.
     /// You can both shrink and grow allocation size.
     /// When growing, it succeeds only when the allocation belongs to a memory block with enough
     /// free space after it.
-    /// 
+    ///
     /// Returns `VK_SUCCESS` if allocation's size has been successfully changed.
     /// Returns `VK_ERROR_OUT_OF_POOL_MEMORY` if allocation's size could not be changed.
-    /// 
+    ///
     /// After successful call to this function, `AllocationInfo::get_size` of this allocation changes.
     /// All other parameters stay the same: memory pool and type, alignment, offset, mapped pointer.
-    /// 
+    ///
     /// - Calling this function on allocation that is in lost state fails with result `VK_ERROR_VALIDATION_FAILED_EXT`.
     /// - Calling this function with `new_size` same as current allocation size does nothing and returns `VK_SUCCESS`.
     /// - Resizing dedicated allocations, as well as allocations created in pools that use linear
@@ -1155,17 +1155,17 @@ impl Allocator {
     }
 
     /// Returns current information about specified allocation and atomically marks it as used in current frame.
-    /// 
+    ///
     /// Current paramters of given allocation are returned in accessors on `Allocation`
-    /// 
+    ///
     /// This function also atomically "touches" allocation - marks it as used in current frame,
     /// just like `Allocator::touch_allocation`.
-    /// 
+    ///
     /// If the allocation is in lost state, `allocation.get_device_memory()` is `ash::vk::DeviceMemory::null()`.
-    /// 
+    ///
     /// Although this function uses atomics and doesn't lock any mutex, so it should be quite efficient,
     /// you can avoid calling it too often.
-    /// 
+    ///
     /// If you just want to check if allocation is not lost, `Allocator::touch_allocation` will work faster.
     pub fn get_allocation_info(&mut self, allocation: &mut Allocation) -> Result<()> {
         unsafe {
@@ -1175,16 +1175,16 @@ impl Allocator {
     }
 
     /// Returns `true` if allocation is not lost and atomically marks it as used in current frame.
-    /// 
+    ///
     /// If the allocation has been created with `AllocationCreateFlags::CAN_BECOME_LOST` flag,
     /// this function returns `true` if it's not in lost state, so it can still be used.
     /// It then also atomically "touches" the allocation - marks it as used in current frame,
     /// so that you can be sure it won't become lost in current frame or next `frame_in_use_count` frames.
-    /// 
+    ///
     /// If the allocation is in lost state, the function returns `false`.
     /// Memory of such allocation, as well as buffer or image bound to it, should not be used.
     /// Lost allocation and the buffer/image still need to be destroyed.
-    /// 
+    ///
     /// If the allocation has been created without `AllocationCreateFlags::CAN_BECOME_LOST` flag,
     /// this function always returns `true`.
     pub fn touch_allocation(&mut self, allocation: &Allocation) -> Result<bool> {
@@ -1193,14 +1193,14 @@ impl Allocator {
     }
 
     /// Sets user data in given allocation to new value.
-    /// 
+    ///
     /// If the allocation was created with `AllocationCreateFlags::USER_DATA_COPY_STRING`,
     /// `user_data` must be either null, or pointer to a null-terminated string. The function
     /// makes local copy of the string and sets it as allocation's user data. String
     /// passed as user data doesn't need to be valid for whole lifetime of the allocation -
     /// you can free it after this call. String previously pointed by allocation's
     /// user data is freed from memory.
-    /// 
+    ///
     /// If the flag was not used, the value of pointer `user_data` is just copied to
     /// allocation's user data. It is opaque, so you can use it however you want - e.g.
     /// as a pointer, ordinal number or some handle to you own data.
@@ -1214,11 +1214,11 @@ impl Allocator {
     }
 
     /// Creates new allocation that is in lost state from the beginning.
-    /// 
+    ///
     /// It can be useful if you need a dummy, non-null allocation.
-    /// 
+    ///
     /// You still need to destroy created object using `Allocator::free_memory`.
-    /// 
+    ///
     /// Returned allocation is not tied to any specific memory pool or memory type and
     /// not bound to any image or buffer. It has size = 0. It cannot be turned into
     /// a real, non-empty allocation.
@@ -1231,37 +1231,37 @@ impl Allocator {
     }
 
     /// Maps memory represented by given allocation and returns pointer to it.
-    /// 
+    ///
     /// Maps memory represented by given allocation to make it accessible to CPU code.
     /// When succeeded, result is a pointer to first byte of this memory.
-    /// 
+    ///
     /// If the allocation is part of bigger `ash::vk::DeviceMemory` block, the pointer is
     /// correctly offseted to the beginning of region assigned to this particular
     /// allocation.
-    /// 
+    ///
     /// Mapping is internally reference-counted and synchronized, so despite raw Vulkan
     /// function `ash::vk::Device::MapMemory` cannot be used to map same block of
     /// `ash::vk::DeviceMemory` multiple times simultaneously, it is safe to call this
     /// function on allocations assigned to the same memory block. Actual Vulkan memory
     /// will be mapped on first mapping and unmapped on last unmapping.
-    /// 
+    ///
     /// If the function succeeded, you must call `Allocator::unmap_memory` to unmap the
     /// allocation when mapping is no longer needed or before freeing the allocation, at
     /// the latest.
-    /// 
+    ///
     /// It also safe to call this function multiple times on the same allocation. You
-    /// must call `Allocator::unmap_memory` same number of times as you called 
+    /// must call `Allocator::unmap_memory` same number of times as you called
     /// `Allocator::map_memory`.
-    /// 
+    ///
     /// It is also safe to call this function on allocation created with
     /// `AllocationCreateFlags::MAPPED` flag. Its memory stays mapped all the time.
     /// You must still call `Allocator::unmap_memory` same number of times as you called
     /// `Allocator::map_memory`. You must not call `Allocator::unmap_memory` additional
     /// time to free the "0-th" mapping made automatically due to `AllocationCreateFlags::MAPPED` flag.
-    /// 
+    ///
     /// This function fails when used on allocation made in memory type that is not
     /// `HOST_VISIBLE`.
-    /// 
+    ///
     /// This function always fails when called for allocation that was created with
     /// `AllocationCreateFlags::CAN_BECOME_LOST` flag. Such allocations cannot be mapped.
     pub fn map_memory(&mut self, allocation: &Allocation) -> Result<*mut u8> {
@@ -1284,9 +1284,9 @@ impl Allocator {
     }
 
     /// Flushes memory of given allocation.
-    /// 
+    ///
     /// Calls `ash::vk::Device::FlushMappedMemoryRanges` for memory associated with given range of given allocation.
-    /// 
+    ///
     /// - `offset` must be relative to the beginning of allocation.
     /// - `size` can be `ash::vk::WHOLE_SIZE`. It means all memory from `offset` the the end of given allocation.
     /// - `offset` and `size` don't have to be aligned; hey are internally rounded down/up to multiple of `nonCoherentAtomSize`.
@@ -1310,9 +1310,9 @@ impl Allocator {
     }
 
     /// Invalidates memory of given allocation.
-    /// 
+    ///
     /// Calls `ash::vk::Device::invalidate_mapped_memory_ranges` for memory associated with given range of given allocation.
-    /// 
+    ///
     /// - `offset` must be relative to the beginning of allocation.
     /// - `size` can be `ash::vk::WHOLE_SIZE`. It means all memory from `offset` the the end of given allocation.
     /// - `offset` and `size` don't have to be aligned. They are internally rounded down/up to multiple of `nonCoherentAtomSize`.
@@ -1336,14 +1336,14 @@ impl Allocator {
     }
 
     /// Checks magic number in margins around all allocations in given memory types (in both default and custom pools) in search for corruptions.
-    /// 
+    ///
     /// `memory_type_bits` bit mask, where each bit set means that a memory type with that index should be checked.
-    /// 
+    ///
     /// Corruption detection is enabled only when `VMA_DEBUG_DETECT_CORRUPTION` macro is defined to nonzero,
-    /// `VMA_DEBUG_MARGIN` is defined to nonzero and only for memory types that are `HOST_VISIBLE` and `HOST_COHERENT`. 
-    /// 
+    /// `VMA_DEBUG_MARGIN` is defined to nonzero and only for memory types that are `HOST_VISIBLE` and `HOST_COHERENT`.
+    ///
     /// Possible error values:
-    /// 
+    ///
     /// - `VK_ERROR_FEATURE_NOT_PRESENT` - corruption detection is not enabled for any of specified memory types.
     /// - `VK_ERROR_VALIDATION_FAILED_EXT` - corruption detection has been performed and found memory corruptions around one of the allocations.
     ///   `VMA_ASSERT` is also fired in that case.
@@ -1358,40 +1358,40 @@ impl Allocator {
     }
 
     /// Compacts memory by moving allocations.
-    /// 
+    ///
     /// `allocations` is a slice of allocations that can be moved during this compaction.
     /// `defrag_info` optional configuration parameters.
     /// Returns statistics from the defragmentation, and an associated array to `allocations`
     /// which indicates which allocations were changed (if any).
-    /// 
+    ///
     /// Possible error values:
-    /// 
+    ///
     /// - `VK_INCOMPLETE` if succeeded but didn't make all possible optimizations because limits specified in
     ///   `defrag_info` have been reached, negative error code in case of error.
-    /// 
+    ///
     /// This function works by moving allocations to different places (different
     /// `ash::vk::DeviceMemory` objects and/or different offsets) in order to optimize memory
     /// usage. Only allocations that are in `allocations` slice can be moved. All other
     /// allocations are considered nonmovable in this call. Basic rules:
-    /// 
+    ///
     /// - Only allocations made in memory types that have
     ///   `VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT` and `VK_MEMORY_PROPERTY_HOST_COHERENT_BIT`
     ///   flags can be compacted. You may pass other allocations but it makes no sense -
     ///   these will never be moved.
-    /// 
+    ///
     /// - Custom pools created with `AllocatorPoolCreateFlags::LINEAR_ALGORITHM` or `AllocatorPoolCreateFlags::BUDDY_ALGORITHM` flag are not
     ///   defragmented. Allocations passed to this function that come from such pools are ignored.
-    /// 
+    ///
     /// - Allocations created with `AllocationCreateFlags::DEDICATED_MEMORY` or created as dedicated allocations for any
     ///   other reason are also ignored.
-    /// 
+    ///
     /// - Both allocations made with or without `AllocationCreateFlags::MAPPED` flag can be compacted. If not persistently
     ///   mapped, memory will be mapped temporarily inside this function if needed.
-    /// 
+    ///
     /// - You must not pass same `allocation` object multiple times in `allocations` slice.
-    /// 
+    ///
     /// The function also frees empty `ash::vk::DeviceMemory` blocks.
-    /// 
+    ///
     /// Warning: This function may be time-consuming, so you shouldn't call it too often
     /// (like after every resource creation/destruction).
     /// You can call it on special occasions (like when reloading a game level or
@@ -1408,18 +1408,14 @@ impl Allocator {
             .collect();
         let mut ffi_change_list: Vec<ffi::VkBool32> = vec![0; ffi_allocations.len()];
         let ffi_info = match defrag_info {
-            Some(info) => {
-                ffi::VmaDefragmentationInfo {
-                    maxBytesToMove: info.max_bytes_to_move as ffi::VkDeviceSize,
-                    maxAllocationsToMove: info.max_allocations_to_move,
-                }
+            Some(info) => ffi::VmaDefragmentationInfo {
+                maxBytesToMove: info.max_bytes_to_move as ffi::VkDeviceSize,
+                maxAllocationsToMove: info.max_allocations_to_move,
             },
-            None => {
-                ffi::VmaDefragmentationInfo {
-                    maxBytesToMove: ash::vk::WHOLE_SIZE,
-                    maxAllocationsToMove: std::u32::MAX,
-                }
-            }
+            None => ffi::VmaDefragmentationInfo {
+                maxBytesToMove: ash::vk::WHOLE_SIZE,
+                maxAllocationsToMove: std::u32::MAX,
+            },
         };
         let mut ffi_stats: ffi::VmaDefragmentationStats = unsafe { mem::zeroed() };
         let result = ffi_to_result(unsafe {
@@ -1453,17 +1449,17 @@ impl Allocator {
     }
 
     /// Binds buffer to allocation.
-    /// 
+    ///
     /// Binds specified buffer to region of memory represented by specified allocation.
     /// Gets `ash::vk::DeviceMemory` handle and offset from the allocation.
-    /// 
+    ///
     /// If you want to create a buffer, allocate memory for it and bind them together separately,
     /// you should use this function for binding instead of `ash::vk::Device::bind_buffer_memory`,
     /// because it ensures proper synchronization so that when a `ash::vk::DeviceMemory` object is
-    /// used by multiple allocations, calls to `ash::vk::Device::bind_buffer_memory()` or 
+    /// used by multiple allocations, calls to `ash::vk::Device::bind_buffer_memory()` or
     /// `ash::vk::Device::map_memory()` won't happen from multiple threads simultaneously
     /// (which is illegal in Vulkan).
-    /// 
+    ///
     /// It is recommended to use function `Allocator::create_buffer` instead of this one.
     pub fn bind_buffer_memory(
         &mut self,
@@ -1484,17 +1480,17 @@ impl Allocator {
     }
 
     /// Binds image to allocation.
-    /// 
+    ///
     /// Binds specified image to region of memory represented by specified allocation.
     /// Gets `ash::vk::DeviceMemory` handle and offset from the allocation.
-    /// 
+    ///
     /// If you want to create a image, allocate memory for it and bind them together separately,
     /// you should use this function for binding instead of `ash::vk::Device::bind_image_memory`,
     /// because it ensures proper synchronization so that when a `ash::vk::DeviceMemory` object is
-    /// used by multiple allocations, calls to `ash::vk::Device::bind_image_memory()` or 
+    /// used by multiple allocations, calls to `ash::vk::Device::bind_image_memory()` or
     /// `ash::vk::Device::map_memory()` won't happen from multiple threads simultaneously
     /// (which is illegal in Vulkan).
-    /// 
+    ///
     /// It is recommended to use function `Allocator::create_image` instead of this one.
     pub fn bind_image_memory(
         &mut self,
@@ -1556,14 +1552,14 @@ impl Allocator {
     }
 
     /// Destroys Vulkan buffer and frees allocated memory.
-    /// 
+    ///
     /// This is just a convenience function equivalent to:
-    /// 
+    ///
     /// ```ignore
     /// ash::vk::Device::destroy_buffer(buffer, None);
     /// Allocator::free_memory(allocator, allocation);
     /// ```
-    /// 
+    ///
     /// It it safe to pass null as `buffer` and/or `allocation`.
     pub fn destroy_buffer(
         &mut self,
@@ -1621,14 +1617,14 @@ impl Allocator {
     }
 
     /// Destroys Vulkan image and frees allocated memory.
-    /// 
+    ///
     /// This is just a convenience function equivalent to:
-    /// 
+    ///
     /// ```ignore
     /// ash::vk::Device::destroy_image(image, None);
     /// Allocator::free_memory(allocator, allocation);
     /// ```
-    /// 
+    ///
     /// It it safe to pass null as `image` and/or `allocation`.
     pub fn destroy_image(&mut self, image: ash::vk::Image, allocation: &Allocation) -> Result<()> {
         unsafe {
