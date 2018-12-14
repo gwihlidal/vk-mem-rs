@@ -133,7 +133,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vk-mem = "0.1.2"
+vk-mem = "0.1.3"
 ```
 
 and add this to your crate root:

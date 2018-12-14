@@ -615,6 +615,8 @@ impl Default for AllocatorPoolCreateInfo {
 }
 
 /// Optional configuration parameters to be passed to `Allocator::defragment`
+/// 
+/// DEPRECATED.
 #[derive(Debug, Copy, Clone)]
 pub struct DefragmentationInfo {
     /// Maximum total numbers of bytes that can be copied while moving
@@ -725,6 +727,9 @@ impl Allocator {
                 )),
                 vkDestroyImage: mem::transmute::<_, ffi::PFN_vkDestroyImage>(Some(
                     device.fp_v1_0().destroy_image,
+                )),
+                vkCmdCopyBuffer: mem::transmute::<_, ffi::PFN_vkCmdCopyBuffer>(Some(
+                    device.fp_v1_0().cmd_copy_buffer,
                 )),
                 vkGetBufferMemoryRequirements2KHR: mem::transmute::<
                     _,
@@ -1030,7 +1035,7 @@ impl Allocator {
 
     /// General purpose memory allocation.
     ///
-    /// You should free the memory using `Allocator::free_memory`.
+    /// You should free the memory using `Allocator::free_memory` or 'Allocator::free_memory_pages'.
     ///
     /// It is recommended to use `Allocator::allocate_memory_for_buffer`, `Allocator::allocate_memory_for_image`,
     /// `Allocator::create_buffer`, `Allocator::create_image` instead whenever possible.
@@ -1061,9 +1066,57 @@ impl Allocator {
         }
     }
 
+    /// General purpose memory allocation for multiple allocation objects at once.
+    /// 
+    /// You should free the memory using `Allocator::free_memory` or `Allocator::free_memory_pages`.
+    /// 
+    /// Word "pages" is just a suggestion to use this function to allocate pieces of memory needed for sparse binding.
+    /// It is just a general purpose allocation function able to make multiple allocations at once.
+    /// It may be internally optimized to be more efficient than calling `Allocator::allocate_memory` `allocations.len()` times.
+    /// 
+    /// All allocations are made using same parameters. All of them are created out of the same memory pool and type.
+    pub fn allocate_memory_pages(
+        &mut self,
+        memory_requirements: &ash::vk::MemoryRequirements,
+        allocation_info: &AllocationCreateInfo,
+        allocation_count: usize,
+    ) -> Result<Vec<Allocation>> {
+        let ffi_requirements = unsafe {
+            mem::transmute::<ash::vk::MemoryRequirements, ffi::VkMemoryRequirements>(
+                *memory_requirements,
+            )
+        };
+        let create_info = allocation_create_info_to_ffi(&allocation_info);
+        let mut allocations: Vec<ffi::VmaAllocation> = vec![unsafe { mem::zeroed() }; allocation_count];
+        let mut allocation_info: Vec<ffi::VmaAllocationInfo> = vec![unsafe { mem::zeroed() }; allocation_count];
+        let result = ffi_to_result(unsafe {
+            ffi::vmaAllocateMemoryPages(
+                self.internal,
+                &ffi_requirements,
+                &create_info,
+                allocation_count,
+                allocations.as_mut_ptr(),
+                allocation_info.as_mut_ptr(),
+            )
+        });
+        match result {
+            ash::vk::Result::SUCCESS => {
+                let it = allocations.iter().zip(allocation_info.iter());
+                let allocations: Vec<Allocation> = it.map(|(alloc, info)| {
+                    Allocation {
+                        internal: *alloc,
+                        info: *info,
+                    }
+                }).collect();
+                Ok(allocations)
+            },
+            _ => Err(Error::vulkan(result)),
+        }
+    }
+
     /// Buffer specialized memory allocation.
     ///
-    /// You should free the memory using `Allocator::free_memory`.
+    /// You should free the memory using `Allocator::free_memory` or 'Allocator::free_memory_pages'.
     pub fn allocate_memory_for_buffer(
         &mut self,
         buffer: ash::vk::Buffer,
@@ -1089,7 +1142,7 @@ impl Allocator {
 
     /// Image specialized memory allocation.
     ///
-    /// You should free the memory using `Allocator::free_memory`.
+    /// You should free the memory using `Allocator::free_memory` or 'Allocator::free_memory_pages'.
     pub fn allocate_memory_for_image(
         &mut self,
         image: ash::vk::Image,
@@ -1118,6 +1171,28 @@ impl Allocator {
     pub fn free_memory(&mut self, allocation: &Allocation) -> Result<()> {
         unsafe {
             ffi::vmaFreeMemory(self.internal, allocation.internal);
+        }
+        Ok(())
+    }
+
+    /// Frees memory and destroys multiple allocations.
+    /// 
+    /// Word "pages" is just a suggestion to use this function to free pieces of memory used for sparse binding.
+    /// It is just a general purpose function to free memory and destroy allocations made using e.g. `Allocator::allocate_memory',
+    /// 'Allocator::allocate_memory_pages` and other functions.
+    /// 
+    /// It may be internally optimized to be more efficient than calling 'Allocator::free_memory` `allocations.len()` times.
+    /// 
+    /// Allocations in 'allocations' slice can come from any memory pools and types.
+    pub fn free_memory_pages(&mut self, allocations: &[Allocation]) -> Result<()> {
+        let mut allocations_ffi: Vec<ffi::VmaAllocation> =
+            allocations.iter().map(|x| x.internal).collect();
+        unsafe {
+            ffi::vmaFreeMemoryPages(
+                self.internal,
+                allocations_ffi.len(),
+                allocations_ffi.as_mut_ptr(),
+            );
         }
         Ok(())
     }
@@ -1397,6 +1472,7 @@ impl Allocator {
     /// You can call it on special occasions (like when reloading a game level or
     /// when you just destroyed a lot of objects). Calling it every frame may be OK, but
     /// you should measure that on your platform.
+    #[deprecated(since="0.1.3", note="This is a part of the old interface. It is recommended to use structure `DefragmentationInfo2` and function `Allocator::defragmentation_begin` instead.")]
     pub fn defragment(
         &mut self,
         allocations: &[Allocation],

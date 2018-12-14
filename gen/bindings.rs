@@ -17,6 +17,12 @@ pub struct VkDevice_T {
 pub type VkDevice = *mut VkDevice_T;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct VkCommandBuffer_T {
+    _unused: [u8; 0],
+}
+pub type VkCommandBuffer = *mut VkCommandBuffer_T;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct VkDeviceMemory_T {
     _unused: [u8; 0],
 }
@@ -685,7 +691,7 @@ pub const VkStructureType_VK_STRUCTURE_TYPE_BEGIN_RANGE: VkStructureType = 0;
 pub const VkStructureType_VK_STRUCTURE_TYPE_END_RANGE: VkStructureType = 48;
 pub const VkStructureType_VK_STRUCTURE_TYPE_RANGE_SIZE: VkStructureType = 49;
 pub const VkStructureType_VK_STRUCTURE_TYPE_MAX_ENUM: VkStructureType = 2147483647;
-pub type VkStructureType = i32;
+pub type VkStructureType = u32;
 pub const VkSystemAllocationScope_VK_SYSTEM_ALLOCATION_SCOPE_COMMAND: VkSystemAllocationScope = 0;
 pub const VkSystemAllocationScope_VK_SYSTEM_ALLOCATION_SCOPE_OBJECT: VkSystemAllocationScope = 1;
 pub const VkSystemAllocationScope_VK_SYSTEM_ALLOCATION_SCOPE_CACHE: VkSystemAllocationScope = 2;
@@ -698,7 +704,7 @@ pub const VkSystemAllocationScope_VK_SYSTEM_ALLOCATION_SCOPE_RANGE_SIZE: VkSyste
     5;
 pub const VkSystemAllocationScope_VK_SYSTEM_ALLOCATION_SCOPE_MAX_ENUM: VkSystemAllocationScope =
     2147483647;
-pub type VkSystemAllocationScope = i32;
+pub type VkSystemAllocationScope = u32;
 pub const VkInternalAllocationType_VK_INTERNAL_ALLOCATION_TYPE_EXECUTABLE:
     VkInternalAllocationType = 0;
 pub const VkInternalAllocationType_VK_INTERNAL_ALLOCATION_TYPE_BEGIN_RANGE:
@@ -709,7 +715,7 @@ pub const VkInternalAllocationType_VK_INTERNAL_ALLOCATION_TYPE_RANGE_SIZE:
     VkInternalAllocationType = 1;
 pub const VkInternalAllocationType_VK_INTERNAL_ALLOCATION_TYPE_MAX_ENUM: VkInternalAllocationType =
     2147483647;
-pub type VkInternalAllocationType = i32;
+pub type VkInternalAllocationType = u32;
 pub const VkFormat_VK_FORMAT_UNDEFINED: VkFormat = 0;
 pub const VkFormat_VK_FORMAT_R4G4_UNORM_PACK8: VkFormat = 1;
 pub const VkFormat_VK_FORMAT_R4G4B4A4_UNORM_PACK16: VkFormat = 2;
@@ -975,7 +981,7 @@ pub const VkFormat_VK_FORMAT_BEGIN_RANGE: VkFormat = 0;
 pub const VkFormat_VK_FORMAT_END_RANGE: VkFormat = 184;
 pub const VkFormat_VK_FORMAT_RANGE_SIZE: VkFormat = 185;
 pub const VkFormat_VK_FORMAT_MAX_ENUM: VkFormat = 2147483647;
-pub type VkFormat = i32;
+pub type VkFormat = u32;
 pub const VkImageType_VK_IMAGE_TYPE_1D: VkImageType = 0;
 pub const VkImageType_VK_IMAGE_TYPE_2D: VkImageType = 1;
 pub const VkImageType_VK_IMAGE_TYPE_3D: VkImageType = 2;
@@ -983,7 +989,7 @@ pub const VkImageType_VK_IMAGE_TYPE_BEGIN_RANGE: VkImageType = 0;
 pub const VkImageType_VK_IMAGE_TYPE_END_RANGE: VkImageType = 2;
 pub const VkImageType_VK_IMAGE_TYPE_RANGE_SIZE: VkImageType = 3;
 pub const VkImageType_VK_IMAGE_TYPE_MAX_ENUM: VkImageType = 2147483647;
-pub type VkImageType = i32;
+pub type VkImageType = u32;
 pub const VkImageTiling_VK_IMAGE_TILING_OPTIMAL: VkImageTiling = 0;
 pub const VkImageTiling_VK_IMAGE_TILING_LINEAR: VkImageTiling = 1;
 pub const VkImageTiling_VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT: VkImageTiling = 1000158000;
@@ -991,7 +997,7 @@ pub const VkImageTiling_VK_IMAGE_TILING_BEGIN_RANGE: VkImageTiling = 0;
 pub const VkImageTiling_VK_IMAGE_TILING_END_RANGE: VkImageTiling = 1;
 pub const VkImageTiling_VK_IMAGE_TILING_RANGE_SIZE: VkImageTiling = 2;
 pub const VkImageTiling_VK_IMAGE_TILING_MAX_ENUM: VkImageTiling = 2147483647;
-pub type VkImageTiling = i32;
+pub type VkImageTiling = u32;
 pub const VkPhysicalDeviceType_VK_PHYSICAL_DEVICE_TYPE_OTHER: VkPhysicalDeviceType = 0;
 pub const VkPhysicalDeviceType_VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: VkPhysicalDeviceType = 1;
 pub const VkPhysicalDeviceType_VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: VkPhysicalDeviceType = 2;
@@ -1001,14 +1007,14 @@ pub const VkPhysicalDeviceType_VK_PHYSICAL_DEVICE_TYPE_BEGIN_RANGE: VkPhysicalDe
 pub const VkPhysicalDeviceType_VK_PHYSICAL_DEVICE_TYPE_END_RANGE: VkPhysicalDeviceType = 4;
 pub const VkPhysicalDeviceType_VK_PHYSICAL_DEVICE_TYPE_RANGE_SIZE: VkPhysicalDeviceType = 5;
 pub const VkPhysicalDeviceType_VK_PHYSICAL_DEVICE_TYPE_MAX_ENUM: VkPhysicalDeviceType = 2147483647;
-pub type VkPhysicalDeviceType = i32;
+pub type VkPhysicalDeviceType = u32;
 pub const VkSharingMode_VK_SHARING_MODE_EXCLUSIVE: VkSharingMode = 0;
 pub const VkSharingMode_VK_SHARING_MODE_CONCURRENT: VkSharingMode = 1;
 pub const VkSharingMode_VK_SHARING_MODE_BEGIN_RANGE: VkSharingMode = 0;
 pub const VkSharingMode_VK_SHARING_MODE_END_RANGE: VkSharingMode = 1;
 pub const VkSharingMode_VK_SHARING_MODE_RANGE_SIZE: VkSharingMode = 2;
 pub const VkSharingMode_VK_SHARING_MODE_MAX_ENUM: VkSharingMode = 2147483647;
-pub type VkSharingMode = i32;
+pub type VkSharingMode = u32;
 pub const VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED: VkImageLayout = 0;
 pub const VkImageLayout_VK_IMAGE_LAYOUT_GENERAL: VkImageLayout = 1;
 pub const VkImageLayout_VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: VkImageLayout = 2;
@@ -1033,7 +1039,7 @@ pub const VkImageLayout_VK_IMAGE_LAYOUT_BEGIN_RANGE: VkImageLayout = 0;
 pub const VkImageLayout_VK_IMAGE_LAYOUT_END_RANGE: VkImageLayout = 8;
 pub const VkImageLayout_VK_IMAGE_LAYOUT_RANGE_SIZE: VkImageLayout = 9;
 pub const VkImageLayout_VK_IMAGE_LAYOUT_MAX_ENUM: VkImageLayout = 2147483647;
-pub type VkImageLayout = i32;
+pub type VkImageLayout = u32;
 pub type VkImageUsageFlags = VkFlags;
 pub type VkImageCreateFlags = VkFlags;
 pub const VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT: VkSampleCountFlagBits = 1;
@@ -1045,7 +1051,7 @@ pub const VkSampleCountFlagBits_VK_SAMPLE_COUNT_32_BIT: VkSampleCountFlagBits = 
 pub const VkSampleCountFlagBits_VK_SAMPLE_COUNT_64_BIT: VkSampleCountFlagBits = 64;
 pub const VkSampleCountFlagBits_VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM: VkSampleCountFlagBits =
     2147483647;
-pub type VkSampleCountFlagBits = i32;
+pub type VkSampleCountFlagBits = u32;
 pub type VkSampleCountFlags = VkFlags;
 pub type VkMemoryPropertyFlags = VkFlags;
 pub type VkMemoryHeapFlags = VkFlags;
@@ -1315,6 +1321,13 @@ pub struct VkImageCreateInfo {
     pub pQueueFamilyIndices: *const u32,
     pub initialLayout: VkImageLayout,
 }
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct VkBufferCopy {
+    pub srcOffset: VkDeviceSize,
+    pub dstOffset: VkDeviceSize,
+    pub size: VkDeviceSize,
+}
 pub type PFN_vkGetPhysicalDeviceProperties = ::std::option::Option<
     unsafe extern "C" fn(
         physicalDevice: VkPhysicalDevice,
@@ -1428,6 +1441,15 @@ pub type PFN_vkDestroyImage = ::std::option::Option<
         pAllocator: *const VkAllocationCallbacks,
     ),
 >;
+pub type PFN_vkCmdCopyBuffer = ::std::option::Option<
+    unsafe extern "C" fn(
+        commandBuffer: VkCommandBuffer,
+        srcBuffer: VkBuffer,
+        dstBuffer: VkBuffer,
+        regionCount: u32,
+        pRegions: *const VkBufferCopy,
+    ),
+>;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct VkBufferMemoryRequirementsInfo2 {
@@ -1524,6 +1546,7 @@ pub struct VmaVulkanFunctions {
     pub vkDestroyBuffer: PFN_vkDestroyBuffer,
     pub vkCreateImage: PFN_vkCreateImage,
     pub vkDestroyImage: PFN_vkDestroyImage,
+    pub vkCmdCopyBuffer: PFN_vkCmdCopyBuffer,
     pub vkGetBufferMemoryRequirements2KHR: PFN_vkGetBufferMemoryRequirements2KHR,
     pub vkGetImageMemoryRequirements2KHR: PFN_vkGetImageMemoryRequirements2KHR,
 }
@@ -1774,7 +1797,7 @@ pub const VmaMemoryUsage_VMA_MEMORY_USAGE_MAX_ENUM: VmaMemoryUsage = 2147483647;
 #[doc = "Call function vmaDestroyPool() to destroy it."]
 #[doc = ""]
 #[doc = "For more information see [Custom memory pools](@ref choosing_memory_type_custom_memory_pools)."]
-pub type VmaMemoryUsage = i32;
+pub type VmaMemoryUsage = u32;
 pub type VmaAllocationCreateFlags = VkFlags;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -2037,7 +2060,7 @@ extern "C" {
     #[doc = "@param[out] pAllocation Handle to allocated memory."]
     #[doc = "@param[out] pAllocationInfo Optional. Information about allocated memory. It can be later fetched using function vmaGetAllocationInfo()."]
     #[doc = ""]
-    #[doc = "You should free the memory using vmaFreeMemory()."]
+    #[doc = "You should free the memory using vmaFreeMemory() or vmaFreeMemoryPages()."]
     #[doc = ""]
     #[doc = "It is recommended to use vmaAllocateMemoryForBuffer(), vmaAllocateMemoryForImage(),"]
     #[doc = "vmaCreateBuffer(), vmaCreateImage() instead whenever possible."]
@@ -2046,6 +2069,34 @@ extern "C" {
         pVkMemoryRequirements: *const VkMemoryRequirements,
         pCreateInfo: *const VmaAllocationCreateInfo,
         pAllocation: *mut VmaAllocation,
+        pAllocationInfo: *mut VmaAllocationInfo,
+    ) -> VkResult;
+}
+extern "C" {
+    #[doc = " \\brief General purpose memory allocation for multiple allocation objects at once."]
+    #[doc = ""]
+    #[doc = "@param allocator Allocator object."]
+    #[doc = "@param pVkMemoryRequirements Memory requirements for each allocation."]
+    #[doc = "@param pCreateInfo Creation parameters for each alloction."]
+    #[doc = "@param allocationCount Number of allocations to make."]
+    #[doc = "@param[out] pAllocations Pointer to array that will be filled with handles to created allocations."]
+    #[doc = "@param[out] pAllocationInfo Optional. Pointer to array that will be filled with parameters of created allocations."]
+    #[doc = ""]
+    #[doc = "You should free the memory using vmaFreeMemory() or vmaFreeMemoryPages()."]
+    #[doc = ""]
+    #[doc = "Word \"pages\" is just a suggestion to use this function to allocate pieces of memory needed for sparse binding."]
+    #[doc = "It is just a general purpose allocation function able to make multiple allocations at once."]
+    #[doc = "It may be internally optimized to be more efficient than calling vmaAllocateMemory() `allocationCount` times."]
+    #[doc = ""]
+    #[doc = "All allocations are made using same parameters. All of them are created out of the same memory pool and type."]
+    #[doc = "If any allocation fails, all allocations already made within this function call are also freed, so that when"]
+    #[doc = "returned result is not `VK_SUCCESS`, `pAllocation` array is always entirely filled with `VK_NULL_HANDLE`."]
+    pub fn vmaAllocateMemoryPages(
+        allocator: VmaAllocator,
+        pVkMemoryRequirements: *const VkMemoryRequirements,
+        pCreateInfo: *const VmaAllocationCreateInfo,
+        allocationCount: usize,
+        pAllocations: *mut VmaAllocation,
         pAllocationInfo: *mut VmaAllocationInfo,
     ) -> VkResult;
 }
@@ -2073,8 +2124,26 @@ extern "C" {
     ) -> VkResult;
 }
 extern "C" {
-    #[doc = " Frees memory previously allocated using vmaAllocateMemory(), vmaAllocateMemoryForBuffer(), or vmaAllocateMemoryForImage()."]
+    #[doc = " \\brief Frees memory previously allocated using vmaAllocateMemory(), vmaAllocateMemoryForBuffer(), or vmaAllocateMemoryForImage()."]
+    #[doc = ""]
+    #[doc = "Passing `VK_NULL_HANDLE` as `allocation` is valid. Such function call is just skipped."]
     pub fn vmaFreeMemory(allocator: VmaAllocator, allocation: VmaAllocation);
+}
+extern "C" {
+    #[doc = " \\brief Frees memory and destroys multiple allocations."]
+    #[doc = ""]
+    #[doc = "Word \"pages\" is just a suggestion to use this function to free pieces of memory used for sparse binding."]
+    #[doc = "It is just a general purpose function to free memory and destroy allocations made using e.g. vmaAllocateMemory(),"]
+    #[doc = "vmaAllocateMemoryPages() and other functions."]
+    #[doc = "It may be internally optimized to be more efficient than calling vmaFreeMemory() `allocationCount` times."]
+    #[doc = ""]
+    #[doc = "Allocations in `pAllocations` array can come from any memory pools and types."]
+    #[doc = "Passing `VK_NULL_HANDLE` as elements of `pAllocations` array is valid. Such entries are just skipped."]
+    pub fn vmaFreeMemoryPages(
+        allocator: VmaAllocator,
+        allocationCount: usize,
+        pAllocations: *mut VmaAllocation,
+    );
 }
 extern "C" {
     #[doc = " \\brief Tries to resize an allocation in place, if there is enough free memory after it."]
@@ -2273,7 +2342,81 @@ extern "C" {
     #[doc = "- Other value: Error returned by Vulkan, e.g. memory mapping failure."]
     pub fn vmaCheckCorruption(allocator: VmaAllocator, memoryTypeBits: u32) -> VkResult;
 }
-#[doc = " \\brief Optional configuration parameters to be passed to function vmaDefragment()."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct VmaDefragmentationContext_T {
+    _unused: [u8; 0],
+}
+pub type VmaDefragmentationContext = *mut VmaDefragmentationContext_T;
+pub type VmaDefragmentationFlags = VkFlags;
+#[doc = " \\brief Parameters for defragmentation."]
+#[doc = ""]
+#[doc = "To be used with function vmaDefragmentationBegin()."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct VmaDefragmentationInfo2 {
+    #[doc = " \\brief Reserved for future use. Should be 0."]
+    pub flags: VmaDefragmentationFlags,
+    #[doc = " \\brief Number of allocations in `pAllocations` array."]
+    pub allocationCount: u32,
+    #[doc = " \\brief Pointer to array of allocations that can be defragmented."]
+    #[doc = ""]
+    #[doc = "The array should have `allocationCount` elements."]
+    #[doc = "The array should not contain nulls."]
+    #[doc = "Elements in the array should be unique - same allocation cannot occur twice."]
+    #[doc = "It is safe to pass allocations that are in the lost state - they are ignored."]
+    #[doc = "All allocations not present in this array are considered non-moveable during this defragmentation."]
+    pub pAllocations: *mut VmaAllocation,
+    #[doc = " \\brief Optional, output. Pointer to array that will be filled with information whether the allocation at certain index has been changed during defragmentation."]
+    #[doc = ""]
+    #[doc = "The array should have `allocationCount` elements."]
+    #[doc = "You can pass null if you are not interested in this information."]
+    pub pAllocationsChanged: *mut VkBool32,
+    #[doc = " \\brief Numer of pools in `pPools` array."]
+    pub poolCount: u32,
+    #[doc = " \\brief Either null or pointer to array of pools to be defragmented."]
+    #[doc = ""]
+    #[doc = "All the allocations in the specified pools can be moved during defragmentation"]
+    #[doc = "and there is no way to check if they were really moved as in `pAllocationsChanged`,"]
+    #[doc = "so you must query all the allocations in all these pools for new `VkDeviceMemory`"]
+    #[doc = "and offset using vmaGetAllocationInfo() if you might need to recreate buffers"]
+    #[doc = "and images bound to them."]
+    #[doc = ""]
+    #[doc = "The array should have `poolCount` elements."]
+    #[doc = "The array should not contain nulls."]
+    #[doc = "Elements in the array should be unique - same pool cannot occur twice."]
+    #[doc = ""]
+    #[doc = "Using this array is equivalent to specifying all allocations from the pools in `pAllocations`."]
+    #[doc = "It might be more efficient."]
+    pub pPools: *mut VmaPool,
+    #[doc = " \\brief Maximum total numbers of bytes that can be copied while moving allocations to different places using transfers on CPU side, like `memcpy()`, `memmove()`."]
+    #[doc = ""]
+    #[doc = "`VK_WHOLE_SIZE` means no limit."]
+    pub maxCpuBytesToMove: VkDeviceSize,
+    #[doc = " \\brief Maximum number of allocations that can be moved to a different place using transfers on CPU side, like `memcpy()`, `memmove()`."]
+    #[doc = ""]
+    #[doc = "`UINT32_MAX` means no limit."]
+    pub maxCpuAllocationsToMove: u32,
+    #[doc = " \\brief Maximum total numbers of bytes that can be copied while moving allocations to different places using transfers on GPU side, posted to `commandBuffer`."]
+    #[doc = ""]
+    #[doc = "`VK_WHOLE_SIZE` means no limit."]
+    pub maxGpuBytesToMove: VkDeviceSize,
+    #[doc = " \\brief Maximum number of allocations that can be moved to a different place using transfers on GPU side, posted to `commandBuffer`."]
+    #[doc = ""]
+    #[doc = "`UINT32_MAX` means no limit."]
+    pub maxGpuAllocationsToMove: u32,
+    #[doc = " \\brief Optional. Command buffer where GPU copy commands will be posted."]
+    #[doc = ""]
+    #[doc = "If not null, it must be a valid command buffer handle that supports Transfer queue type."]
+    #[doc = "It must be in the recording state and outside of a render pass instance."]
+    #[doc = "You need to submit it and make sure it finished execution before calling vmaDefragmentationEnd()."]
+    #[doc = ""]
+    #[doc = "Passing null means that only CPU defragmentation will be performed."]
+    pub commandBuffer: VkCommandBuffer,
+}
+#[doc = " \\brief Deprecated. Optional configuration parameters to be passed to function vmaDefragment()."]
+#[doc = ""]
+#[doc = "\\deprecated This is a part of the old interface. It is recommended to use structure #VmaDefragmentationInfo2 and function vmaDefragmentationBegin() instead."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct VmaDefragmentationInfo {
@@ -2300,14 +2443,59 @@ pub struct VmaDefragmentationStats {
     pub deviceMemoryBlocksFreed: u32,
 }
 extern "C" {
-    #[doc = " \\brief Compacts memory by moving allocations."]
+    #[doc = " \\brief Begins defragmentation process."]
+    #[doc = ""]
+    #[doc = "@param allocator Allocator object."]
+    #[doc = "@param pInfo Structure filled with parameters of defragmentation."]
+    #[doc = "@param[out] pStats Optional. Statistics of defragmentation. You can pass null if you are not interested in this information."]
+    #[doc = "@param[out] pContext Context object that must be passed to vmaDefragmentationEnd() to finish defragmentation."]
+    #[doc = "@return `VK_SUCCESS` and `*pContext == null` if defragmentation finished within this function call. `VK_NOT_READY` and `*pContext != null` if defragmentation has been started and you need to call vmaDefragmentationEnd() to finish it. Negative value in case of error."]
+    #[doc = ""]
+    #[doc = "Use this function instead of old, deprecated vmaDefragment()."]
+    #[doc = ""]
+    #[doc = "Warning! Between the call to vmaDefragmentationBegin() and vmaDefragmentationEnd():"]
+    #[doc = ""]
+    #[doc = "- You should not use any of allocations passed as `pInfo->pAllocations` or"]
+    #[doc = "any allocations that belong to pools passed as `pInfo->pPools`,"]
+    #[doc = "including calling vmaGetAllocationInfo(), vmaTouchAllocation(), or access"]
+    #[doc = "their data."]
+    #[doc = "- Some mutexes protecting internal data structures may be locked, so trying to"]
+    #[doc = "make or free any allocations, bind buffers or images, map memory, or launch"]
+    #[doc = "another simultaneous defragmentation in between may cause stall (when done on"]
+    #[doc = "another thread) or deadlock (when done on the same thread), unless you are"]
+    #[doc = "100% sure that defragmented allocations are in different pools."]
+    #[doc = "- Information returned via `pStats` and `pInfo->pAllocationsChanged` are undefined."]
+    #[doc = "They become valid after call to vmaDefragmentationEnd()."]
+    #[doc = "- If `pInfo->commandBuffer` is not null, you must submit that command buffer"]
+    #[doc = "and make sure it finished execution before calling vmaDefragmentationEnd()."]
+    pub fn vmaDefragmentationBegin(
+        allocator: VmaAllocator,
+        pInfo: *const VmaDefragmentationInfo2,
+        pStats: *mut VmaDefragmentationStats,
+        pContext: *mut VmaDefragmentationContext,
+    ) -> VkResult;
+}
+extern "C" {
+    #[doc = " \\brief Ends defragmentation process."]
+    #[doc = ""]
+    #[doc = "Use this function to finish defragmentation started by vmaDefragmentationBegin()."]
+    #[doc = "It is safe to pass `context == null`. The function then does nothing."]
+    pub fn vmaDefragmentationEnd(
+        allocator: VmaAllocator,
+        context: VmaDefragmentationContext,
+    ) -> VkResult;
+}
+extern "C" {
+    #[doc = " \\brief Deprecated. Compacts memory by moving allocations."]
     #[doc = ""]
     #[doc = "@param pAllocations Array of allocations that can be moved during this compation."]
     #[doc = "@param allocationCount Number of elements in pAllocations and pAllocationsChanged arrays."]
     #[doc = "@param[out] pAllocationsChanged Array of boolean values that will indicate whether matching allocation in pAllocations array has been moved. This parameter is optional. Pass null if you don\'t need this information."]
     #[doc = "@param pDefragmentationInfo Configuration parameters. Optional - pass null to use default values."]
     #[doc = "@param[out] pDefragmentationStats Statistics returned by the function. Optional - pass null if you don\'t need this information."]
-    #[doc = "@return `VK_SUCCESS` if completed, `VK_INCOMPLETE` if succeeded but didn\'t make all possible optimizations because limits specified in `pDefragmentationInfo` have been reached, negative error code in case of error."]
+    #[doc = "@return `VK_SUCCESS` if completed, negative error code in case of error."]
+    #[doc = ""]
+    #[doc = "\\deprecated This is a part of the old interface. It is recommended to use structure #VmaDefragmentationInfo2 and function vmaDefragmentationBegin() instead."]
     #[doc = ""]
     #[doc = "This function works by moving allocations to different places (different"]
     #[doc = "`VkDeviceMemory` objects and/or different offsets) in order to optimize memory"]
