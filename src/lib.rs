@@ -56,7 +56,7 @@ impl Default for AllocatorPool {
 /// the user, and destruction of it can be done independently of destruction of the allocation.
 ///
 /// The object also remembers its size and some other information. To retrieve this information,
-/// use `Allocator::get_allocation_info` and use accessors on `Allocation`.
+/// use `Allocator::get_allocation_info`.
 ///
 /// Some kinds allocations can be in lost state.
 #[derive(Debug, Clone)]
@@ -228,14 +228,14 @@ pub struct AllocatorCreateInfo {
     /// If there is a limit defined for a heap:
     ///
     /// * If user tries to allocate more memory from that heap using this allocator, the allocation
-    /// fails with `VK_ERROR_OUT_OF_DEVICE_MEMORY`.
+    /// fails with `ash::vk::Result::ERROR_OUT_OF_DEVICE_MEMORY`.
     ///
     /// * If the limit is smaller than heap size reported in `ash::vk::MemoryHeap::size`, the value of this
     /// limit will be reported instead when using `Allocator::get_memory_properties`.
     ///
     /// Warning! Using this feature may not be equivalent to installing a GPU with smaller amount of
     /// memory, because graphics driver doesn't necessary fail new allocations with
-    /// `VK_ERROR_OUT_OF_DEVICE_MEMORY` result when memory capacity is exceeded. It may return success
+    /// `ash::vk::Result::ERROR_OUT_OF_DEVICE_MEMORY` result when memory capacity is exceeded. It may return success
     /// and just silently migrate some device memory" blocks to system RAM. This driver behavior can
     /// also be controlled using the `VK_AMD_memory_overallocation_behavior` extension.
     pub heap_size_limits: Option<Vec<ash::vk::DeviceSize>>,
@@ -315,14 +315,14 @@ pub enum MemoryUsage {
     ///   device multiple times, e.g. textures to be sampled, vertex buffers, uniform
     ///   (constant) buffers, and majority of other types of resources used on GPU.
     ///
-    /// Allocation may still end up in `HOST_VISIBLE` memory on some implementations.
+    /// Allocation may still end up in `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` memory on some implementations.
     /// In such case, you are free to map it.
     /// You can use `AllocationCreateFlags::MAPPED` with this usage type.
     GpuOnly,
 
     /// Memory will be mappable on host.
     /// It usually means CPU (system) memory.
-    /// Guarantees to be `HOST_VISIBLE` and `HOST_COHERENT`.
+    /// Guarantees to be `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` and `ash::vk::MemoryPropertyFlags::HOST_COHERENT`.
     /// CPU access is typically uncached. Writes may be write-combined.
     /// Resources created in this pool may still be accessible to the device, but access to them can be slow.
     /// It is roughly equivalent of `D3D12_HEAP_TYPE_UPLOAD`.
@@ -330,14 +330,14 @@ pub enum MemoryUsage {
     /// Usage: Staging copy of resources used as transfer source.
     CpuOnly,
 
-    /// Memory that is both mappable on host (guarantees to be `HOST_VISIBLE`) and preferably fast to access by GPU.
+    /// Memory that is both mappable on host (guarantees to be `ash::vk::MemoryPropertyFlags::HOST_VISIBLE`) and preferably fast to access by GPU.
     /// CPU access is typically uncached. Writes may be write-combined.
     ///
     /// Usage: Resources written frequently by host (dynamic), read by device. E.g. textures, vertex buffers,
     /// uniform buffers updated every frame or every draw call.
     CpuToGpu,
 
-    /// Memory mappable on host (guarantees to be `HOST_VISIBLE`) and cached.
+    /// Memory mappable on host (guarantees to be `ash::vk::MemoryPropertFlags::HOST_VISIBLE`) and cached.
     /// It is roughly equivalent of `D3D12_HEAP_TYPE_READBACK`.
     ///
     /// Usage:
@@ -418,7 +418,7 @@ bitflags! {
         /// Set this flag to only try to allocate from existing `ash::vk::DeviceMemory` blocks and never create new such block.
         ///
         /// If new allocation cannot be placed in any of the existing blocks, allocation
-        /// fails with `VK_ERROR_OUT_OF_DEVICE_MEMORY` error.
+        /// fails with `ash::vk::Result::ERROR_OUT_OF_DEVICE_MEMORY` error.
         ///
         /// You should not use `AllocationCreateFlags::DEDICATED_MEMORY` and `AllocationCreateFlags::NEVER_ALLOCATE` at the same time. It makes no sense.
         ///
@@ -430,9 +430,9 @@ bitflags! {
         /// Pointer to mapped memory will be returned through `Allocation::get_mapped_data()`.
         ///
         /// Is it valid to use this flag for allocation made from memory type that is not
-        /// `HOST_VISIBLE`. This flag is then ignored and memory is not mapped. This is
+        /// `ash::vk::MemoryPropertyFlags::HOST_VISIBLE`. This flag is then ignored and memory is not mapped. This is
         /// useful if you need an allocation that is efficient to use on GPU
-        /// (`DEVICE_LOCAL`) and still want to map it directly if possible on platforms that
+        /// (`ash::vk::MemoryPropertyFlags::DEVICE_LOCAL`) and still want to map it directly if possible on platforms that
         /// support it (e.g. Intel GPU).
         ///
         /// You should not use this flag together with `AllocationCreateFlags::CAN_BECOME_LOST`.
@@ -908,7 +908,7 @@ impl Allocator {
         Ok(vma_stats)
     }
 
-    /// Builds and returns statistics as string in `JSON` format.
+    /// Builds and returns statistics in `JSON` format.
     pub fn build_stats_string(&self, detailed_map: bool) -> Result<String> {
         let mut stats_string: *mut ::std::os::raw::c_char = ::std::ptr::null_mut();
         unsafe {
@@ -942,7 +942,7 @@ impl Allocator {
     /// - Matches intended usage.
     /// - Has as many flags from `allocation_info.preferred_flags` as possible.
     ///
-    /// Returns VK_ERROR_FEATURE_NOT_PRESENT if not found. Receiving such a result
+    /// Returns ash::vk::Result::ERROR_FEATURE_NOT_PRESENT if not found. Receiving such a result
     /// from this function or any other allocating function probably means that your
     /// device doesn't support any memory type with requested features for the specific
     /// type of resource you want to use it for. Please check parameters of your
@@ -1082,12 +1082,12 @@ impl Allocator {
     ///
     /// Corruption detection is enabled only when `VMA_DEBUG_DETECT_CORRUPTION` macro is defined to nonzero,
     /// `VMA_DEBUG_MARGIN` is defined to nonzero and the pool is created in memory type that is
-    /// `HOST_VISIBLE` and `HOST_COHERENT`.
+    /// `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` and `ash::vk::MemoryPropertyFlags::HOST_COHERENT`.
     ///
     /// Possible error values:
     ///
-    /// - `VK_ERROR_FEATURE_NOT_PRESENT` - corruption detection is not enabled for specified pool.
-    /// - `VK_ERROR_VALIDATION_FAILED_EXT` - corruption detection has been performed and found memory corruptions around one of the allocations.
+    /// - `ash::vk::Result::ERROR_FEATURE_NOT_PRESENT` - corruption detection is not enabled for specified pool.
+    /// - `ash::vk::Result::ERROR_VALIDATION_FAILED_EXT` - corruption detection has been performed and found memory corruptions around one of the allocations.
     ///   `VMA_ASSERT` is also fired in that case.
     /// - Other value: Error returned by Vulkan, e.g. memory mapping failure.
     pub fn check_pool_corruption(&self, pool: &AllocatorPool) -> Result<()> {
@@ -1277,16 +1277,16 @@ impl Allocator {
     /// When growing, it succeeds only when the allocation belongs to a memory block with enough
     /// free space after it.
     ///
-    /// Returns `VK_SUCCESS` if allocation's size has been successfully changed.
-    /// Returns `VK_ERROR_OUT_OF_POOL_MEMORY` if allocation's size could not be changed.
+    /// Returns `ash::vk::Result::SUCCESS` if allocation's size has been successfully changed.
+    /// Returns `ash::vk::Result::ERROR_OUT_OF_POOL_MEMORY` if allocation's size could not be changed.
     ///
     /// After successful call to this function, `AllocationInfo::get_size` of this allocation changes.
     /// All other parameters stay the same: memory pool and type, alignment, offset, mapped pointer.
     ///
-    /// - Calling this function on allocation that is in lost state fails with result `VK_ERROR_VALIDATION_FAILED_EXT`.
-    /// - Calling this function with `new_size` same as current allocation size does nothing and returns `VK_SUCCESS`.
+    /// - Calling this function on allocation that is in lost state fails with result `ash::vk::Result::ERROR_VALIDATION_FAILED_EXT`.
+    /// - Calling this function with `new_size` same as current allocation size does nothing and returns `ash::vk::Result::SUCCESS`.
     /// - Resizing dedicated allocations, as well as allocations created in pools that use linear
-    ///   or buddy algorithm, is not supported. The function returns `VK_ERROR_FEATURE_NOT_PRESENT` in such cases.
+    ///   or buddy algorithm, is not supported. The function returns `ash::vk::Result::ERROR_FEATURE_NOT_PRESENT` in such cases.
     ///   Support may be added in the future.
     pub fn resize_allocation(&mut self, allocation: &Allocation, new_size: usize) -> Result<()> {
         let result = ffi_to_result(unsafe {
@@ -1304,12 +1304,12 @@ impl Allocator {
 
     /// Returns current information about specified allocation and atomically marks it as used in current frame.
     ///
-    /// Current paramters of given allocation are returned in accessors on `Allocation`
+    /// Current parameters of given allocation are returned in the result object, available through accessors.
     ///
     /// This function also atomically "touches" allocation - marks it as used in current frame,
     /// just like `Allocator::touch_allocation`.
     ///
-    /// If the allocation is in lost state, `allocation.get_device_memory()` is `ash::vk::DeviceMemory::null()`.
+    /// If the allocation is in lost state, `allocation.get_device_memory` returns `ash::vk::DeviceMemory::null()`.
     ///
     /// Although this function uses atomics and doesn't lock any mutex, so it should be quite efficient,
     /// you can avoid calling it too often.
@@ -1413,7 +1413,7 @@ impl Allocator {
     /// time to free the "0-th" mapping made automatically due to `AllocationCreateFlags::MAPPED` flag.
     ///
     /// This function fails when used on allocation made in memory type that is not
-    /// `HOST_VISIBLE`.
+    /// `ash::vk::MemoryPropertyFlags::HOST_VISIBLE`.
     ///
     /// This function always fails when called for allocation that was created with
     /// `AllocationCreateFlags::CAN_BECOME_LOST` flag. Such allocations cannot be mapped.
@@ -1444,7 +1444,7 @@ impl Allocator {
     /// - `size` can be `ash::vk::WHOLE_SIZE`. It means all memory from `offset` the the end of given allocation.
     /// - `offset` and `size` don't have to be aligned; hey are internally rounded down/up to multiple of `nonCoherentAtomSize`.
     /// - If `size` is 0, this call is ignored.
-    /// - If memory type that the `allocation` belongs to is not `HOST_VISIBLE` or it is `HOST_COHERENT`, this call is ignored.
+    /// - If memory type that the `allocation` belongs to is not `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` or it is `ash::vk::MemoryPropertyFlags::HOST_COHERENT`, this call is ignored.
     pub fn flush_allocation(
         &mut self,
         allocation: &Allocation,
@@ -1470,7 +1470,7 @@ impl Allocator {
     /// - `size` can be `ash::vk::WHOLE_SIZE`. It means all memory from `offset` the the end of given allocation.
     /// - `offset` and `size` don't have to be aligned. They are internally rounded down/up to multiple of `nonCoherentAtomSize`.
     /// - If `size` is 0, this call is ignored.
-    /// - If memory type that the `allocation` belongs to is not `HOST_VISIBLE` or it is `HOST_COHERENT`, this call is ignored.
+    /// - If memory type that the `allocation` belongs to is not `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` or it is `ash::vk::MemoryPropertyFlags::HOST_COHERENT`, this call is ignored.
     pub fn invalidate_allocation(
         &mut self,
         allocation: &Allocation,
@@ -1497,8 +1497,8 @@ impl Allocator {
     ///
     /// Possible error values:
     ///
-    /// - `VK_ERROR_FEATURE_NOT_PRESENT` - corruption detection is not enabled for any of specified memory types.
-    /// - `VK_ERROR_VALIDATION_FAILED_EXT` - corruption detection has been performed and found memory corruptions around one of the allocations.
+    /// - `ash::vk::Result::ERROR_FEATURE_NOT_PRESENT` - corruption detection is not enabled for any of specified memory types.
+    /// - `ash::vk::Result::ERROR_VALIDATION_FAILED_EXT` - corruption detection has been performed and found memory corruptions around one of the allocations.
     ///   `VMA_ASSERT` is also fired in that case.
     /// - Other value: Error returned by Vulkan, e.g. memory mapping failure.
     pub fn check_corruption(&self, memory_types: ash::vk::MemoryPropertyFlags) -> Result<()> {
@@ -1605,7 +1605,7 @@ impl Allocator {
     ///
     /// Possible error values:
     ///
-    /// - `VK_INCOMPLETE` if succeeded but didn't make all possible optimizations because limits specified in
+    /// - `ash::vk::Result::INCOMPLETE` if succeeded but didn't make all possible optimizations because limits specified in
     ///   `defrag_info` have been reached, negative error code in case of error.
     ///
     /// This function works by moving allocations to different places (different
@@ -1614,7 +1614,7 @@ impl Allocator {
     /// allocations are considered nonmovable in this call. Basic rules:
     ///
     /// - Only allocations made in memory types that have
-    ///   `VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT` and `VK_MEMORY_PROPERTY_HOST_COHERENT_BIT`
+    ///   `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` and `ash::vk::MemoryPropertyFlags::HOST_COHERENT`
     ///   flags can be compacted. You may pass other allocations but it makes no sense -
     ///   these will never be moved.
     ///
