@@ -621,7 +621,8 @@ impl Default for AllocatorPoolCreateInfo {
 #[derive(Debug)]
 pub struct DefragmentationContext {
     pub(crate) internal: ffi::VmaDefragmentationContext,
-    pub(crate) stats: ffi::VmaDefragmentationStats,
+    pub(crate) stats: Box<ffi::VmaDefragmentationStats>,
+    pub(crate) changed: Box<Vec<ash::vk::Bool32>>,
 }
 
 /// Optional configuration parameters to be passed to `Allocator::defragment`
@@ -655,13 +656,13 @@ impl Default for DefragmentationInfo {
 ///
 /// To be used with function `Allocator::defragmentation_begin`.
 #[derive(Debug, Clone)]
-pub struct DefragmentationInfo2 {
+pub struct DefragmentationInfo2<'a> {
     /// Collection of allocations that can be defragmented.
     ///
     /// Elements in the slice should be unique - same allocation cannot occur twice.
     /// It is safe to pass allocations that are in the lost state - they are ignored.
     /// All allocations not present in this slice are considered non-moveable during this defragmentation.
-    pub allocations: Vec<Allocation>,
+    pub allocations: &'a [Allocation],
 
     /// Either `None` or a slice of pools to be defragmented.
     ///
@@ -675,7 +676,7 @@ pub struct DefragmentationInfo2 {
     ///
     /// Using this array is equivalent to specifying all allocations from the pools in `allocations`.
     /// It might be more efficient.
-    pub pools: Option<Vec<AllocatorPool>>,
+    pub pools: Option<&'a [AllocatorPool]>,
 
     /// Maximum total numbers of bytes that can be copied while moving allocations to different places using transfers on CPU side, like `memcpy()`, `memmove()`.
     ///
@@ -1536,26 +1537,28 @@ impl Allocator {
         &self,
         info: &DefragmentationInfo2,
     ) -> Result<DefragmentationContext> {
-        let mut context: DefragmentationContext = unsafe { mem::zeroed() };
         let command_buffer = match info.command_buffer {
             Some(command_buffer) => command_buffer,
             None => ash::vk::CommandBuffer::null(),
         };
-        let (pool_count, pool_list) = match info.pools {
-            //info.pools.len(),
-            //info.pools.unwrap_or(std::ptr::null()).as_mut_ptr(),
-            Some(ref pools) => (0, std::ptr::null_mut()),
-            None => (0, std::ptr::null_mut()),
+        let mut pools: Vec<ffi::VmaPool> = match info.pools {
+            Some(ref pools) => pools.iter().map(|pool| pool.internal).collect(),
+            None => Vec::new(),
         };
         let mut allocations: Vec<ffi::VmaAllocation> =
             info.allocations.iter().map(|x| x.internal).collect();
+        let mut context = DefragmentationContext {
+            internal: unsafe { mem::zeroed() },
+            stats: Box::new(unsafe { mem::zeroed() }),
+            changed: Box::new(vec![ash::vk::FALSE; allocations.len()]),
+        };
         let ffi_info = ffi::VmaDefragmentationInfo2 {
             flags: 0, // Reserved for future use
             allocationCount: info.allocations.len() as u32,
             pAllocations: allocations.as_mut_ptr(),
-            pAllocationsChanged: std::ptr::null_mut(),
-            poolCount: pool_count,
-            pPools: pool_list,
+            pAllocationsChanged: context.changed.as_mut_ptr(),
+            poolCount: pools.len() as u32,
+            pPools: pools.as_mut_ptr(),
             maxCpuBytesToMove: info.max_cpu_bytes_to_move,
             maxCpuAllocationsToMove: info.max_cpu_allocations_to_move,
             maxGpuBytesToMove: info.max_gpu_bytes_to_move,
@@ -1566,7 +1569,7 @@ impl Allocator {
             ffi::vmaDefragmentationBegin(
                 self.internal,
                 &ffi_info,
-                &mut context.stats,
+                &mut *context.stats,
                 &mut context.internal,
             )
         });
@@ -1582,16 +1585,20 @@ impl Allocator {
     pub fn defragmentation_end(
         &self,
         context: &mut DefragmentationContext,
-    ) -> Result<DefragmentationStats> {
+    ) -> Result<(DefragmentationStats, Vec<bool>)> {
         let result =
             ffi_to_result(unsafe { ffi::vmaDefragmentationEnd(self.internal, context.internal) });
+        let changed: Vec<bool> = context.changed.iter().map(|change| *change == 1).collect();
         match result {
-            ash::vk::Result::SUCCESS => Ok(DefragmentationStats {
-                bytes_moved: context.stats.bytesMoved as usize,
-                bytes_freed: context.stats.bytesFreed as usize,
-                allocations_moved: context.stats.allocationsMoved,
-                device_memory_blocks_freed: context.stats.deviceMemoryBlocksFreed,
-            }),
+            ash::vk::Result::SUCCESS => Ok((
+                DefragmentationStats {
+                    bytes_moved: context.stats.bytesMoved as usize,
+                    bytes_freed: context.stats.bytesFreed as usize,
+                    allocations_moved: context.stats.allocationsMoved,
+                    device_memory_blocks_freed: context.stats.deviceMemoryBlocksFreed,
+                },
+                changed,
+            )),
             _ => Err(Error::vulkan(result)),
         }
     }
