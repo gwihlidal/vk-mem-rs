@@ -24,6 +24,10 @@ pub struct Allocator {
     pub(crate) device: ash::Device,
 }
 
+// Allocator is internally thread safe unless AllocatorCreateFlags::EXTERNALLY_SYNCHRONIZED is used (then you need to add synchronization!)
+unsafe impl Send for Allocator {}
+unsafe impl Sync for Allocator {}
+
 /// Represents custom memory pool
 ///
 /// Fill structure `AllocatorPoolCreateInfo` and call `Allocator::create_pool` to create it.
