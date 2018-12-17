@@ -166,7 +166,7 @@ fn create_gpu_buffer() {
         usage: vk_mem::MemoryUsage::GpuOnly,
         ..Default::default()
     };
-    let (buffer, allocation) = allocator
+    let (buffer, allocation, allocation_info) = allocator
         .create_buffer(
             &ash::vk::BufferCreateInfo::builder()
                 .size(16 * 1024)
@@ -178,7 +178,7 @@ fn create_gpu_buffer() {
             &allocation_info,
         )
         .unwrap();
-    assert_eq!(allocation.get_mapped_data(), std::ptr::null_mut());
+    assert_eq!(allocation_info.get_mapped_data(), std::ptr::null_mut());
     allocator.destroy_buffer(buffer, &allocation).unwrap();
 }
 
@@ -193,7 +193,7 @@ fn create_cpu_buffer_preferred() {
         flags: vk_mem::AllocationCreateFlags::MAPPED,
         ..Default::default()
     };
-    let (buffer, allocation) = allocator
+    let (buffer, allocation, allocation_info) = allocator
         .create_buffer(
             &ash::vk::BufferCreateInfo::builder()
                 .size(16 * 1024)
@@ -205,7 +205,7 @@ fn create_cpu_buffer_preferred() {
             &allocation_info,
         )
         .unwrap();
-    assert_ne!(allocation.get_mapped_data(), std::ptr::null_mut());
+    assert_ne!(allocation_info.get_mapped_data(), std::ptr::null_mut());
     allocator.destroy_buffer(buffer, &allocation).unwrap();
 }
 
@@ -241,10 +241,10 @@ fn create_gpu_buffer_pool() {
     let pool = allocator.create_pool(&pool_info).unwrap();
     allocation_info.pool = Some(pool.clone());
 
-    let (buffer, allocation) = allocator
+    let (buffer, allocation, allocation_info) = allocator
         .create_buffer(&buffer_info, &allocation_info)
         .unwrap();
-    assert_ne!(allocation.get_mapped_data(), std::ptr::null_mut());
+    assert_ne!(allocation_info.get_mapped_data(), std::ptr::null_mut());
     allocator.destroy_buffer(buffer, &allocation).unwrap();
     allocator.destroy_pool(&pool).unwrap();
 }
@@ -263,7 +263,7 @@ fn test_gpu_stats() {
     assert_eq!(stats_1.total.allocationCount, 0);
     assert_eq!(stats_1.total.usedBytes, 0);
 
-    let (buffer, allocation) = allocator
+    let (buffer, allocation, _allocation_info) = allocator
         .create_buffer(
             &ash::vk::BufferCreateInfo::builder()
                 .size(16 * 1024)
@@ -301,7 +301,7 @@ fn test_stats_string() {
     let stats_1 = allocator.build_stats_string(true).unwrap();
     assert!(stats_1.len() > 0);
 
-    let (buffer, allocation) = allocator
+    let (buffer, allocation, _allocation_info) = allocator
         .create_buffer(
             &ash::vk::BufferCreateInfo::builder()
                 .size(16 * 1024)
