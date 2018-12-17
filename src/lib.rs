@@ -411,11 +411,6 @@ bitflags! {
         ///
         /// Use it for special, big resources, like fullscreen images used as attachments.
         ///
-        /// This flag must also be used for host visible resources that you want to map
-        /// simultaneously because otherwise they might end up as regions of the same
-        /// `ash::vk::DeviceMemory`, while mapping same `ash::vk::DeviceMemory` multiple times
-        /// simultaneously is illegal.
-        ///
         /// You should not use this flag if `AllocationCreateInfo::pool` is not `None`.
         const DEDICATED_MEMORY = 0x0000_0001;
 

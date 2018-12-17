@@ -88,18 +88,18 @@ After you create a `vk_mem::Allocator` instance, very little code is needed to c
 
 ```rust
 // Create the buffer (GPU only, 16KiB in this example)
-let allocation_info = vk_mem::AllocationCreateInfo {
+let create_info = vk_mem::AllocationCreateInfo {
     usage: vk_mem::MemoryUsage::GpuOnly,
     ..Default::default()
 };
 
-let (buffer, allocation) = allocator
+let (buffer, allocation, allocation_info) = allocator
     .create_buffer(
         &ash::vk::BufferCreateInfo::builder()
             .size(16 * 1024)
             .usage(ash::vk::BufferUsageFlags::VERTEX_BUFFER | ash::vk::BufferUsageFlags::TRANSFER_DST)
             .build(),
-        &allocation_info,
+        &create_info,
     )
     .unwrap();
 
