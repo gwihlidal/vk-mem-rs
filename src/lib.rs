@@ -614,8 +614,14 @@ impl Default for AllocatorPoolCreateInfo {
     }
 }
 
+#[derive(Debug)]
+pub struct DefragmentationContext {
+    pub(crate) internal: ffi::VmaDefragmentationContext,
+    pub(crate) stats: ffi::VmaDefragmentationStats,
+}
+
 /// Optional configuration parameters to be passed to `Allocator::defragment`
-/// 
+///
 /// DEPRECATED.
 #[derive(Debug, Copy, Clone)]
 pub struct DefragmentationInfo {
@@ -639,6 +645,62 @@ impl Default for DefragmentationInfo {
             max_allocations_to_move: std::u32::MAX,
         }
     }
+}
+
+/// Parameters for defragmentation.
+///
+/// To be used with function `Allocator::defragmentation_begin`.
+#[derive(Debug, Clone)]
+pub struct DefragmentationInfo2 {
+    /// Collection of allocations that can be defragmented.
+    ///
+    /// Elements in the slice should be unique - same allocation cannot occur twice.
+    /// It is safe to pass allocations that are in the lost state - they are ignored.
+    /// All allocations not present in this slice are considered non-moveable during this defragmentation.
+    pub allocations: Vec<Allocation>,
+
+    /// Either `None` or a slice of pools to be defragmented.
+    ///
+    /// All the allocations in the specified pools can be moved during defragmentation
+    /// and there is no way to check if they were really moved as in `allocations_changed`,
+    /// so you must query all the allocations in all these pools for new `ash::vk::DeviceMemory`
+    /// and offset using `Allocator::get_allocation_info` if you might need to recreate buffers
+    /// and images bound to them.
+    ///
+    /// Elements in the array should be unique - same pool cannot occur twice.
+    ///
+    /// Using this array is equivalent to specifying all allocations from the pools in `allocations`.
+    /// It might be more efficient.
+    pub pools: Option<Vec<AllocatorPool>>,
+
+    /// Maximum total numbers of bytes that can be copied while moving allocations to different places using transfers on CPU side, like `memcpy()`, `memmove()`.
+    ///
+    /// `ash::vk::WHOLE_SIZE` means no limit.
+    pub max_cpu_bytes_to_move: ash::vk::DeviceSize,
+
+    /// Maximum number of allocations that can be moved to a different place using transfers on CPU side, like `memcpy()`, `memmove()`.
+    ///
+    /// `std::u32::MAX` means no limit.
+    pub max_cpu_allocations_to_move: u32,
+
+    /// Maximum total numbers of bytes that can be copied while moving allocations to different places using transfers on GPU side, posted to `command_buffer`.
+    ///
+    /// `ash::vk::WHOLE_SIZE` means no limit.
+    pub max_gpu_bytes_to_move: ash::vk::DeviceSize,
+
+    /// Maximum number of allocations that can be moved to a different place using transfers on GPU side, posted to `command_buffer`.
+    ///
+    /// `std::u32::MAX` means no limit.
+    pub max_gpu_allocations_to_move: u32,
+
+    /// Command buffer where GPU copy commands will be posted.
+    ///
+    /// If not `None`, it must be a valid command buffer handle that supports transfer queue type.
+    /// It must be in the recording state and outside of a render pass instance.
+    /// You need to submit it and make sure it finished execution before calling `Allocator::defragmentation_end`.
+    ///
+    /// Passing `None` means that only CPU defragmentation will be performed.
+    pub command_buffer: Option<ash::vk::CommandBuffer>,
 }
 
 /// Statistics returned by `Allocator::defragment`
@@ -1067,13 +1129,13 @@ impl Allocator {
     }
 
     /// General purpose memory allocation for multiple allocation objects at once.
-    /// 
+    ///
     /// You should free the memory using `Allocator::free_memory` or `Allocator::free_memory_pages`.
-    /// 
+    ///
     /// Word "pages" is just a suggestion to use this function to allocate pieces of memory needed for sparse binding.
     /// It is just a general purpose allocation function able to make multiple allocations at once.
     /// It may be internally optimized to be more efficient than calling `Allocator::allocate_memory` `allocations.len()` times.
-    /// 
+    ///
     /// All allocations are made using same parameters. All of them are created out of the same memory pool and type.
     pub fn allocate_memory_pages(
         &mut self,
@@ -1087,8 +1149,10 @@ impl Allocator {
             )
         };
         let create_info = allocation_create_info_to_ffi(&allocation_info);
-        let mut allocations: Vec<ffi::VmaAllocation> = vec![unsafe { mem::zeroed() }; allocation_count];
-        let mut allocation_info: Vec<ffi::VmaAllocationInfo> = vec![unsafe { mem::zeroed() }; allocation_count];
+        let mut allocations: Vec<ffi::VmaAllocation> =
+            vec![unsafe { mem::zeroed() }; allocation_count];
+        let mut allocation_info: Vec<ffi::VmaAllocationInfo> =
+            vec![unsafe { mem::zeroed() }; allocation_count];
         let result = ffi_to_result(unsafe {
             ffi::vmaAllocateMemoryPages(
                 self.internal,
@@ -1102,14 +1166,14 @@ impl Allocator {
         match result {
             ash::vk::Result::SUCCESS => {
                 let it = allocations.iter().zip(allocation_info.iter());
-                let allocations: Vec<Allocation> = it.map(|(alloc, info)| {
-                    Allocation {
+                let allocations: Vec<Allocation> = it
+                    .map(|(alloc, info)| Allocation {
                         internal: *alloc,
                         info: *info,
-                    }
-                }).collect();
+                    })
+                    .collect();
                 Ok(allocations)
-            },
+            }
             _ => Err(Error::vulkan(result)),
         }
     }
@@ -1176,13 +1240,13 @@ impl Allocator {
     }
 
     /// Frees memory and destroys multiple allocations.
-    /// 
+    ///
     /// Word "pages" is just a suggestion to use this function to free pieces of memory used for sparse binding.
     /// It is just a general purpose function to free memory and destroy allocations made using e.g. `Allocator::allocate_memory',
     /// 'Allocator::allocate_memory_pages` and other functions.
-    /// 
+    ///
     /// It may be internally optimized to be more efficient than calling 'Allocator::free_memory` `allocations.len()` times.
-    /// 
+    ///
     /// Allocations in 'allocations' slice can come from any memory pools and types.
     pub fn free_memory_pages(&mut self, allocations: &[Allocation]) -> Result<()> {
         let mut allocations_ffi: Vec<ffi::VmaAllocation> =
@@ -1432,6 +1496,92 @@ impl Allocator {
         }
     }
 
+    /// Begins defragmentation process.
+    ///
+    /// Use this function instead of old, deprecated `Allocator::defragment`.
+    ///
+    /// Warning! Between the call to `Allocator::defragmentation_begin` and `Allocator::defragmentation_end`.
+    ///
+    /// - You should not use any of allocations passed as `allocations` or
+    /// any allocations that belong to pools passed as `pools`,
+    /// including calling `Allocator::get_allocation_info`, `Allocator::touch_allocation`, or access
+    /// their data.
+    ///
+    /// - Some mutexes protecting internal data structures may be locked, so trying to
+    /// make or free any allocations, bind buffers or images, map memory, or launch
+    /// another simultaneous defragmentation in between may cause stall (when done on
+    /// another thread) or deadlock (when done on the same thread), unless you are
+    /// 100% sure that defragmented allocations are in different pools.
+    ///
+    /// - Information returned via stats and `info.allocations_changed` are undefined.
+    /// They become valid after call to `Allocator::defragmentation_end`.
+    ///
+    /// - If `info.command_buffer` is not null, you must submit that command buffer
+    /// and make sure it finished execution before calling `Allocator::defragmentation_end`.
+    pub fn defragmentation_begin(
+        &self,
+        info: &DefragmentationInfo2,
+    ) -> Result<DefragmentationContext> {
+        let mut context: DefragmentationContext = unsafe { mem::zeroed() };
+        let command_buffer = match info.command_buffer {
+            Some(command_buffer) => command_buffer,
+            None => ash::vk::CommandBuffer::null(),
+        };
+        let (pool_count, pool_list) = match info.pools {
+            //info.pools.len(),
+            //info.pools.unwrap_or(std::ptr::null()).as_mut_ptr(),
+            Some(ref pools) => (0, std::ptr::null_mut()),
+            None => (0, std::ptr::null_mut()),
+        };
+        let mut allocations: Vec<ffi::VmaAllocation> =
+            info.allocations.iter().map(|x| x.internal).collect();
+        let ffi_info = ffi::VmaDefragmentationInfo2 {
+            flags: 0, // Reserved for future use
+            allocationCount: info.allocations.len() as u32,
+            pAllocations: allocations.as_mut_ptr(),
+            pAllocationsChanged: std::ptr::null_mut(),
+            poolCount: pool_count,
+            pPools: pool_list,
+            maxCpuBytesToMove: info.max_cpu_bytes_to_move,
+            maxCpuAllocationsToMove: info.max_cpu_allocations_to_move,
+            maxGpuBytesToMove: info.max_gpu_bytes_to_move,
+            maxGpuAllocationsToMove: info.max_gpu_allocations_to_move,
+            commandBuffer: command_buffer.as_raw() as ffi::VkCommandBuffer,
+        };
+        let result = ffi_to_result(unsafe {
+            ffi::vmaDefragmentationBegin(
+                self.internal,
+                &ffi_info,
+                &mut context.stats,
+                &mut context.internal,
+            )
+        });
+        match result {
+            ash::vk::Result::SUCCESS => Ok(context),
+            _ => Err(Error::vulkan(result)),
+        }
+    }
+
+    /// Ends defragmentation process.
+    ///
+    /// Use this function to finish defragmentation started by `Allocator::defragmentation_begin`.
+    pub fn defragmentation_end(
+        &self,
+        context: &mut DefragmentationContext,
+    ) -> Result<DefragmentationStats> {
+        let result =
+            ffi_to_result(unsafe { ffi::vmaDefragmentationEnd(self.internal, context.internal) });
+        match result {
+            ash::vk::Result::SUCCESS => Ok(DefragmentationStats {
+                bytes_moved: context.stats.bytesMoved as usize,
+                bytes_freed: context.stats.bytesFreed as usize,
+                allocations_moved: context.stats.allocationsMoved,
+                device_memory_blocks_freed: context.stats.deviceMemoryBlocksFreed,
+            }),
+            _ => Err(Error::vulkan(result)),
+        }
+    }
+
     /// Compacts memory by moving allocations.
     ///
     /// `allocations` is a slice of allocations that can be moved during this compaction.
@@ -1472,7 +1622,10 @@ impl Allocator {
     /// You can call it on special occasions (like when reloading a game level or
     /// when you just destroyed a lot of objects). Calling it every frame may be OK, but
     /// you should measure that on your platform.
-    #[deprecated(since="0.1.3", note="This is a part of the old interface. It is recommended to use structure `DefragmentationInfo2` and function `Allocator::defragmentation_begin` instead.")]
+    #[deprecated(
+        since = "0.1.3",
+        note = "This is a part of the old interface. It is recommended to use structure `DefragmentationInfo2` and function `Allocator::defragmentation_begin` instead."
+    )]
     pub fn defragment(
         &mut self,
         allocations: &[Allocation],
@@ -1512,10 +1665,10 @@ impl Allocator {
                     .collect();
                 Ok((
                     DefragmentationStats {
-                        bytes_moved: 0,
-                        bytes_freed: 0,
-                        allocations_moved: 0,
-                        device_memory_blocks_freed: 0,
+                        bytes_moved: ffi_stats.bytesMoved as usize,
+                        bytes_freed: ffi_stats.bytesFreed as usize,
+                        allocations_moved: ffi_stats.allocationsMoved,
+                        device_memory_blocks_freed: ffi_stats.deviceMemoryBlocksFreed,
                     },
                     change_list,
                 ))
