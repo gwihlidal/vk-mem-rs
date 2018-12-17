@@ -621,7 +621,7 @@ impl Default for AllocatorPoolCreateInfo {
 pub struct DefragmentationContext {
     pub(crate) internal: ffi::VmaDefragmentationContext,
     pub(crate) stats: Box<ffi::VmaDefragmentationStats>,
-    pub(crate) changed: Box<Vec<ash::vk::Bool32>>,
+    pub(crate) changed: Vec<ash::vk::Bool32>,
 }
 
 /// Optional configuration parameters to be passed to `Allocator::defragment`
@@ -1549,7 +1549,7 @@ impl Allocator {
         let mut context = DefragmentationContext {
             internal: unsafe { mem::zeroed() },
             stats: Box::new(unsafe { mem::zeroed() }),
-            changed: Box::new(vec![ash::vk::FALSE; allocations.len()]),
+            changed: vec![ash::vk::FALSE; allocations.len()],
         };
         let ffi_info = ffi::VmaDefragmentationInfo2 {
             flags: 0, // Reserved for future use
