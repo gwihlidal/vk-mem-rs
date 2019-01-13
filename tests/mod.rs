@@ -1,7 +1,7 @@
 extern crate ash;
 extern crate vk_mem;
 
-use ash::extensions::DebugReport;
+use ash::extensions::ext::DebugReport;
 use ash::version::{DeviceV1_0, EntryV1_0, InstanceV1_0};
 use std::os::raw::{c_char, c_void};
 
@@ -29,7 +29,7 @@ pub struct TestHarness {
     pub device: ash::Device,
     pub physical_device: ash::vk::PhysicalDevice,
     pub debug_callback: ash::vk::DebugReportCallbackEXT,
-    pub debug_report_loader: ash::extensions::DebugReport,
+    pub debug_report_loader: ash::extensions::ext::DebugReport,
 }
 
 impl Drop for TestHarness {
@@ -38,7 +38,7 @@ impl Drop for TestHarness {
             self.device.device_wait_idle().unwrap();
             self.device.destroy_device(None);
             self.debug_report_loader
-                .destroy_debug_report_callback_ext(self.debug_callback, None);
+                .destroy_debug_report_callback(self.debug_callback, None);
             self.instance.destroy_instance(None);
         }
     }
@@ -84,7 +84,7 @@ impl TestHarness {
         let debug_report_loader = DebugReport::new(&entry, &instance);
         let debug_callback = unsafe {
             debug_report_loader
-                .create_debug_report_callback_ext(&debug_info, None)
+                .create_debug_report_callback(&debug_info, None)
                 .unwrap()
         };
 
