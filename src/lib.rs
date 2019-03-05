@@ -69,12 +69,18 @@ pub struct Allocation {
     pub(crate) internal: ffi::VmaAllocation,
 }
 
+unsafe impl Send for Allocation {}
+unsafe impl Sync for Allocation {}
+
 /// Parameters of `Allocation` objects, that can be retrieved using `Allocator::get_allocation_info`.
 #[derive(Debug, Clone)]
 pub struct AllocationInfo {
     /// Pointer to internal VmaAllocationInfo instance
     pub(crate) internal: ffi::VmaAllocationInfo,
 }
+
+unsafe impl Send for AllocationInfo {}
+unsafe impl Sync for AllocationInfo {}
 
 impl AllocationInfo {
     #[inline(always)]
