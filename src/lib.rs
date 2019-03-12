@@ -467,6 +467,12 @@ bitflags! {
         /// This flag is only allowed for custom pools created with `AllocatorPoolCreateFlags::LINEAR_ALGORITHM` flag.
         const UPPER_ADDRESS = 0x0000_0040;
 
+        /// Create both buffer/image and allocation, but don't bind them together.
+        /// It is useful when you want to bind yourself to do some more advanced binding, e.g. using some extensions.
+        /// The flag is meaningful only with functions that bind by default, such as `Allocator::create_buffer`
+        /// or `Allocator::create_image`. Otherwise it is ignored.
+        const CREATE_DONT_BIND = 0x0000_0080;
+
         /// Allocation strategy that chooses smallest possible free range for the
         /// allocation.
         const STRATEGY_BEST_FIT = 0x0001_0000;
