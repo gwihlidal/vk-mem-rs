@@ -34,10 +34,10 @@ bitflags = "1.0.4"
 failure = "0.1.5"
 
 [build-dependencies]
-cc = { version = "1.0.30", features = ["parallel"] }
+cc = { version = "1.0.31", features = ["parallel"] }
 
 [build-dependencies.bindgen]
-version = "0.48.0"
+version = "0.48.1"
 optional = true
 
 [profile.release]
