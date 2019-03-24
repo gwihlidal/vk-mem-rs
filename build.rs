@@ -46,7 +46,7 @@ fn main() {
             .cpp_link_stdlib("c++")
             .cpp_set_stdlib("c++")
             .cpp(true);
-    } else if target.contains("linux") || (target.contains("windows") && target.contains("gnu")) {
+    } else if target.contains("linux") {
         build
             .flag("-std=c++11")
             .flag("-Wno-missing-field-initializers")
@@ -56,7 +56,19 @@ fn main() {
             .flag("-Wno-reorder")
             .cpp_link_stdlib("stdc++")
             .cpp(true);
+    } else if target.contains("windows") && target.contains("gnu") {
+        build
+            .flag("-std=gnu++11")
+            .flag("-Wno-missing-field-initializers")
+            .flag("-Wno-unused-variable")
+            .flag("-Wno-unused-parameter")
+            .flag("-Wno-unused-private-field")
+            .flag("-Wno-reorder")
+            .cpp_link_stdlib("stdc++")
+            .cpp(true);
     }
+    
+    //gnu++11
 
     build.compile("vma_cpp");
 
