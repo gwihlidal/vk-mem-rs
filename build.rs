@@ -58,7 +58,8 @@ fn main() {
             .cpp(true);
     } else if target.contains("windows") && target.contains("gnu") {
         build
-            .flag("-std=gnu++11")
+            .flag("-std=c++11")
+            .flag("-lpthread")
             .flag("-Wno-missing-field-initializers")
             .flag("-Wno-unused-variable")
             .flag("-Wno-unused-parameter")
