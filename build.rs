@@ -46,7 +46,7 @@ fn main() {
             .cpp_link_stdlib("c++")
             .cpp_set_stdlib("c++")
             .cpp(true);
-    } else if target.contains("linux") {
+    } else if target.contains("linux") || (target.contains("windows") && target.contains("gnu")) {
         build
             .flag("-std=c++11")
             .flag("-Wno-missing-field-initializers")
