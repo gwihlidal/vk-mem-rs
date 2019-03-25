@@ -59,7 +59,6 @@ fn main() {
     } else if target.contains("windows") && target.contains("gnu") {
         build
             .flag("-std=c++11")
-            .flag("-lpthread")
             .flag("-Wno-missing-field-initializers")
             .flag("-Wno-unused-variable")
             .flag("-Wno-unused-parameter")
@@ -67,6 +66,9 @@ fn main() {
             .flag("-Wno-reorder")
             .cpp_link_stdlib("stdc++")
             .cpp(true);
+        
+        // Necessary for C++11 threads, by statically linking no additional DLL is needed
+        println!("cargo:rustc-link-lib=static=pthread");
     }
     
     //gnu++11
