@@ -66,10 +66,6 @@ fn main() {
             .flag("-Wno-reorder")
             .cpp_link_stdlib("stdc++")
             .cpp(true);
-        
-        // Necessary for C++11 threads, by statically linking no additional DLL is needed
-        println!("cargo:rustc-link-search=/usr/x86_64-w64-mingw32/lib/");
-        println!("cargo:rustc-link-lib=static=libpthread");
     }
     
     //gnu++11
