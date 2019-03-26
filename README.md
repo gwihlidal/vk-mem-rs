@@ -137,7 +137,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vk-mem = "0.1.5"
+vk-mem = "0.1.6"
 ```
 
 and add this to your crate root:
@@ -174,6 +174,7 @@ at your option.
 - [Maik Klein](https://github.com/MaikKlein) (Author of ash - Vulkan rust bindings)
 - [Johan Andersson](https://github.com/repi) (Contributions)
 - [Patrick Minogue](https://github.com/afpatmin) (Contributions)
+- [LaylConway](https://github.com/LaylConway) (Contributions)
 
 ## Contribution
 

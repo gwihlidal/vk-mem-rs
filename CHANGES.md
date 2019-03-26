@@ -1,5 +1,10 @@
 # Changes
 
+## 0.1.6 (2019-03-25)
+
+* Fixed AllocationCreateInfo Default implementation.
+* Added windows-gnu to build.rs, and add cross-compilation information to README.md.
+
 ## 0.1.5 (2019-03-12)
 
 * Support both ash 0.27.1 and 0 0.28.0.
