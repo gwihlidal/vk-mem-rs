@@ -560,8 +560,8 @@ impl Default for AllocationCreateInfo {
         AllocationCreateInfo {
             usage: MemoryUsage::Unknown,
             flags: AllocationCreateFlags::NONE,
-            required_flags: ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,
-            preferred_flags: ash::vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            required_flags: ash::vk::MemoryPropertyFlags::empty(),
+            preferred_flags: ash::vk::MemoryPropertyFlags::empty(),
             memory_type_bits: 0,
             pool: None,
             user_data: None,
