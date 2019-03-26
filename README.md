@@ -146,6 +146,19 @@ and add this to your crate root:
 extern crate vk_mem;
 ```
 
+## Compiling using MinGW W64
+
+Vulkan Memory Allocator requires C++11 threads.
+MinGW W64 does not support these by default, so you need to switch to the posix build.
+For example, on debian you need to run the following:
+
+```bash
+update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix
+update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix
+```
+
 ## License
 
 Licensed under either of

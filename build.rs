@@ -56,6 +56,16 @@ fn main() {
             .flag("-Wno-reorder")
             .cpp_link_stdlib("stdc++")
             .cpp(true);
+    } else if target.contains("windows") && target.contains("gnu") {
+        build
+            .flag("-std=c++11")
+            .flag("-Wno-missing-field-initializers")
+            .flag("-Wno-unused-variable")
+            .flag("-Wno-unused-parameter")
+            .flag("-Wno-unused-private-field")
+            .flag("-Wno-reorder")
+            .cpp_link_stdlib("stdc++")
+            .cpp(true);
     }
 
     build.compile("vma_cpp");
