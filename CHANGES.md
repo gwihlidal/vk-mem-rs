@@ -1,5 +1,17 @@
 # Changes
 
+## 0.1.5 (2019-03-12)
+
+* Support both ash 0.27.1 and 0 0.28.0.
+* Updated vendor to latest version of VMA (fixes, optimizations).
+* Added CREATE_DONT_BIND allocation create flag.
+
+## 0.1.4 (2019-03-05)
+
+* Added Sync+Send to Allocation and AllocationInfo.
+* Bumped ash and failure deps to latest, updated tests to comply with latest ash.
+* Removed unnecessary heap allocation.
+
 ## 0.1.3 (2018-12-17)
 
 **Updated to AMD VMA 2.2 release!**
@@ -42,13 +54,13 @@ Minor changes:
 
 ## 0.1.2 (2018-12-11)
 
-* Minor documentation tweak
+* Minor documentation tweak.
 
 ## 0.1.1 (2018-12-11)
 
-* Major refactors
-* Full documentation pass
+* Major refactors.
+* Full documentation pass.
 
 ## 0.1.0 (2018-12-11)
 
-* First release
+* First release.
