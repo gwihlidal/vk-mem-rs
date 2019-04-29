@@ -1,5 +1,9 @@
 # Changes
 
+## 0.1.7 (2019-04-29)
+
+* Removed max ash version from dependencies.
+
 ## 0.1.6 (2019-03-25)
 
 * Fixed AllocationCreateInfo Default implementation.

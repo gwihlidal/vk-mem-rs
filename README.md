@@ -124,7 +124,7 @@ With this one function call (`vk_mem::Allocator::create_buffer`):
 For MoltenVK on macOS, you need to have the proper environment variables set. Something like:
 
 ```bash
-export SDK_PATH=/path/to/vulkansdk-macos-1.1.101.0
+export SDK_PATH=/path/to/vulkansdk-macos-1.1.106.0
 export DYLD_LIBRARY_PATH=$SDK_PATH/macOS/lib
 export VK_ICD_FILENAMES=$SDK_PATH/macOS/etc/vulkan/icd.d/MoltenVK_icd.json
 export VK_LAYER_PATH=$SDK_PATH/macOS/etc/vulkan/explicit_layer.d
@@ -137,7 +137,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vk-mem = "0.1.6"
+vk-mem = "0.1.7"
 ```
 
 and add this to your crate root:
