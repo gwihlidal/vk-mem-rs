@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use ash;
+#[cfg(feature = "failure")]
 use failure::{Backtrace, Context, Fail};
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -12,13 +13,22 @@ pub type Result<T> = result::Result<T, Error>;
 /// An error that can occur
 #[derive(Debug)]
 pub struct Error {
+    #[cfg(feature = "failure")]
     ctx: Context<ErrorKind>,
+    #[cfg(not(feature = "failure"))]
+    kind: ErrorKind,
 }
 
 impl Error {
     /// Return the kind of this error.
+    #[cfg(feature = "failure")]
     pub fn kind(&self) -> &ErrorKind {
         self.ctx.get_context()
+    }
+
+    #[cfg(not(feature = "failure"))]
+    pub fn kind(&self) -> &ErrorKind {
+        &self.kind
     }
 
     pub fn vulkan(result: ash::vk::Result) -> Error {
@@ -41,11 +51,13 @@ impl Error {
         Error::from(ErrorKind::Config(msg.as_ref().to_string()))
     }
 
+    #[cfg(feature = "failure")]
     pub fn number<E: Fail>(err: E) -> Error {
         Error::from(err.context(ErrorKind::Number))
     }
 }
 
+#[cfg(feature = "failure")]
 impl Fail for Error {
     fn cause(&self) -> Option<&Fail> {
         self.ctx.cause()
@@ -57,8 +69,14 @@ impl Fail for Error {
 }
 
 impl fmt::Display for Error {
+    #[cfg(feature = "failure")]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.ctx.fmt(f)
+    }
+
+    #[cfg(not(feature = "failure"))]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.kind.fmt(f)
     }
 }
 
@@ -125,12 +143,21 @@ impl fmt::Display for ErrorKind {
     }
 }
 
+#[cfg(not(feature = "failure"))]
+impl From<ErrorKind> for Error {
+    fn from(kind: ErrorKind) -> Error {
+        Error { kind }
+    }
+}
+
+#[cfg(feature = "failure")]
 impl From<ErrorKind> for Error {
     fn from(kind: ErrorKind) -> Error {
         Error::from(Context::new(kind))
     }
 }
 
+#[cfg(feature = "failure")]
 impl From<Context<ErrorKind>> for Error {
     fn from(ctx: Context<ErrorKind>) -> Error {
         Error { ctx }

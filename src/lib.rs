@@ -3,6 +3,7 @@
 extern crate ash;
 #[macro_use]
 extern crate bitflags;
+#[cfg(feature = "failure")]
 extern crate failure;
 
 pub mod error;
