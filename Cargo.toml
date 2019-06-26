@@ -31,7 +31,7 @@ maintenance = { status = "actively-developed" }
 [dependencies]
 ash = ">= 0.27.1"
 bitflags = "1.0.4"
-failure = "0.1.5"
+failure = { version = "0.1.5", optional = true }
 
 [build-dependencies]
 cc = { version = "1.0.35", features = ["parallel"] }
@@ -46,5 +46,6 @@ opt-level = 3
 codegen-units = 1
 
 [features]
+default = ["failure"]
 generate_bindings=["bindgen"]
 link_vulkan=[]
