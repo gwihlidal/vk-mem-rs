@@ -1,5 +1,15 @@
 # Changes
 
+## 0.1.8 (2019-07-14)
+
+* Allow the failure crate to be disabled through a feature toggle.
+* Removed the parallel feature for cc.
+* Removed max ash version (only require >= minimum).
+* Added a way to cleanup Allocator without dropping it.
+* Added a note to `create_image` describing VMA panic behavior in some circumstances.
+* Updated VMA vendoring to commit hash `195016b0348038537dbd73d45d6ccaf795bfb367`.
+* Regenerated bindings and added function pointer wrapping for `bind_buffer_memory2` and `bind_image_memory2`.
+
 ## 0.1.7 (2019-04-29)
 
 * Removed max ash version from dependencies.
