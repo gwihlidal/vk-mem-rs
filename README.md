@@ -175,6 +175,8 @@ at your option.
 - [Johan Andersson](https://github.com/repi) (Contributions)
 - [Patrick Minogue](https://github.com/afpatmin) (Contributions)
 - [LaylConway](https://github.com/LaylConway) (Contributions)
+- [aloucks](https://github.com/aloucks) (Contributions)
+- [Henrik Rydgård](https://github.com/hrydgard) (Contributions)
 
 ## Contribution
 
