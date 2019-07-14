@@ -1861,7 +1861,7 @@ impl Allocator {
     /// and if dedicated allocation is possible (AllocationCreateInfo::pool is null
     /// and `AllocationCreateFlags::NEVER_ALLOCATE` is not used), it creates dedicated
     /// allocation for this image, just like when using `AllocationCreateFlags::DEDICATED_MEMORY`.
-    /// 
+    ///
     /// If `VK_ERROR_VALIDAITON_FAILED_EXT` is returned, VMA may have encountered a problem
     /// that is not caught by the validation layers. One example is if you try to create a 0x0
     /// image, a panic will occur and `VK_ERROR_VALIDAITON_FAILED_EXT` is thrown.
