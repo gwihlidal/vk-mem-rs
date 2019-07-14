@@ -1916,7 +1916,7 @@ impl Allocator {
     /// no other functions may be called. Useful for ensuring a specific destruction
     /// order (for example, if an Allocator is a member of something that owns the Vulkan
     /// instance and destroys it in its own Drop).
-    pub fn cleanup(&mut self) {
+    pub fn destroy(&mut self) {
         if !self.internal.is_null() {
             unsafe {
                 ffi::vmaDestroyAllocator(self.internal);
@@ -1929,6 +1929,6 @@ impl Allocator {
 /// Custom `Drop` implementation to clean up internal allocation instance
 impl Drop for Allocator {
     fn drop(&mut self) {
-        self.cleanup();
+        self.destroy();
     }
 }
