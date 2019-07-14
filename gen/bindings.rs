@@ -1452,6 +1452,24 @@ pub type PFN_vkCmdCopyBuffer = ::std::option::Option<
 >;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct VkBindBufferMemoryInfo {
+    pub sType: VkStructureType,
+    pub pNext: *const ::std::os::raw::c_void,
+    pub buffer: VkBuffer,
+    pub memory: VkDeviceMemory,
+    pub memoryOffset: VkDeviceSize,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct VkBindImageMemoryInfo {
+    pub sType: VkStructureType,
+    pub pNext: *const ::std::os::raw::c_void,
+    pub image: VkImage,
+    pub memory: VkDeviceMemory,
+    pub memoryOffset: VkDeviceSize,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct VkBufferMemoryRequirementsInfo2 {
     pub sType: VkStructureType,
     pub pNext: *const ::std::os::raw::c_void,
@@ -1484,6 +1502,20 @@ pub type PFN_vkGetBufferMemoryRequirements2KHR = ::std::option::Option<
         pInfo: *const VkBufferMemoryRequirementsInfo2,
         pMemoryRequirements: *mut VkMemoryRequirements2,
     ),
+>;
+pub type PFN_vkBindBufferMemory2KHR = ::std::option::Option<
+    unsafe extern "C" fn(
+        device: VkDevice,
+        bindInfoCount: u32,
+        pBindInfos: *const VkBindBufferMemoryInfo,
+    ) -> VkResult,
+>;
+pub type PFN_vkBindImageMemory2KHR = ::std::option::Option<
+    unsafe extern "C" fn(
+        device: VkDevice,
+        bindInfoCount: u32,
+        pBindInfos: *const VkBindImageMemoryInfo,
+    ) -> VkResult,
 >;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1549,6 +1581,8 @@ pub struct VmaVulkanFunctions {
     pub vkCmdCopyBuffer: PFN_vkCmdCopyBuffer,
     pub vkGetBufferMemoryRequirements2KHR: PFN_vkGetBufferMemoryRequirements2KHR,
     pub vkGetImageMemoryRequirements2KHR: PFN_vkGetImageMemoryRequirements2KHR,
+    pub vkBindBufferMemory2KHR: PFN_vkBindBufferMemory2KHR,
+    pub vkBindImageMemory2KHR: PFN_vkBindImageMemory2KHR,
 }
 pub type VmaRecordFlags = VkFlags;
 #[doc = " Parameters for recording calls to VMA functions. To be used in VmaAllocatorCreateInfo::pRecordSettings."]
@@ -1617,7 +1651,7 @@ pub struct VmaAllocatorCreateInfo {
     #[doc = "value of this limit will be reported instead when using vmaGetMemoryProperties()."]
     #[doc = ""]
     #[doc = "Warning! Using this feature may not be equivalent to installing a GPU with"]
-    #[doc = "smaller amount of memory, because graphics driver doesn\'t necessary fail new"]
+    #[doc = "smaller amount of memory, because graphics driver doesn't necessary fail new"]
     #[doc = "allocations with `VK_ERROR_OUT_OF_DEVICE_MEMORY` result when memory capacity is"]
     #[doc = "exceeded. It may return success and just silently migrate some device memory"]
     #[doc = "blocks to system RAM. This driver behavior can also be controlled using"]
@@ -1835,7 +1869,7 @@ pub struct VmaAllocationCreateInfo {
     #[doc = ""]
     #[doc = "If #VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT is used, it must be either"]
     #[doc = "null or pointer to a null-terminated string. The string will be then copied to"]
-    #[doc = "internal buffer, so it doesn\'t need to be valid after allocation call."]
+    #[doc = "internal buffer, so it doesn't need to be valid after allocation call."]
     pub pUserData: *mut ::std::os::raw::c_void,
 }
 extern "C" {
@@ -1850,7 +1884,7 @@ extern "C" {
     #[doc = ""]
     #[doc = "\\return Returns VK_ERROR_FEATURE_NOT_PRESENT if not found. Receiving such result"]
     #[doc = "from this function or any other allocating function probably means that your"]
-    #[doc = "device doesn\'t support any memory type with requested features for the specific"]
+    #[doc = "device doesn't support any memory type with requested features for the specific"]
     #[doc = "type of resource you want to use it for. Please check parameters of your"]
     #[doc = "resource, like image layout (OPTIMAL versus LINEAR) or mip level count."]
     pub fn vmaFindMemoryTypeIndex(
@@ -1988,7 +2022,7 @@ extern "C" {
     #[doc = ""]
     #[doc = "@param allocator Allocator object."]
     #[doc = "@param pool Pool."]
-    #[doc = "@param[out] pLostAllocationCount Number of allocations marked as lost. Optional - pass null if you don\'t need this information."]
+    #[doc = "@param[out] pLostAllocationCount Number of allocations marked as lost. Optional - pass null if you don't need this information."]
     pub fn vmaMakePoolAllocationsLost(
         allocator: VmaAllocator,
         pool: VmaPool,
@@ -2043,7 +2077,7 @@ pub struct VmaAllocationInfo {
     pub size: VkDeviceSize,
     #[doc = " \\brief Pointer to the beginning of this allocation as mapped data."]
     #[doc = ""]
-    #[doc = "If the allocation hasn\'t been mapped using vmaMapMemory() and hasn\'t been"]
+    #[doc = "If the allocation hasn't been mapped using vmaMapMemory() and hasn't been"]
     #[doc = "created with #VMA_ALLOCATION_CREATE_MAPPED_BIT flag, this value null."]
     #[doc = ""]
     #[doc = "It can change after call to vmaMapMemory(), vmaUnmapMemory()."]
@@ -2146,25 +2180,11 @@ extern "C" {
     );
 }
 extern "C" {
-    #[doc = " \\brief Tries to resize an allocation in place, if there is enough free memory after it."]
+    #[doc = " \\brief Deprecated."]
     #[doc = ""]
-    #[doc = "Tries to change allocation\'s size without moving or reallocating it."]
-    #[doc = "You can both shrink and grow allocation size."]
-    #[doc = "When growing, it succeeds only when the allocation belongs to a memory block with enough"]
-    #[doc = "free space after it."]
-    #[doc = ""]
-    #[doc = "Returns `VK_SUCCESS` if allocation\'s size has been successfully changed."]
-    #[doc = "Returns `VK_ERROR_OUT_OF_POOL_MEMORY` if allocation\'s size could not be changed."]
-    #[doc = ""]
-    #[doc = "After successful call to this function, VmaAllocationInfo::size of this allocation changes."]
-    #[doc = "All other parameters stay the same: memory pool and type, alignment, offset, mapped pointer."]
-    #[doc = ""]
-    #[doc = "- Calling this function on allocation that is in lost state fails with result `VK_ERROR_VALIDATION_FAILED_EXT`."]
-    #[doc = "- Calling this function with `newSize` same as current allocation size does nothing and returns `VK_SUCCESS`."]
-    #[doc = "- Resizing dedicated allocations, as well as allocations created in pools that use linear"]
-    #[doc = "or buddy algorithm, is not supported."]
-    #[doc = "The function returns `VK_ERROR_FEATURE_NOT_PRESENT` in such cases."]
-    #[doc = "Support may be added in the future."]
+    #[doc = "In version 2.2.0 it used to try to change allocation's size without moving or reallocating it."]
+    #[doc = "In current version it returns `VK_SUCCESS` only if `newSize` equals current allocation's size."]
+    #[doc = "Otherwise returns `VK_ERROR_OUT_OF_POOL_MEMORY`, indicating that allocation's size could not be changed."]
     pub fn vmaResizeAllocation(
         allocator: VmaAllocator,
         allocation: VmaAllocation,
@@ -2180,11 +2200,11 @@ extern "C" {
     #[doc = "just like vmaTouchAllocation()."]
     #[doc = "If the allocation is in lost state, `pAllocationInfo->deviceMemory == VK_NULL_HANDLE`."]
     #[doc = ""]
-    #[doc = "Although this function uses atomics and doesn\'t lock any mutex, so it should be quite efficient,"]
+    #[doc = "Although this function uses atomics and doesn't lock any mutex, so it should be quite efficient,"]
     #[doc = "you can avoid calling it too often."]
     #[doc = ""]
     #[doc = "- You can retrieve same VmaAllocationInfo structure while creating your resource, from function"]
-    #[doc = "vmaCreateBuffer(), vmaCreateImage(). You can remember it if you are sure parameters don\'t change"]
+    #[doc = "vmaCreateBuffer(), vmaCreateImage(). You can remember it if you are sure parameters don't change"]
     #[doc = "(e.g. due to defragmentation or allocation becoming lost)."]
     #[doc = "- If you just want to check if allocation is not lost, vmaTouchAllocation() will work faster."]
     pub fn vmaGetAllocationInfo(
@@ -2197,9 +2217,9 @@ extern "C" {
     #[doc = " \\brief Returns `VK_TRUE` if allocation is not lost and atomically marks it as used in current frame."]
     #[doc = ""]
     #[doc = "If the allocation has been created with #VMA_ALLOCATION_CREATE_CAN_BECOME_LOST_BIT flag,"]
-    #[doc = "this function returns `VK_TRUE` if it\'s not in lost state, so it can still be used."]
+    #[doc = "this function returns `VK_TRUE` if it's not in lost state, so it can still be used."]
     #[doc = "It then also atomically \"touches\" the allocation - marks it as used in current frame,"]
-    #[doc = "so that you can be sure it won\'t become lost in current frame or next `frameInUseCount` frames."]
+    #[doc = "so that you can be sure it won't become lost in current frame or next `frameInUseCount` frames."]
     #[doc = ""]
     #[doc = "If the allocation is in lost state, the function returns `VK_FALSE`."]
     #[doc = "Memory of such allocation, as well as buffer or image bound to it, should not be used."]
@@ -2214,13 +2234,13 @@ extern "C" {
     #[doc = ""]
     #[doc = "If the allocation was created with VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT,"]
     #[doc = "pUserData must be either null, or pointer to a null-terminated string. The function"]
-    #[doc = "makes local copy of the string and sets it as allocation\'s `pUserData`. String"]
-    #[doc = "passed as pUserData doesn\'t need to be valid for whole lifetime of the allocation -"]
-    #[doc = "you can free it after this call. String previously pointed by allocation\'s"]
+    #[doc = "makes local copy of the string and sets it as allocation's `pUserData`. String"]
+    #[doc = "passed as pUserData doesn't need to be valid for whole lifetime of the allocation -"]
+    #[doc = "you can free it after this call. String previously pointed by allocation's"]
     #[doc = "pUserData is freed from memory."]
     #[doc = ""]
     #[doc = "If the flag was not used, the value of pointer `pUserData` is just copied to"]
-    #[doc = "allocation\'s `pUserData`. It is opaque, so you can use it however you want - e.g."]
+    #[doc = "allocation's `pUserData`. It is opaque, so you can use it however you want - e.g."]
     #[doc = "as a pointer, ordinal number or some handle to you own data."]
     pub fn vmaSetAllocationUserData(
         allocator: VmaAllocator,
@@ -2293,11 +2313,15 @@ extern "C" {
     #[doc = ""]
     #[doc = "- `offset` must be relative to the beginning of allocation."]
     #[doc = "- `size` can be `VK_WHOLE_SIZE`. It means all memory from `offset` the the end of given allocation."]
-    #[doc = "- `offset` and `size` don\'t have to be aligned."]
+    #[doc = "- `offset` and `size` don't have to be aligned."]
     #[doc = "They are internally rounded down/up to multiply of `nonCoherentAtomSize`."]
     #[doc = "- If `size` is 0, this call is ignored."]
     #[doc = "- If memory type that the `allocation` belongs to is not `HOST_VISIBLE` or it is `HOST_COHERENT`,"]
     #[doc = "this call is ignored."]
+    #[doc = ""]
+    #[doc = "Warning! `offset` and `size` are relative to the contents of given `allocation`."]
+    #[doc = "If you mean whole allocation, you can pass 0 and `VK_WHOLE_SIZE`, respectively."]
+    #[doc = "Do not pass allocation's offset as `offset`!!!"]
     pub fn vmaFlushAllocation(
         allocator: VmaAllocator,
         allocation: VmaAllocation,
@@ -2312,11 +2336,15 @@ extern "C" {
     #[doc = ""]
     #[doc = "- `offset` must be relative to the beginning of allocation."]
     #[doc = "- `size` can be `VK_WHOLE_SIZE`. It means all memory from `offset` the the end of given allocation."]
-    #[doc = "- `offset` and `size` don\'t have to be aligned."]
+    #[doc = "- `offset` and `size` don't have to be aligned."]
     #[doc = "They are internally rounded down/up to multiply of `nonCoherentAtomSize`."]
     #[doc = "- If `size` is 0, this call is ignored."]
     #[doc = "- If memory type that the `allocation` belongs to is not `HOST_VISIBLE` or it is `HOST_COHERENT`,"]
     #[doc = "this call is ignored."]
+    #[doc = ""]
+    #[doc = "Warning! `offset` and `size` are relative to the contents of given `allocation`."]
+    #[doc = "If you mean whole allocation, you can pass 0 and `VK_WHOLE_SIZE`, respectively."]
+    #[doc = "Do not pass allocation's offset as `offset`!!!"]
     pub fn vmaInvalidateAllocation(
         allocator: VmaAllocator,
         allocation: VmaAllocation,
@@ -2468,6 +2496,9 @@ extern "C" {
     #[doc = "They become valid after call to vmaDefragmentationEnd()."]
     #[doc = "- If `pInfo->commandBuffer` is not null, you must submit that command buffer"]
     #[doc = "and make sure it finished execution before calling vmaDefragmentationEnd()."]
+    #[doc = ""]
+    #[doc = "For more information and important limitations regarding defragmentation, see documentation chapter:"]
+    #[doc = "[Defragmentation](@ref defragmentation)."]
     pub fn vmaDefragmentationBegin(
         allocator: VmaAllocator,
         pInfo: *const VmaDefragmentationInfo2,
@@ -2490,9 +2521,9 @@ extern "C" {
     #[doc = ""]
     #[doc = "@param pAllocations Array of allocations that can be moved during this compation."]
     #[doc = "@param allocationCount Number of elements in pAllocations and pAllocationsChanged arrays."]
-    #[doc = "@param[out] pAllocationsChanged Array of boolean values that will indicate whether matching allocation in pAllocations array has been moved. This parameter is optional. Pass null if you don\'t need this information."]
+    #[doc = "@param[out] pAllocationsChanged Array of boolean values that will indicate whether matching allocation in pAllocations array has been moved. This parameter is optional. Pass null if you don't need this information."]
     #[doc = "@param pDefragmentationInfo Configuration parameters. Optional - pass null to use default values."]
-    #[doc = "@param[out] pDefragmentationStats Statistics returned by the function. Optional - pass null if you don\'t need this information."]
+    #[doc = "@param[out] pDefragmentationStats Statistics returned by the function. Optional - pass null if you don't need this information."]
     #[doc = "@return `VK_SUCCESS` if completed, negative error code in case of error."]
     #[doc = ""]
     #[doc = "\\deprecated This is a part of the old interface. It is recommended to use structure #VmaDefragmentationInfo2 and function vmaDefragmentationBegin() instead."]
@@ -2518,7 +2549,7 @@ extern "C" {
     #[doc = ""]
     #[doc = "The function also frees empty `VkDeviceMemory` blocks."]
     #[doc = ""]
-    #[doc = "Warning: This function may be time-consuming, so you shouldn\'t call it too often"]
+    #[doc = "Warning: This function may be time-consuming, so you shouldn't call it too often"]
     #[doc = "(like after every resource creation/destruction)."]
     #[doc = "You can call it on special occasions (like when reloading a game level or"]
     #[doc = "when you just destroyed a lot of objects). Calling it every frame may be OK, but"]
@@ -2542,7 +2573,7 @@ extern "C" {
     #[doc = "If you want to create a buffer, allocate memory for it and bind them together separately,"]
     #[doc = "you should use this function for binding instead of standard `vkBindBufferMemory()`,"]
     #[doc = "because it ensures proper synchronization so that when a `VkDeviceMemory` object is used by multiple"]
-    #[doc = "allocations, calls to `vkBind*Memory()` or `vkMapMemory()` won\'t happen from multiple threads simultaneously"]
+    #[doc = "allocations, calls to `vkBind*Memory()` or `vkMapMemory()` won't happen from multiple threads simultaneously"]
     #[doc = "(which is illegal in Vulkan)."]
     #[doc = ""]
     #[doc = "It is recommended to use function vmaCreateBuffer() instead of this one."]
@@ -2553,6 +2584,24 @@ extern "C" {
     ) -> VkResult;
 }
 extern "C" {
+    #[doc = " \\brief Binds buffer to allocation with additional parameters."]
+    #[doc = ""]
+    #[doc = "@param allocationLocalOffset Additional offset to be added while binding, relative to the beginnig of the `allocation`. Normally it should be 0."]
+    #[doc = "@param pNext A chain of structures to be attached to `VkBindBufferMemoryInfoKHR` structure used internally. Normally it should be null."]
+    #[doc = ""]
+    #[doc = "This function is similar to vmaBindBufferMemory(), but it provides additional parameters."]
+    #[doc = ""]
+    #[doc = "If `pNext` is not null, #VmaAllocator object must have been created with #VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT flag."]
+    #[doc = "Otherwise the call fails."]
+    pub fn vmaBindBufferMemory2(
+        allocator: VmaAllocator,
+        allocation: VmaAllocation,
+        allocationLocalOffset: VkDeviceSize,
+        buffer: VkBuffer,
+        pNext: *const ::std::os::raw::c_void,
+    ) -> VkResult;
+}
+extern "C" {
     #[doc = " \\brief Binds image to allocation."]
     #[doc = ""]
     #[doc = "Binds specified image to region of memory represented by specified allocation."]
@@ -2560,7 +2609,7 @@ extern "C" {
     #[doc = "If you want to create an image, allocate memory for it and bind them together separately,"]
     #[doc = "you should use this function for binding instead of standard `vkBindImageMemory()`,"]
     #[doc = "because it ensures proper synchronization so that when a `VkDeviceMemory` object is used by multiple"]
-    #[doc = "allocations, calls to `vkBind*Memory()` or `vkMapMemory()` won\'t happen from multiple threads simultaneously"]
+    #[doc = "allocations, calls to `vkBind*Memory()` or `vkMapMemory()` won't happen from multiple threads simultaneously"]
     #[doc = "(which is illegal in Vulkan)."]
     #[doc = ""]
     #[doc = "It is recommended to use function vmaCreateImage() instead of this one."]
@@ -2568,6 +2617,24 @@ extern "C" {
         allocator: VmaAllocator,
         allocation: VmaAllocation,
         image: VkImage,
+    ) -> VkResult;
+}
+extern "C" {
+    #[doc = " \\brief Binds image to allocation with additional parameters."]
+    #[doc = ""]
+    #[doc = "@param allocationLocalOffset Additional offset to be added while binding, relative to the beginnig of the `allocation`. Normally it should be 0."]
+    #[doc = "@param pNext A chain of structures to be attached to `VkBindImageMemoryInfoKHR` structure used internally. Normally it should be null."]
+    #[doc = ""]
+    #[doc = "This function is similar to vmaBindImageMemory(), but it provides additional parameters."]
+    #[doc = ""]
+    #[doc = "If `pNext` is not null, #VmaAllocator object must have been created with #VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT flag."]
+    #[doc = "Otherwise the call fails."]
+    pub fn vmaBindImageMemory2(
+        allocator: VmaAllocator,
+        allocation: VmaAllocation,
+        allocationLocalOffset: VkDeviceSize,
+        image: VkImage,
+        pNext: *const ::std::os::raw::c_void,
     ) -> VkResult;
 }
 extern "C" {

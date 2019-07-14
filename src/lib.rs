@@ -780,8 +780,14 @@ impl Allocator {
                 vkBindBufferMemory: mem::transmute::<_, ffi::PFN_vkBindBufferMemory>(Some(
                     device.fp_v1_0().bind_buffer_memory,
                 )),
+                vkBindBufferMemory2KHR: mem::transmute::<_, ffi::PFN_vkBindBufferMemory2KHR>(Some(
+                    device.fp_v1_1().bind_buffer_memory2,
+                )),
                 vkBindImageMemory: mem::transmute::<_, ffi::PFN_vkBindImageMemory>(Some(
                     device.fp_v1_0().bind_image_memory,
+                )),
+                vkBindImageMemory2KHR: mem::transmute::<_, ffi::PFN_vkBindImageMemory2KHR>(Some(
+                    device.fp_v1_1().bind_image_memory2,
                 )),
                 vkGetBufferMemoryRequirements: mem::transmute::<
                     _,
