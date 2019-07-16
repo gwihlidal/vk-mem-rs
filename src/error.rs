@@ -3,6 +3,8 @@
 use ash;
 #[cfg(feature = "failure")]
 use failure::{Backtrace, Context, Fail};
+#[cfg(not(feature = "failure"))]
+use std::error::Error as StdError;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::result;
@@ -65,6 +67,16 @@ impl Fail for Error {
 
     fn backtrace(&self) -> Option<&Backtrace> {
         self.ctx.backtrace()
+    }
+}
+
+#[cfg(not(feature = "failure"))]
+impl StdError for Error {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        match self.kind {
+            ErrorKind::Vulkan(ref err) => Some(err),
+            _ => None,
+        }
     }
 }
 
