@@ -161,7 +161,7 @@ fn create_allocator() {
 #[test]
 fn create_gpu_buffer() {
     let harness = TestHarness::new();
-    let mut allocator = harness.create_allocator();
+    let allocator = harness.create_allocator();
     let allocation_info = vk_mem::AllocationCreateInfo {
         usage: vk_mem::MemoryUsage::GpuOnly,
         ..Default::default()
@@ -185,7 +185,7 @@ fn create_gpu_buffer() {
 #[test]
 fn create_cpu_buffer_preferred() {
     let harness = TestHarness::new();
-    let mut allocator = harness.create_allocator();
+    let allocator = harness.create_allocator();
     let allocation_info = vk_mem::AllocationCreateInfo {
         required_flags: ash::vk::MemoryPropertyFlags::HOST_VISIBLE,
         preferred_flags: ash::vk::MemoryPropertyFlags::HOST_COHERENT
@@ -212,7 +212,7 @@ fn create_cpu_buffer_preferred() {
 #[test]
 fn create_gpu_buffer_pool() {
     let harness = TestHarness::new();
-    let mut allocator = harness.create_allocator();
+    let allocator = harness.create_allocator();
 
     let buffer_info = ash::vk::BufferCreateInfo::builder()
         .size(16 * 1024)
@@ -252,7 +252,7 @@ fn create_gpu_buffer_pool() {
 #[test]
 fn test_gpu_stats() {
     let harness = TestHarness::new();
-    let mut allocator = harness.create_allocator();
+    let allocator = harness.create_allocator();
     let allocation_info = vk_mem::AllocationCreateInfo {
         usage: vk_mem::MemoryUsage::GpuOnly,
         ..Default::default()
@@ -292,7 +292,7 @@ fn test_gpu_stats() {
 #[test]
 fn test_stats_string() {
     let harness = TestHarness::new();
-    let mut allocator = harness.create_allocator();
+    let allocator = harness.create_allocator();
     let allocation_info = vk_mem::AllocationCreateInfo {
         usage: vk_mem::MemoryUsage::GpuOnly,
         ..Default::default()
