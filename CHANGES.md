@@ -1,5 +1,13 @@
 # Changes
 
+## 0.1.9 (2019-10-29)
+
+* Removed unnecessary mut specifiers.
+* Implemented `std::error::Error` for `vk_mem::Error`.
+* Disabled usage of `failure` by default.
+* Updated to latest vendor commit (6ac1d3a4b732f50aef3a884ef7020cce53007065).
+* Bumped all dependencies to latest versions.
+
 ## 0.1.8 (2019-07-14)
 
 * Allow the failure crate to be disabled through a feature toggle.
@@ -40,30 +48,30 @@ Notable new features: defragmentation of GPU memory, buddy algorithm, convenienc
 Major changes:
 
 * New, more powerful defragmentation:
-    * `DefragmentationInfo2`
-    * `Allocator::defragmentation_begin`
-    * `Allocator::defragmentation_end`
+  * `DefragmentationInfo2`
+  * `Allocator::defragmentation_begin`
+  * `Allocator::defragmentation_end`
 * Added support for defragmentation of GPU memory.
 * Defragmentation of CPU memory now uses `memmove` internally, so it can move data to overlapping regions.
 * Defragmentation of CPU memory is now available for memory types that are `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` but not `ash::vk::MemoryPropertyFlags::HOST_COHERENT`.
 * Major internal changes in defragmentation algorithm.
 * Old interface (structure `DefragmentationInfo`, function `Allocator::defragment`) is now deprecated.
 * Added buddy algorithm, available for custom pools:
-    * `AllocatorPoolCreateFlags::BUDDY_ALGORITHM`
+  * `AllocatorPoolCreateFlags::BUDDY_ALGORITHM`
 * Added convenience functions for multiple allocations and deallocations at once, intended for sparse binding resources:
-    * `Allocator::allocate_memory_pages`
-    * `Allocator::free_memory_pages`
+  * `Allocator::allocate_memory_pages`
+  * `Allocator::free_memory_pages`
 * Added function that tries to resize existing allocation in place:
-    * `Allocator::resize_allocation`
+  * `Allocator::resize_allocation`
 * Added flags for allocation strategy
-    * New flags:
-        * `AllocationCreateFlags::STRATEGY_BEST_FIT`
-        * `AllocationCreateFlags::STRATEGY_WORST_FIT`
-        * `AllocationCreateFlags::STRATEGY_FIRST_FIT`
-    * Their aliases:
-        * `AllocationCreateFlags::STRATEGY_MIN_MEMORY`
-        * `AllocationCreateFlags::STRATEGY_MIN_TIME`
-        * `AllocationCreateFlags::STRATEGY_MIN_FRAGMENTATION`
+  * New flags:
+    * `AllocationCreateFlags::STRATEGY_BEST_FIT`
+    * `AllocationCreateFlags::STRATEGY_WORST_FIT`
+    * `AllocationCreateFlags::STRATEGY_FIRST_FIT`
+  * Their aliases:
+    * `AllocationCreateFlags::STRATEGY_MIN_MEMORY`
+    * `AllocationCreateFlags::STRATEGY_MIN_TIME`
+    * `AllocationCreateFlags::STRATEGY_MIN_FRAGMENTATION`
 
 Minor changes:
 
