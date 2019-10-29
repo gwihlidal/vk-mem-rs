@@ -1,5 +1,7 @@
 //! Easy to use, high performance memory manager for Vulkan.
 
+#![allow(invalid_value)]
+
 extern crate ash;
 #[macro_use]
 extern crate bitflags;
