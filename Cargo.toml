@@ -46,6 +46,6 @@ opt-level = 3
 codegen-units = 1
 
 [features]
-default = ["failure"]
+default = []
 generate_bindings=["bindgen"]
 link_vulkan=[]
