@@ -7,6 +7,7 @@
 * Disabled usage of `failure` by default.
 * Updated to latest vendor commit (6ac1d3a4b732f50aef3a884ef7020cce53007065).
 * Bumped all dependencies to latest versions.
+* Removed clone from `Allocator`, as it was unsafe and invalid.
 
 ## 0.1.8 (2019-07-14)
 
