@@ -15,15 +15,16 @@ use ash::vk::Handle;
 use std::mem;
 
 /// Main allocator object
-#[derive(Clone)]
 pub struct Allocator {
     /// Pointer to internal VmaAllocator instance
     pub(crate) internal: ffi::VmaAllocator,
 
     /// Vulkan instance handle
+    #[allow(dead_code)]
     pub(crate) instance: ash::Instance,
 
     /// Vulkan device handle
+    #[allow(dead_code)]
     pub(crate) device: ash::Device,
 }
 
