@@ -73,6 +73,14 @@ pub struct Allocation {
     pub(crate) internal: ffi::VmaAllocation,
 }
 
+impl Allocation {
+    pub fn null() -> Allocation {
+        Allocation {
+            internal: std::ptr::null_mut(),
+        }
+    }
+}
+
 unsafe impl Send for Allocation {}
 unsafe impl Sync for Allocation {}
 
