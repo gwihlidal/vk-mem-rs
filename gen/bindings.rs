@@ -2045,6 +2045,21 @@ extern "C" {
     #[doc = "- Other value: Error returned by Vulkan, e.g. memory mapping failure."]
     pub fn vmaCheckPoolCorruption(allocator: VmaAllocator, pool: VmaPool) -> VkResult;
 }
+extern "C" {
+    #[doc = " TODO"]
+    pub fn vmaGetPoolName(
+        allocator: VmaAllocator,
+        pool: VmaPool,
+        ppName: *mut *const ::std::os::raw::c_char,
+    );
+}
+extern "C" {
+    pub fn vmaSetPoolName(
+        allocator: VmaAllocator,
+        pool: VmaPool,
+        pName: *const ::std::os::raw::c_char,
+    );
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct VmaAllocation_T {
