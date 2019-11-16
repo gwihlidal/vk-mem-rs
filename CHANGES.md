@@ -1,11 +1,16 @@
 # Changes
 
+## 0.2.0 (2019-11-16)
+
+* Updated VMA vendoring to commit hash `a020fb81cb67b376fb33228475f22d0d9c29f9fd`.
+* Implemented `vk_mem::Allocation::null()` for symmetry with vk::Image::null().
+
 ## 0.1.9 (2019-10-29)
 
 * Removed unnecessary mut specifiers.
 * Implemented `std::error::Error` for `vk_mem::Error`.
 * Disabled usage of `failure` by default.
-* Updated to latest vendor commit (6ac1d3a4b732f50aef3a884ef7020cce53007065).
+* Updated VMA vendoring to commit hash `6ac1d3a4b732f50aef3a884ef7020cce53007065`.
 * Bumped all dependencies to latest versions.
 * Removed clone from `Allocator`, as it was unsafe and invalid.
 
