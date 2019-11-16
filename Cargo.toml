@@ -1,6 +1,6 @@
 [package]
 name = "vk-mem"
-version = "0.1.9"
+version = "0.2.0"
 authors = ["Graham Wihlidal <graham@wihlidal.ca>"]
 description = "Rust ffi bindings and idiomatic wrapper for AMD Vulkan Memory Allocator (VMA)"
 homepage = "https://github.com/gwihlidal/vk-mem-rs"
@@ -34,7 +34,7 @@ bitflags = "1.2.1"
 failure = { version = "0.1.6", optional = true }
 
 [build-dependencies]
-cc = "1.0.46"
+cc = "1.0.47"
 
 [build-dependencies.bindgen]
 version = "0.51.1"
