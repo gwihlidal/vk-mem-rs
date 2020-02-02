@@ -319,7 +319,7 @@ fn pool_create_info_to_ffi(info: &AllocatorPoolCreateInfo) -> ffi::VmaPoolCreate
 }
 
 /// Intended usage of memory.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub enum MemoryUsage {
     /// No intended memory usage specified.
     /// Use other members of `AllocationCreateInfo` to specify your requirements.
