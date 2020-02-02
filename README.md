@@ -39,7 +39,7 @@ This crate can help game developers to manage memory allocations and resource cr
 Additional features:
 
 - Cross-platform
-  -Windows
+  - Windows
   - Linux
   - macOS (MoltenVK)
 - Well tested and documented API
