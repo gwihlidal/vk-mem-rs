@@ -67,7 +67,7 @@ impl Default for AllocatorPool {
 /// use `Allocator::get_allocation_info`.
 ///
 /// Some kinds allocations can be in lost state.
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Allocation {
     /// Pointer to internal VmaAllocation instance
     pub(crate) internal: ffi::VmaAllocation,
