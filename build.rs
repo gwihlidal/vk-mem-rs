@@ -20,6 +20,7 @@ fn main() {
     // for MoltenVK, where there is no default installation path, unlike
     // Linux (pkconfig) and Windows (VULKAN_SDK environment variable).
     build.define("VMA_STATIC_VULKAN_FUNCTIONS", "0");
+    build.define("VMA_DYNAMIC_VULKAN_FUNCTIONS", "0");
 
     // This prevents VMA from trying to fetch any remaining pointers
     // that are still null after using the loader in ash, which can

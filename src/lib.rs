@@ -194,6 +194,23 @@ bitflags! {
         /// validation layer. You can ignore them.
         /// `> vkBindBufferMemory(): Binding memory to buffer 0x2d but vkGetBufferMemoryRequirements() has not been called on that buffer.`
         const KHR_DEDICATED_ALLOCATION = 0x0000_0002;
+
+        /// Enables usage of "buffer device address" feature, which allows you to use function
+        /// `vkGetBufferDeviceAddress*` to get raw GPU pointer to a buffer and pass it for usage inside a shader.
+        ///
+        /// You may set this flag only if you:
+        ///
+        /// 1. (For Vulkan version < 1.2) Found as available and enabled device extension
+        /// VK_EXT_buffer_device_address or VK_KHR_buffer_device_address.
+        /// Those extensions are promoted to core Vulkan 1.2.
+        /// 2. Found as available and enabled device feature `VkPhysicalDeviceBufferDeviceAddressFeatures*::bufferDeviceAddress`.
+        ///
+        /// When this flag is set, you can create buffers with `VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT` using VMA.
+        /// The library automatically adds `VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR` to
+        /// allocated memory blocks wherever it might be needed.
+        ///
+        /// For more information, see documentation chapter \ref enabling_buffer_device_address.
+        const BUFFER_DEVICE_ADDRESS = 0x0000_0020;
     }
 }
 
@@ -768,9 +785,10 @@ pub struct DefragmentationStats {
 impl Allocator {
     /// Constructor a new `Allocator` using the provided options.
     pub fn new(create_info: &AllocatorCreateInfo) -> Result<Self> {
-        use ash::version::{DeviceV1_0, DeviceV1_1};
+        use ash::version::{DeviceV1_0, DeviceV1_1, InstanceV1_1};
         let instance = create_info.instance.clone();
         let device = create_info.device.clone();
+        let ray_tracing = ash::extensions::khr::RayTracing::new(&instance, &device);
         let routed_functions = unsafe {
             ffi::VmaVulkanFunctions {
                 vkGetPhysicalDeviceProperties: mem::transmute::<
@@ -857,14 +875,38 @@ impl Allocator {
                 >(Some(
                     device.fp_v1_1().get_image_memory_requirements2,
                 )),
-                // TODO:
-                vkGetPhysicalDeviceMemoryProperties2KHR: None,
-                /*vkGetPhysicalDeviceMemoryProperties2KHR: mem::transmute::<
+                vkGetPhysicalDeviceMemoryProperties2KHR: mem::transmute::<
                     _,
                     ffi::PFN_vkGetPhysicalDeviceMemoryProperties2KHR,
                 >(Some(
-                    device.fp_v1_1().get_physical_device_memory_properties2,
-                )),*/
+                    instance.fp_v1_1().get_physical_device_memory_properties2,
+                )),
+                vkCreateAccelerationStructureKHR: mem::transmute::<
+                    _,
+                    ffi::PFN_vkCreateAccelerationStructureKHR,
+                >(Some(
+                    ray_tracing.fp().create_acceleration_structure_khr,
+                )),
+                vkDestroyAccelerationStructureKHR: mem::transmute::<
+                    _,
+                    ffi::PFN_vkDestroyAccelerationStructureKHR,
+                >(Some(
+                    ray_tracing.fp().destroy_acceleration_structure_khr,
+                )),
+                vkGetAccelerationStructureMemoryRequirementsKHR: mem::transmute::<
+                    _,
+                    ffi::PFN_vkGetAccelerationStructureMemoryRequirementsKHR,
+                >(Some(
+                    ray_tracing
+                        .fp()
+                        .get_acceleration_structure_memory_requirements_khr,
+                )),
+                vkBindAccelerationStructureMemoryKHR: mem::transmute::<
+                    _,
+                    ffi::PFN_vkBindAccelerationStructureMemoryKHR,
+                >(Some(
+                    ray_tracing.fp().bind_acceleration_structure_memory_khr,
+                )),
             }
         };
         let ffi_create_info = ffi::VmaAllocatorCreateInfo {
@@ -882,7 +924,7 @@ impl Allocator {
             pAllocationCallbacks: ::std::ptr::null(), // TODO: Add support
             pDeviceMemoryCallbacks: ::std::ptr::null(), // TODO: Add support
             pRecordSettings: ::std::ptr::null(),      // TODO: Add support
-            vulkanApiVersion: 0,                      // TODO: Make configurable
+            vulkanApiVersion: ash::vk::make_version(1, 2, 0), // TODO: Add support
         };
         let mut internal: ffi::VmaAllocator = unsafe { mem::zeroed() };
         let result = ffi_to_result(unsafe {
@@ -1131,7 +1173,7 @@ impl Allocator {
         unsafe {
             ffi::vmaMakePoolAllocationsLost(self.internal, pool.internal, &mut lost_count);
         }
-        Ok(lost_count as usize)
+        Ok(lost_count)
     }
 
     /// Checks magic number in margins around all allocations in given memory pool in search for corruptions.
@@ -1926,6 +1968,99 @@ impl Allocator {
                 image.as_raw() as ffi::VkImage,
                 allocation.internal,
             );
+        }
+    }
+
+    /// TODO
+    pub fn create_acceleration_structure(
+        &self,
+        acceleration_structure_info: &ash::vk::AccelerationStructureCreateInfoKHR,
+        allocation_info: &AllocationCreateInfo,
+    ) -> Result<(
+        ash::vk::AccelerationStructureKHR,
+        Allocation,
+        AllocationInfo,
+    )> {
+        let acceleration_structure_create_info = unsafe {
+            mem::transmute::<
+                ash::vk::AccelerationStructureCreateInfoKHR,
+                ffi::VkAccelerationStructureCreateInfoKHR,
+            >(*acceleration_structure_info)
+        };
+        let allocation_create_info = allocation_create_info_to_ffi(&allocation_info);
+        let mut acceleration_structure: ffi::VkAccelerationStructureKHR = unsafe { mem::zeroed() };
+        let mut allocation: Allocation = unsafe { mem::zeroed() };
+        let mut allocation_info: AllocationInfo = unsafe { mem::zeroed() };
+        let result = ffi_to_result(unsafe {
+            ffi::vmaCreateAccelerationStructure(
+                self.internal,
+                &acceleration_structure_create_info,
+                &allocation_create_info,
+                &mut acceleration_structure,
+                &mut allocation.internal,
+                &mut allocation_info.internal,
+            )
+        });
+        match result {
+            ash::vk::Result::SUCCESS => Ok((
+                ash::vk::AccelerationStructureKHR::from_raw(acceleration_structure as u64),
+                allocation,
+                allocation_info,
+            )),
+            _ => Err(Error::vulkan(result)),
+        }
+    }
+
+    /// TODO
+    pub fn destroy_acceleration_structure(
+        &self,
+        acceleration_structure: ash::vk::AccelerationStructureKHR,
+        allocation: &Allocation,
+    ) -> Result<()> {
+        unsafe {
+            ffi::vmaDestroyAccelerationStructure(
+                self.internal,
+                acceleration_structure.as_raw() as ffi::VkAccelerationStructureKHR,
+                allocation.internal,
+            );
+        }
+        Ok(())
+    }
+
+    /// TODO
+    pub fn create_acceleration_structure_scratch_buffer(
+        &self,
+        type_: ash::vk::AccelerationStructureMemoryRequirementsTypeKHR,
+        acceleration_structure: ash::vk::AccelerationStructureKHR,
+        buffer_info: &ash::vk::BufferCreateInfo,
+        allocation_info: &AllocationCreateInfo,
+    ) -> Result<(ash::vk::Buffer, Allocation, AllocationInfo)> {
+        let buffer_create_info = unsafe {
+            mem::transmute::<ash::vk::BufferCreateInfo, ffi::VkBufferCreateInfo>(*buffer_info)
+        };
+        let allocation_create_info = allocation_create_info_to_ffi(&allocation_info);
+        let mut buffer: ffi::VkBuffer = unsafe { mem::zeroed() };
+        let mut allocation: Allocation = unsafe { mem::zeroed() };
+        let mut allocation_info: AllocationInfo = unsafe { mem::zeroed() };
+        let result = ffi_to_result(unsafe {
+            ffi::vmaCreateAccelerationStructureScratchBuffer(
+                self.internal,
+                type_.as_raw() as ffi::VkAccelerationStructureMemoryRequirementsTypeKHR,
+                acceleration_structure.as_raw() as ffi::VkAccelerationStructureKHR,
+                &buffer_create_info,
+                &allocation_create_info,
+                &mut buffer,
+                &mut allocation.internal,
+                &mut allocation_info.internal,
+            )
+        });
+        match result {
+            ash::vk::Result::SUCCESS => Ok((
+                ash::vk::Buffer::from_raw(buffer as u64),
+                allocation,
+                allocation_info,
+            )),
+            _ => Err(Error::vulkan(result)),
         }
     }
 
