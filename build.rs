@@ -123,6 +123,7 @@ fn generate_bindings(output_file: &str) {
         .clang_arg("-I./wrapper")
         .header("vendor/src/vk_mem_alloc.h")
         .rustfmt_bindings(true)
+        .size_t_is_usize(true)
         .blacklist_type("__darwin_.*")
         .whitelist_function("vma.*")
         .trust_clang_mangling(false)
