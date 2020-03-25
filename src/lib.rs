@@ -13,6 +13,7 @@ pub mod ffi;
 pub use crate::error::{Error, ErrorKind, Result};
 use ash::vk::Handle;
 use std::mem;
+use crate::ffi::size_t;
 
 /// Main allocator object
 pub struct Allocator {
@@ -312,8 +313,8 @@ fn pool_create_info_to_ffi(info: &AllocatorPoolCreateInfo) -> ffi::VmaPoolCreate
     create_info.memoryTypeIndex = info.memory_type_index;
     create_info.flags = info.flags.bits();
     create_info.blockSize = info.block_size as ffi::VkDeviceSize;
-    create_info.minBlockCount = info.min_block_count as u64;
-    create_info.maxBlockCount = info.max_block_count as u64;
+    create_info.minBlockCount = info.min_block_count as size_t;
+    create_info.maxBlockCount = info.max_block_count as size_t;
     create_info.frameInUseCount = info.frame_in_use_count;
     create_info
 }
@@ -1111,7 +1112,7 @@ impl Allocator {
     ///
     /// Returns the number of allocations marked as lost.
     pub fn make_pool_allocations_lost(&self, pool: &mut AllocatorPool) -> Result<usize> {
-        let mut lost_count: u64 = 0;
+        let mut lost_count: size_t = 0;
         unsafe {
             ffi::vmaMakePoolAllocationsLost(self.internal, pool.internal, &mut lost_count);
         }
@@ -1203,7 +1204,7 @@ impl Allocator {
                 self.internal,
                 &ffi_requirements,
                 &create_info,
-                allocation_count as u64,
+                allocation_count as size_t,
                 allocations.as_mut_ptr(),
                 allocation_info.as_mut_ptr(),
             )
@@ -1303,7 +1304,7 @@ impl Allocator {
         unsafe {
             ffi::vmaFreeMemoryPages(
                 self.internal,
-                allocations_ffi.len() as u64,
+                allocations_ffi.len() as size_t,
                 allocations_ffi.as_mut_ptr(),
             );
         }
@@ -1711,7 +1712,7 @@ impl Allocator {
             ffi::vmaDefragment(
                 self.internal,
                 ffi_allocations.as_mut_ptr(),
-                ffi_allocations.len() as u64,
+                ffi_allocations.len() as size_t,
                 ffi_change_list.as_mut_ptr(),
                 &ffi_info,
                 &mut ffi_stats,
