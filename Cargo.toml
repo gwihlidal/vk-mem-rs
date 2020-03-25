@@ -35,10 +35,7 @@ failure = { version = "0.1.7", optional = true }
 
 [build-dependencies]
 cc = "1.0.50"
-
-[build-dependencies.bindgen]
-version = "0.53.2"
-optional = true
+bindgen = "0.53.2"
 
 [profile.release]
 lto = true
@@ -47,5 +44,4 @@ codegen-units = 1
 
 [features]
 default = []
-generate_bindings=["bindgen"]
 link_vulkan=[]
