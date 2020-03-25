@@ -179,6 +179,7 @@ at your option.
 - [Henrik Rydgård](https://github.com/hrydgard) (Contributions)
 - [msiglreith](https://github.com/msiglreith) (Contributions)
 - [Maksym Pavlenko](https://github.com/mxpv) (Contributions)
+- [Brandon Pollack](https://github.com/brandonpollack23) (Contributions)
 
 ## Contribution
 
