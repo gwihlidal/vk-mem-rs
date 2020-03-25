@@ -31,13 +31,13 @@ maintenance = { status = "actively-developed" }
 [dependencies]
 ash = ">= 0.27.1"
 bitflags = "1.2.1"
-failure = { version = "0.1.6", optional = true }
+failure = { version = "0.1.7", optional = true }
 
 [build-dependencies]
-cc = "1.0.47"
+cc = "1.0.50"
 
 [build-dependencies.bindgen]
-version = "0.51.1"
+version = "0.53.2"
 optional = true
 
 [profile.release]
