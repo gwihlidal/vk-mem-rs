@@ -1,5 +1,12 @@
 # Changes
 
+## 0.2.1 (2020-03-25)
+
+* Added `Eq`, `Hash` and further derives to enum `MemoryUsage`.
+* Added `Copy` to `Allocation`.
+* Updated VMA vendoring to commit hash `e73e988dafba80633cd9d8d1abb1ae1af0439bae`.
+* Updated dependencies and bindings.
+
 ## 0.2.0 (2019-11-16)
 
 * Updated VMA vendoring to commit hash `a020fb81cb67b376fb33228475f22d0d9c29f9fd`.
