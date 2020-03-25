@@ -11,9 +11,9 @@ extern crate failure;
 pub mod error;
 pub mod ffi;
 pub use crate::error::{Error, ErrorKind, Result};
+use crate::ffi::size_t;
 use ash::vk::Handle;
 use std::mem;
-use crate::ffi::size_t;
 
 /// Main allocator object
 pub struct Allocator {
