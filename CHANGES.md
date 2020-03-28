@@ -1,5 +1,9 @@
 # Changes
 
+## 0.2.2 (2020-03-28)
+
+* Fixed Windows bindgen regression.
+
 ## 0.2.1 (2020-03-25)
 
 * Added `Eq`, `Hash` and further derives to enum `MemoryUsage`.
