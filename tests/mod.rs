@@ -51,7 +51,7 @@ impl TestHarness {
             .application_version(0)
             .engine_name(&app_name)
             .engine_version(0)
-            .api_version(ash::vk_make_version!(1, 0, 0));
+            .api_version(ash::vk::make_version(1, 0, 0));
 
         let layer_names =
             [::std::ffi::CString::new("VK_LAYER_LUNARG_standard_validation").unwrap()];
