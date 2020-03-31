@@ -1,5 +1,11 @@
 # Changes
 
+## Unreleased
+
+- Replace `usize` with `ash::vk::DeviceSize` to represent memory size and offset values. It reduces some type casting between `vk-mem-rs` and `ash`. This also introduces API changes to the paramaters of some methods.
+
+ 
+
 ## 0.2.2 (2020-03-28)
 
 * Fixed Windows bindgen regression.

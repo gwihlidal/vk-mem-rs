@@ -14,6 +14,8 @@ pub use crate::error::{Error, ErrorKind, Result};
 use ash::vk::Handle;
 use std::mem;
 
+
+
 /// Main allocator object
 pub struct Allocator {
     /// Pointer to internal VmaAllocator instance
@@ -120,16 +122,16 @@ impl AllocationInfo {
     /// It can change after call to `Allocator::defragment` if this allocation is passed
     /// to the function, or if allocation is lost.
     #[inline(always)]
-    pub fn get_offset(&self) -> usize {
-        self.internal.offset as usize
+    pub fn get_offset(&self) -> ash::vk::DeviceSize {
+        self.internal.offset
     }
 
     /// Size of this allocation, in bytes.
     ///
     /// It never changes, unless allocation is lost.
     #[inline(always)]
-    pub fn get_size(&self) -> usize {
-        self.internal.size as usize
+    pub fn get_size(&self) -> ash::vk::DeviceSize {
+        self.internal.size
     }
 
     /// Pointer to the beginning of this allocation as mapped data.
@@ -220,7 +222,7 @@ pub struct AllocatorCreateInfo {
 
     /// Preferred size of a single `ash::vk::DeviceMemory` block to be allocated from large heaps > 1 GiB.
     /// Set to 0 to use default, which is currently 256 MiB.
-    pub preferred_large_heap_block_size: usize,
+    pub preferred_large_heap_block_size: ash::vk::DeviceSize,
 
     /// Maximum number of additional frames that are in use at the same time as current frame.
     ///
@@ -311,7 +313,7 @@ fn pool_create_info_to_ffi(info: &AllocatorPoolCreateInfo) -> ffi::VmaPoolCreate
     let mut create_info: ffi::VmaPoolCreateInfo = unsafe { mem::zeroed() };
     create_info.memoryTypeIndex = info.memory_type_index;
     create_info.flags = info.flags.bits();
-    create_info.blockSize = info.block_size as ffi::VkDeviceSize;
+    create_info.blockSize = info.block_size;
     create_info.minBlockCount = info.min_block_count;
     create_info.maxBlockCount = info.max_block_count;
     create_info.frameInUseCount = info.frame_in_use_count;
@@ -598,7 +600,7 @@ pub struct AllocatorPoolCreateInfo {
     ///
     /// Leave 0 to use default and let the library manage block sizes automatically.
     /// Sizes of particular blocks may vary.
-    pub block_size: usize,
+    pub block_size: ash::vk::DeviceSize,
 
     /// Minimum number of blocks to be always allocated in this pool, even if they stay empty.
     ///
@@ -657,7 +659,7 @@ pub struct DefragmentationInfo {
     /// allocations to different places.
     ///
     /// Default is `ash::vk::WHOLE_SIZE`, which means no limit.
-    pub max_bytes_to_move: usize,
+    pub max_bytes_to_move: ash::vk::DeviceSize,
 
     /// Maximum number of allocations that can be moved to different place.
     ///
@@ -669,7 +671,7 @@ pub struct DefragmentationInfo {
 impl Default for DefragmentationInfo {
     fn default() -> Self {
         DefragmentationInfo {
-            max_bytes_to_move: ash::vk::WHOLE_SIZE as usize,
+            max_bytes_to_move: ash::vk::WHOLE_SIZE,
             max_allocations_to_move: std::u32::MAX,
         }
     }
@@ -735,10 +737,10 @@ pub struct DefragmentationInfo2<'a> {
 #[derive(Debug, Copy, Clone)]
 pub struct DefragmentationStats {
     /// Total number of bytes that have been copied while moving allocations to different places.
-    pub bytes_moved: usize,
+    pub bytes_moved: ash::vk::DeviceSize,
 
     /// Total number of bytes that have been released to the system by freeing empty `ash::vk::DeviceMemory` objects.
-    pub bytes_freed: usize,
+    pub bytes_freed: ash::vk::DeviceSize,
 
     /// Number of allocations that have been moved to different places.
     pub allocations_moved: u32,
@@ -855,7 +857,7 @@ impl Allocator {
             instance: instance.handle().as_raw() as ffi::VkInstance,
             flags: create_info.flags.bits(),
             frameInUseCount: create_info.frame_in_use_count,
-            preferredLargeHeapBlockSize: create_info.preferred_large_heap_block_size as u64,
+            preferredLargeHeapBlockSize: create_info.preferred_large_heap_block_size,
             pHeapSizeLimit: match &create_info.heap_size_limits {
                 None => ::std::ptr::null(),
                 Some(limits) => limits.as_ptr(),
@@ -1328,12 +1330,12 @@ impl Allocator {
     /// - Resizing dedicated allocations, as well as allocations created in pools that use linear
     ///   or buddy algorithm, is not supported. The function returns `ash::vk::Result::ERROR_FEATURE_NOT_PRESENT` in such cases.
     ///   Support may be added in the future.
-    pub fn resize_allocation(&self, allocation: &Allocation, new_size: usize) -> Result<()> {
+    pub fn resize_allocation(&self, allocation: &Allocation, new_size: ash::vk::DeviceSize) -> Result<()> {
         let result = ffi_to_result(unsafe {
             ffi::vmaResizeAllocation(
                 self.internal,
                 allocation.internal,
-                new_size as ffi::VkDeviceSize,
+                new_size,
             )
         });
         match result {
@@ -1488,15 +1490,15 @@ impl Allocator {
     pub fn flush_allocation(
         &self,
         allocation: &Allocation,
-        offset: usize,
-        size: usize,
+        offset: ash::vk::DeviceSize,
+        size: ash::vk::DeviceSize,
     ) -> Result<()> {
         unsafe {
             ffi::vmaFlushAllocation(
                 self.internal,
                 allocation.internal,
-                offset as ffi::VkDeviceSize,
-                size as ffi::VkDeviceSize,
+                offset,
+                size,
             );
         }
         Ok(())
@@ -1514,15 +1516,15 @@ impl Allocator {
     pub fn invalidate_allocation(
         &self,
         allocation: &Allocation,
-        offset: usize,
-        size: usize,
+        offset: ash::vk::DeviceSize,
+        size: ash::vk::DeviceSize,
     ) -> Result<()> {
         unsafe {
             ffi::vmaInvalidateAllocation(
                 self.internal,
                 allocation.internal,
-                offset as ffi::VkDeviceSize,
-                size as ffi::VkDeviceSize,
+                offset,
+                size,
             );
         }
         Ok(())
@@ -1631,8 +1633,8 @@ impl Allocator {
         match result {
             ash::vk::Result::SUCCESS => Ok((
                 DefragmentationStats {
-                    bytes_moved: context.stats.bytesMoved as usize,
-                    bytes_freed: context.stats.bytesFreed as usize,
+                    bytes_moved: context.stats.bytesMoved,
+                    bytes_freed: context.stats.bytesFreed,
                     allocations_moved: context.stats.allocationsMoved,
                     device_memory_blocks_freed: context.stats.deviceMemoryBlocksFreed,
                 },
@@ -1698,7 +1700,7 @@ impl Allocator {
         let mut ffi_change_list: Vec<ffi::VkBool32> = vec![0; ffi_allocations.len()];
         let ffi_info = match defrag_info {
             Some(info) => ffi::VmaDefragmentationInfo {
-                maxBytesToMove: info.max_bytes_to_move as ffi::VkDeviceSize,
+                maxBytesToMove: info.max_bytes_to_move,
                 maxAllocationsToMove: info.max_allocations_to_move,
             },
             None => ffi::VmaDefragmentationInfo {
@@ -1725,8 +1727,8 @@ impl Allocator {
                     .collect();
                 Ok((
                     DefragmentationStats {
-                        bytes_moved: ffi_stats.bytesMoved as usize,
-                        bytes_freed: ffi_stats.bytesFreed as usize,
+                        bytes_moved: ffi_stats.bytesMoved,
+                        bytes_freed: ffi_stats.bytesFreed,
                         allocations_moved: ffi_stats.allocationsMoved,
                         device_memory_blocks_freed: ffi_stats.deviceMemoryBlocksFreed,
                     },
