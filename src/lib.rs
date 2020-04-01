@@ -14,8 +14,6 @@ pub use crate::error::{Error, ErrorKind, Result};
 use ash::vk::Handle;
 use std::mem;
 
-
-
 /// Main allocator object
 pub struct Allocator {
     /// Pointer to internal VmaAllocator instance
@@ -1330,13 +1328,13 @@ impl Allocator {
     /// - Resizing dedicated allocations, as well as allocations created in pools that use linear
     ///   or buddy algorithm, is not supported. The function returns `ash::vk::Result::ERROR_FEATURE_NOT_PRESENT` in such cases.
     ///   Support may be added in the future.
-    pub fn resize_allocation(&self, allocation: &Allocation, new_size: ash::vk::DeviceSize) -> Result<()> {
+    pub fn resize_allocation(
+        &self,
+        allocation: &Allocation,
+        new_size: ash::vk::DeviceSize,
+    ) -> Result<()> {
         let result = ffi_to_result(unsafe {
-            ffi::vmaResizeAllocation(
-                self.internal,
-                allocation.internal,
-                new_size,
-            )
+            ffi::vmaResizeAllocation(self.internal, allocation.internal, new_size)
         });
         match result {
             ash::vk::Result::SUCCESS => Ok(()),
@@ -1494,12 +1492,7 @@ impl Allocator {
         size: ash::vk::DeviceSize,
     ) -> Result<()> {
         unsafe {
-            ffi::vmaFlushAllocation(
-                self.internal,
-                allocation.internal,
-                offset,
-                size,
-            );
+            ffi::vmaFlushAllocation(self.internal, allocation.internal, offset, size);
         }
         Ok(())
     }
@@ -1520,12 +1513,7 @@ impl Allocator {
         size: ash::vk::DeviceSize,
     ) -> Result<()> {
         unsafe {
-            ffi::vmaInvalidateAllocation(
-                self.internal,
-                allocation.internal,
-                offset,
-                size,
-            );
+            ffi::vmaInvalidateAllocation(self.internal, allocation.internal, offset, size);
         }
         Ok(())
     }
