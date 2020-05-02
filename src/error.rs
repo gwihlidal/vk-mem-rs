@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use ash;
 #[cfg(feature = "failure")]
 use failure::{Backtrace, Context, Fail};
 #[cfg(not(feature = "failure"))]
