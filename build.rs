@@ -46,7 +46,7 @@ fn main() {
             .cpp_link_stdlib("c++")
             .cpp_set_stdlib("c++")
             .cpp(true);
-    } if target.contains("android") {
+    } else if target.contains("android") {
         build
             .flag("-std=c++11")
             .flag("-Wno-missing-field-initializers")
