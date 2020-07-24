@@ -15,7 +15,7 @@ This crate provides an FFI layer and idiomatic rust wrappers for the excellent A
 - [VMA GitHub](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator)
 - [VMA Documentation](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/)
 - [GPU Open Announce](https://gpuopen.com/gaming-product/vulkan-memory-allocator/)
-- [GPU Open Update](https://gpuopen.com/vulkan-memory-allocator-2-1/)
+- [GPU Open Update](https://gpuopen.com/vulkan-memory-allocator-2-3-0/)
 
 ## Problem
 
