@@ -46,6 +46,17 @@ fn main() {
             .cpp_link_stdlib("c++")
             .cpp_set_stdlib("c++")
             .cpp(true);
+    } else if target.contains("ios") {
+        build
+            .flag("-std=c++11")
+            .flag("-Wno-missing-field-initializers")
+            .flag("-Wno-unused-variable")
+            .flag("-Wno-unused-parameter")
+            .flag("-Wno-unused-private-field")
+            .flag("-Wno-reorder")
+            .cpp_link_stdlib("c++")
+            .cpp_set_stdlib("c++")
+            .cpp(true);
     } else if target.contains("android") {
         build
             .flag("-std=c++11")
