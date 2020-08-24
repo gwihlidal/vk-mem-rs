@@ -1,5 +1,9 @@
 # Changes
 
+## Unreleased
+
+* Removed `Result` return values from functions that always returned `Ok(())`
+
 ## 0.2.2 (2020-03-28)
 
 * Fixed Windows bindgen regression.

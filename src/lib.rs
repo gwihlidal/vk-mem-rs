@@ -932,11 +932,10 @@ impl Allocator {
     /// `AllocationCreateFlags::CAN_MAKE_OTHER_LOST` flags to inform the allocator when a new frame begins.
     /// Allocations queried using `Allocator::get_allocation_info` cannot become lost
     /// in the current frame.
-    pub fn set_current_frame_index(&self, frame_index: u32) -> Result<()> {
+    pub fn set_current_frame_index(&self, frame_index: u32) {
         unsafe {
             ffi::vmaSetCurrentFrameIndex(self.internal, frame_index);
         }
-        Ok(())
     }
 
     /// Retrieves statistics from current state of the `Allocator`.
@@ -1090,11 +1089,10 @@ impl Allocator {
     }
 
     /// Destroys `AllocatorPool` object and frees Vulkan device memory.
-    pub fn destroy_pool(&self, pool: &AllocatorPool) -> Result<()> {
+    pub fn destroy_pool(&self, pool: &AllocatorPool) {
         unsafe {
             ffi::vmaDestroyPool(self.internal, pool.internal);
         }
-        Ok(())
     }
 
     /// Retrieves statistics of existing `AllocatorPool` object.
@@ -1281,11 +1279,10 @@ impl Allocator {
 
     /// Frees memory previously allocated using `Allocator::allocate_memory`,
     /// `Allocator::allocate_memory_for_buffer`, or `Allocator::allocate_memory_for_image`.
-    pub fn free_memory(&self, allocation: &Allocation) -> Result<()> {
+    pub fn free_memory(&self, allocation: &Allocation) {
         unsafe {
             ffi::vmaFreeMemory(self.internal, allocation.internal);
         }
-        Ok(())
     }
 
     /// Frees memory and destroys multiple allocations.
@@ -1297,7 +1294,7 @@ impl Allocator {
     /// It may be internally optimized to be more efficient than calling 'Allocator::free_memory` `allocations.len()` times.
     ///
     /// Allocations in 'allocations' slice can come from any memory pools and types.
-    pub fn free_memory_pages(&self, allocations: &[Allocation]) -> Result<()> {
+    pub fn free_memory_pages(&self, allocations: &[Allocation]) {
         let mut allocations_ffi: Vec<ffi::VmaAllocation> =
             allocations.iter().map(|x| x.internal).collect();
         unsafe {
@@ -1307,7 +1304,6 @@ impl Allocator {
                 allocations_ffi.as_mut_ptr(),
             );
         }
-        Ok(())
     }
 
     /// Tries to resize an allocation in place, if there is enough free memory after it.
@@ -1401,9 +1397,8 @@ impl Allocator {
         &self,
         allocation: &Allocation,
         user_data: *mut ::std::os::raw::c_void,
-    ) -> Result<()> {
+    ) {
         ffi::vmaSetAllocationUserData(self.internal, allocation.internal, user_data);
-        Ok(())
     }
 
     /// Creates new allocation that is in lost state from the beginning.
@@ -1469,11 +1464,10 @@ impl Allocator {
     }
 
     /// Unmaps memory represented by given allocation, mapped previously using `Allocator::map_memory`.
-    pub fn unmap_memory(&self, allocation: &Allocation) -> Result<()> {
+    pub fn unmap_memory(&self, allocation: &Allocation) {
         unsafe {
             ffi::vmaUnmapMemory(self.internal, allocation.internal);
         }
-        Ok(())
     }
 
     /// Flushes memory of given allocation.
@@ -1485,12 +1479,7 @@ impl Allocator {
     /// - `offset` and `size` don't have to be aligned; hey are internally rounded down/up to multiple of `nonCoherentAtomSize`.
     /// - If `size` is 0, this call is ignored.
     /// - If memory type that the `allocation` belongs to is not `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` or it is `ash::vk::MemoryPropertyFlags::HOST_COHERENT`, this call is ignored.
-    pub fn flush_allocation(
-        &self,
-        allocation: &Allocation,
-        offset: usize,
-        size: usize,
-    ) -> Result<()> {
+    pub fn flush_allocation(&self, allocation: &Allocation, offset: usize, size: usize) {
         unsafe {
             ffi::vmaFlushAllocation(
                 self.internal,
@@ -1499,7 +1488,6 @@ impl Allocator {
                 size as ffi::VkDeviceSize,
             );
         }
-        Ok(())
     }
 
     /// Invalidates memory of given allocation.
@@ -1511,12 +1499,7 @@ impl Allocator {
     /// - `offset` and `size` don't have to be aligned. They are internally rounded down/up to multiple of `nonCoherentAtomSize`.
     /// - If `size` is 0, this call is ignored.
     /// - If memory type that the `allocation` belongs to is not `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` or it is `ash::vk::MemoryPropertyFlags::HOST_COHERENT`, this call is ignored.
-    pub fn invalidate_allocation(
-        &self,
-        allocation: &Allocation,
-        offset: usize,
-        size: usize,
-    ) -> Result<()> {
+    pub fn invalidate_allocation(&self, allocation: &Allocation, offset: usize, size: usize) {
         unsafe {
             ffi::vmaInvalidateAllocation(
                 self.internal,
@@ -1525,7 +1508,6 @@ impl Allocator {
                 size as ffi::VkDeviceSize,
             );
         }
-        Ok(())
     }
 
     /// Checks magic number in margins around all allocations in given memory types (in both default and custom pools) in search for corruptions.
@@ -1850,7 +1832,7 @@ impl Allocator {
     /// ```
     ///
     /// It it safe to pass null as `buffer` and/or `allocation`.
-    pub fn destroy_buffer(&self, buffer: ash::vk::Buffer, allocation: &Allocation) -> Result<()> {
+    pub fn destroy_buffer(&self, buffer: ash::vk::Buffer, allocation: &Allocation) {
         unsafe {
             ffi::vmaDestroyBuffer(
                 self.internal,
@@ -1858,7 +1840,6 @@ impl Allocator {
                 allocation.internal,
             );
         }
-        Ok(())
     }
 
     /// This function automatically creates an image, allocates appropriate memory
@@ -1920,7 +1901,7 @@ impl Allocator {
     /// ```
     ///
     /// It it safe to pass null as `image` and/or `allocation`.
-    pub fn destroy_image(&self, image: ash::vk::Image, allocation: &Allocation) -> Result<()> {
+    pub fn destroy_image(&self, image: ash::vk::Image, allocation: &Allocation) {
         unsafe {
             ffi::vmaDestroyImage(
                 self.internal,
@@ -1928,7 +1909,6 @@ impl Allocator {
                 allocation.internal,
             );
         }
-        Ok(())
     }
 
     /// Destroys the internal allocator instance. After this has been called,

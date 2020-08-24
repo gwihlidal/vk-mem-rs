@@ -179,7 +179,7 @@ fn create_gpu_buffer() {
         )
         .unwrap();
     assert_eq!(allocation_info.get_mapped_data(), std::ptr::null_mut());
-    allocator.destroy_buffer(buffer, &allocation).unwrap();
+    allocator.destroy_buffer(buffer, &allocation);
 }
 
 #[test]
@@ -206,7 +206,7 @@ fn create_cpu_buffer_preferred() {
         )
         .unwrap();
     assert_ne!(allocation_info.get_mapped_data(), std::ptr::null_mut());
-    allocator.destroy_buffer(buffer, &allocation).unwrap();
+    allocator.destroy_buffer(buffer, &allocation);
 }
 
 #[test]
@@ -245,8 +245,8 @@ fn create_gpu_buffer_pool() {
         .create_buffer(&buffer_info, &allocation_info)
         .unwrap();
     assert_ne!(allocation_info.get_mapped_data(), std::ptr::null_mut());
-    allocator.destroy_buffer(buffer, &allocation).unwrap();
-    allocator.destroy_pool(&pool).unwrap();
+    allocator.destroy_buffer(buffer, &allocation);
+    allocator.destroy_pool(&pool);
 }
 
 #[test]
@@ -281,7 +281,7 @@ fn test_gpu_stats() {
     assert_eq!(stats_2.total.allocationCount, 1);
     assert_eq!(stats_2.total.usedBytes, 16 * 1024);
 
-    allocator.destroy_buffer(buffer, &allocation).unwrap();
+    allocator.destroy_buffer(buffer, &allocation);
 
     let stats_3 = allocator.calculate_stats().unwrap();
     assert_eq!(stats_3.total.blockCount, 1);
@@ -318,7 +318,7 @@ fn test_stats_string() {
     assert!(stats_2.len() > 0);
     assert_ne!(stats_1, stats_2);
 
-    allocator.destroy_buffer(buffer, &allocation).unwrap();
+    allocator.destroy_buffer(buffer, &allocation);
 
     let stats_3 = allocator.build_stats_string(true).unwrap();
     assert!(stats_3.len() > 0);
