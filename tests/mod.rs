@@ -159,6 +159,11 @@ fn create_allocator() {
 }
 
 #[test]
+fn default_allocator_create_info() {
+    let _ = vk_mem::AllocatorCreateInfo::default();
+}
+
+#[test]
 fn create_gpu_buffer() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
