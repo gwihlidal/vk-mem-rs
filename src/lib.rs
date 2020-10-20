@@ -11,7 +11,7 @@ extern crate failure;
 pub mod error;
 pub mod ffi;
 pub use crate::error::{Error, ErrorKind, Result};
-use ash::vk::Handle;
+use ash::{version::InstanceV1_0, vk::Handle};
 use std::mem;
 
 /// Main allocator object
@@ -264,12 +264,30 @@ pub struct AllocatorCreateInfo {
 }
 
 /// Construct `AllocatorCreateInfo` with default values
+///
+/// Note that the default `device` and `instance` fields are filled with dummy
+/// implementations that will panic if used. These fields must be overwritten.
 impl Default for AllocatorCreateInfo {
     fn default() -> Self {
+        extern "C" fn get_device_proc_addr(
+            _: ash::vk::Instance,
+            _: *const std::os::raw::c_char,
+        ) -> *const std::os::raw::c_void {
+            std::ptr::null()
+        }
+        extern "C" fn get_instance_proc_addr(
+            _: ash::vk::Instance,
+            name: *const std::os::raw::c_char,
+        ) -> *const std::os::raw::c_void {
+            get_device_proc_addr as *const _
+        }
+        let static_fn = ash::vk::StaticFn::load(|_| get_instance_proc_addr as *const _);
+        let instance = unsafe { ash::Instance::load(&static_fn, ash::vk::Instance::null()) };
+        let device = unsafe { ash::Device::load(&instance.fp_v1_0(), ash::vk::Device::null()) };
         AllocatorCreateInfo {
             physical_device: ash::vk::PhysicalDevice::null(),
-            device: unsafe { mem::zeroed() },
-            instance: unsafe { mem::zeroed() },
+            device,
+            instance,
             flags: AllocatorCreateFlags::NONE,
             preferred_large_heap_block_size: 0,
             frame_in_use_count: 0,

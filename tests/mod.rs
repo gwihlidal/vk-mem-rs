@@ -53,8 +53,7 @@ impl TestHarness {
             .engine_version(0)
             .api_version(ash::vk::make_version(1, 0, 0));
 
-        let layer_names =
-            [::std::ffi::CString::new("VK_LAYER_LUNARG_standard_validation").unwrap()];
+        let layer_names = [::std::ffi::CString::new("VK_LAYER_KHRONOS_validation").unwrap()];
         let layers_names_raw: Vec<*const i8> = layer_names
             .iter()
             .map(|raw_name| raw_name.as_ptr())
@@ -156,6 +155,11 @@ fn create_harness() {
 fn create_allocator() {
     let harness = TestHarness::new();
     let _ = harness.create_allocator();
+}
+
+#[test]
+fn default_allocator_create_info() {
+    let _ = vk_mem::AllocatorCreateInfo::default();
 }
 
 #[test]
