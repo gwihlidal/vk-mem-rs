@@ -24,8 +24,10 @@ fn main() {
     //#define VMA_DEBUG_MARGIN 16
     //#define VMA_DEBUG_DETECT_CORRUPTION 1
     //#define VMA_DEBUG_INITIALIZE_ALLOCATIONS 1
-    //#define VMA_RECORDING_ENABLED 0
     //#define VMA_DEBUG_MIN_BUFFER_IMAGE_GRANULARITY 256
+
+    #[cfg(feature = "recording")]
+    build.define("VMA_RECORDING_ENABLED", "1");
 
     // Add the files we build
     let source_files = ["wrapper/vma_lib.cpp"];

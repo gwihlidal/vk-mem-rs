@@ -49,3 +49,4 @@ codegen-units = 1
 default = []
 generate_bindings=["bindgen"]
 link_vulkan=[]
+recording=[]
