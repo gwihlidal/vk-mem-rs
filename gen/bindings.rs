@@ -1549,6 +1549,7 @@ pub type PFN_vmaAllocateDeviceMemoryFunction = ::std::option::Option<
         memoryType: u32,
         memory: VkDeviceMemory,
         size: VkDeviceSize,
+        pUserData: *mut ::std::os::raw::c_void,
     ),
 >;
 #[doc = " Callback function called before vkFreeMemory."]
@@ -1558,6 +1559,7 @@ pub type PFN_vmaFreeDeviceMemoryFunction = ::std::option::Option<
         memoryType: u32,
         memory: VkDeviceMemory,
         size: VkDeviceSize,
+        pUserData: *mut ::std::os::raw::c_void,
     ),
 >;
 #[doc = " \\brief Set of callbacks that the library will call for `vkAllocateMemory` and `vkFreeMemory`."]
@@ -1573,6 +1575,8 @@ pub struct VmaDeviceMemoryCallbacks {
     pub pfnAllocate: PFN_vmaAllocateDeviceMemoryFunction,
     #[doc = " Optional, can be null."]
     pub pfnFree: PFN_vmaFreeDeviceMemoryFunction,
+    #[doc = " Optional, can be null."]
+    pub pUserData: *mut ::std::os::raw::c_void,
 }
 pub type VmaAllocatorCreateFlags = VkFlags;
 #[doc = " \\brief Pointers to some Vulkan functions - a subset used by the library."]
@@ -1677,16 +1681,9 @@ pub struct VmaAllocatorCreateInfo {
     #[doc = "blocks to system RAM. This driver behavior can also be controlled using"]
     #[doc = "VK_AMD_memory_overallocation_behavior extension."]
     pub pHeapSizeLimit: *const VkDeviceSize,
-    #[doc = " \\brief Pointers to Vulkan functions. Can be null if you leave define `VMA_STATIC_VULKAN_FUNCTIONS 1`."]
+    #[doc = " \\brief Pointers to Vulkan functions. Can be null."]
     #[doc = ""]
-    #[doc = "If you leave define `VMA_STATIC_VULKAN_FUNCTIONS 1` in configuration section,"]
-    #[doc = "you can pass null as this member, because the library will fetch pointers to"]
-    #[doc = "Vulkan functions internally in a static way, like:"]
-    #[doc = ""]
-    #[doc = "vulkanFunctions.vkAllocateMemory = &vkAllocateMemory;"]
-    #[doc = ""]
-    #[doc = "Fill this member if you want to provide your own pointers to Vulkan functions,"]
-    #[doc = "e.g. fetched using `vkGetInstanceProcAddr()` and `vkGetDeviceProcAddr()`."]
+    #[doc = "For details see [Pointers to Vulkan functions](@ref config_Vulkan_functions)."]
     pub pVulkanFunctions: *const VmaVulkanFunctions,
     #[doc = " \\brief Parameters for recording of VMA calls. Can be null."]
     #[doc = ""]
@@ -1694,17 +1691,16 @@ pub struct VmaAllocatorCreateInfo {
     #[doc = "If support for recording is not enabled using `VMA_RECORDING_ENABLED` macro,"]
     #[doc = "creation of the allocator object fails with `VK_ERROR_FEATURE_NOT_PRESENT`."]
     pub pRecordSettings: *const VmaRecordSettings,
-    #[doc = " \\brief Optional handle to Vulkan instance object."]
+    #[doc = " \\brief Handle to Vulkan instance object."]
     #[doc = ""]
-    #[doc = "Optional, can be null. Must be set if #VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT flas is used"]
-    #[doc = "or if `vulkanApiVersion >= VK_MAKE_VERSION(1, 1, 0)`."]
+    #[doc = "Starting from version 3.0.0 this member is no longer optional, it must be set!"]
     pub instance: VkInstance,
     #[doc = " \\brief Optional. The highest version of Vulkan that the application is designed to use."]
     #[doc = ""]
     #[doc = "It must be a value in the format as created by macro `VK_MAKE_VERSION` or a constant like: `VK_API_VERSION_1_1`, `VK_API_VERSION_1_0`."]
     #[doc = "The patch version number specified is ignored. Only the major and minor versions are considered."]
     #[doc = "It must be less or equal (preferably equal) to value as passed to `vkCreateInstance` as `VkApplicationInfo::apiVersion`."]
-    #[doc = "Only versions 1.0 and 1.1 are supported by the current implementation."]
+    #[doc = "Only versions 1.0, 1.1, 1.2 are supported by the current implementation."]
     #[doc = "Leaving it initialized to zero is equivalent to `VK_API_VERSION_1_0`."]
     pub vulkanApiVersion: u32,
 }
@@ -1915,7 +1911,7 @@ pub const VmaMemoryUsage_VMA_MEMORY_USAGE_CPU_ONLY: VmaMemoryUsage = 2;
 #[doc = "Memory that is both mappable on host (guarantees to be `HOST_VISIBLE`) and preferably fast to access by GPU."]
 #[doc = "CPU access is typically uncached. Writes may be write-combined."]
 #[doc = ""]
-#[doc = "Usage: Resources written frequently by host (dynamic), read by device. E.g. textures, vertex buffers, uniform buffers updated every frame or every draw call."]
+#[doc = "Usage: Resources written frequently by host (dynamic), read by device. E.g. textures (with LINEAR layout), vertex buffers, uniform buffers updated every frame or every draw call."]
 pub const VmaMemoryUsage_VMA_MEMORY_USAGE_CPU_TO_GPU: VmaMemoryUsage = 3;
 #[doc = " Memory mappable on host (guarantees to be `HOST_VISIBLE`) and cached."]
 #[doc = "It is roughly equivalent of `D3D12_HEAP_TYPE_READBACK`."]
@@ -1970,7 +1966,7 @@ pub struct VmaAllocationCreateInfo {
     pub requiredFlags: VkMemoryPropertyFlags,
     #[doc = " \\brief Flags that preferably should be set in a memory type chosen for an allocation."]
     #[doc = ""]
-    #[doc = "Set to 0 if no additional flags are prefered. \\n"]
+    #[doc = "Set to 0 if no additional flags are preferred. \\n"]
     #[doc = "If `pool` is not null, this member is ignored."]
     pub preferredFlags: VkMemoryPropertyFlags,
     #[doc = " \\brief Bitmask containing one bit set for every memory type acceptable for this allocation."]
@@ -2210,18 +2206,29 @@ pub struct VmaAllocationInfo {
     #[doc = ""]
     #[doc = "If the allocation is lost, it is equal to `VK_NULL_HANDLE`."]
     pub deviceMemory: VkDeviceMemory,
-    #[doc = " \\brief Offset into deviceMemory object to the beginning of this allocation, in bytes. (deviceMemory, offset) pair is unique to this allocation."]
+    #[doc = " \\brief Offset in `VkDeviceMemory` object to the beginning of this allocation, in bytes. `(deviceMemory, offset)` pair is unique to this allocation."]
+    #[doc = ""]
+    #[doc = "You usually don't need to use this offset. If you create a buffer or an image together with the allocation using e.g. function"]
+    #[doc = "vmaCreateBuffer(), vmaCreateImage(), functions that operate on these resources refer to the beginning of the buffer or image,"]
+    #[doc = "not entire device memory block. Functions like vmaMapMemory(), vmaBindBufferMemory() also refer to the beginning of the allocation"]
+    #[doc = "and apply this offset automatically."]
     #[doc = ""]
     #[doc = "It can change after call to vmaDefragment() if this allocation is passed to the function, or if allocation is lost."]
     pub offset: VkDeviceSize,
     #[doc = " \\brief Size of this allocation, in bytes."]
     #[doc = ""]
     #[doc = "It never changes, unless allocation is lost."]
+    #[doc = ""]
+    #[doc = "\\note Allocation size returned in this variable may be greater than the size"]
+    #[doc = "requested for the resource e.g. as `VkBufferCreateInfo::size`. Whole size of the"]
+    #[doc = "allocation is accessible for operations on memory e.g. using a pointer after"]
+    #[doc = "mapping with vmaMapMemory(), but operations on the resource e.g. using"]
+    #[doc = "`vkCmdCopyBuffer` must be limited to the size of the resource."]
     pub size: VkDeviceSize,
     #[doc = " \\brief Pointer to the beginning of this allocation as mapped data."]
     #[doc = ""]
     #[doc = "If the allocation hasn't been mapped using vmaMapMemory() and hasn't been"]
-    #[doc = "created with #VMA_ALLOCATION_CREATE_MAPPED_BIT flag, this value null."]
+    #[doc = "created with #VMA_ALLOCATION_CREATE_MAPPED_BIT flag, this value is null."]
     #[doc = ""]
     #[doc = "It can change after call to vmaMapMemory(), vmaUnmapMemory()."]
     #[doc = "It can also change after call to vmaDefragment() if this allocation is passed to the function."]
@@ -2338,7 +2345,7 @@ extern "C" {
 extern "C" {
     #[doc = " \\brief Returns current information about specified allocation and atomically marks it as used in current frame."]
     #[doc = ""]
-    #[doc = "Current paramters of given allocation are returned in `pAllocationInfo`."]
+    #[doc = "Current paramteres of given allocation are returned in `pAllocationInfo`."]
     #[doc = ""]
     #[doc = "This function also atomically \"touches\" allocation - marks it as used in current frame,"]
     #[doc = "just like vmaTouchAllocation()."]
@@ -2476,12 +2483,15 @@ extern "C" {
     #[doc = "Warning! `offset` and `size` are relative to the contents of given `allocation`."]
     #[doc = "If you mean whole allocation, you can pass 0 and `VK_WHOLE_SIZE`, respectively."]
     #[doc = "Do not pass allocation's offset as `offset`!!!"]
+    #[doc = ""]
+    #[doc = "This function returns the `VkResult` from `vkFlushMappedMemoryRanges` if it is"]
+    #[doc = "called, otherwise `VK_SUCCESS`."]
     pub fn vmaFlushAllocation(
         allocator: VmaAllocator,
         allocation: VmaAllocation,
         offset: VkDeviceSize,
         size: VkDeviceSize,
-    );
+    ) -> VkResult;
 }
 extern "C" {
     #[doc = " \\brief Invalidates memory of given allocation."]
@@ -2501,12 +2511,59 @@ extern "C" {
     #[doc = "Warning! `offset` and `size` are relative to the contents of given `allocation`."]
     #[doc = "If you mean whole allocation, you can pass 0 and `VK_WHOLE_SIZE`, respectively."]
     #[doc = "Do not pass allocation's offset as `offset`!!!"]
+    #[doc = ""]
+    #[doc = "This function returns the `VkResult` from `vkInvalidateMappedMemoryRanges` if"]
+    #[doc = "it is called, otherwise `VK_SUCCESS`."]
     pub fn vmaInvalidateAllocation(
         allocator: VmaAllocator,
         allocation: VmaAllocation,
         offset: VkDeviceSize,
         size: VkDeviceSize,
-    );
+    ) -> VkResult;
+}
+extern "C" {
+    #[doc = " \\brief Flushes memory of given set of allocations."]
+    #[doc = ""]
+    #[doc = "Calls `vkFlushMappedMemoryRanges()` for memory associated with given ranges of given allocations."]
+    #[doc = "For more information, see documentation of vmaFlushAllocation()."]
+    #[doc = ""]
+    #[doc = "\\param allocator"]
+    #[doc = "\\param allocationCount"]
+    #[doc = "\\param allocations"]
+    #[doc = "\\param offsets If not null, it must point to an array of offsets of regions to flush, relative to the beginning of respective allocations. Null means all ofsets are zero."]
+    #[doc = "\\param sizes If not null, it must point to an array of sizes of regions to flush in respective allocations. Null means `VK_WHOLE_SIZE` for all allocations."]
+    #[doc = ""]
+    #[doc = "This function returns the `VkResult` from `vkFlushMappedMemoryRanges` if it is"]
+    #[doc = "called, otherwise `VK_SUCCESS`."]
+    pub fn vmaFlushAllocations(
+        allocator: VmaAllocator,
+        allocationCount: u32,
+        allocations: *mut VmaAllocation,
+        offsets: *const VkDeviceSize,
+        sizes: *const VkDeviceSize,
+    ) -> VkResult;
+}
+extern "C" {
+    #[doc = " \\brief Invalidates memory of given set of allocations."]
+    #[doc = ""]
+    #[doc = "Calls `vkInvalidateMappedMemoryRanges()` for memory associated with given ranges of given allocations."]
+    #[doc = "For more information, see documentation of vmaInvalidateAllocation()."]
+    #[doc = ""]
+    #[doc = "\\param allocator"]
+    #[doc = "\\param allocationCount"]
+    #[doc = "\\param allocations"]
+    #[doc = "\\param offsets If not null, it must point to an array of offsets of regions to flush, relative to the beginning of respective allocations. Null means all ofsets are zero."]
+    #[doc = "\\param sizes If not null, it must point to an array of sizes of regions to flush in respective allocations. Null means `VK_WHOLE_SIZE` for all allocations."]
+    #[doc = ""]
+    #[doc = "This function returns the `VkResult` from `vkInvalidateMappedMemoryRanges` if it is"]
+    #[doc = "called, otherwise `VK_SUCCESS`."]
+    pub fn vmaInvalidateAllocations(
+        allocator: VmaAllocator,
+        allocationCount: u32,
+        allocations: *mut VmaAllocation,
+        offsets: *const VkDeviceSize,
+        sizes: *const VkDeviceSize,
+    ) -> VkResult;
 }
 extern "C" {
     #[doc = " \\brief Checks magic number in margins around all allocations in given memory types (in both default and custom pools) in search for corruptions."]
@@ -2777,7 +2834,7 @@ extern "C" {
     #[doc = "This function is similar to vmaBindBufferMemory(), but it provides additional parameters."]
     #[doc = ""]
     #[doc = "If `pNext` is not null, #VmaAllocator object must have been created with #VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT flag"]
-    #[doc = "or with VmaAllocatorCreateInfo::vulkanApiVersion `== VK_API_VERSION_1_1`. Otherwise the call fails."]
+    #[doc = "or with VmaAllocatorCreateInfo::vulkanApiVersion `>= VK_API_VERSION_1_1`. Otherwise the call fails."]
     pub fn vmaBindBufferMemory2(
         allocator: VmaAllocator,
         allocation: VmaAllocation,
@@ -2813,7 +2870,7 @@ extern "C" {
     #[doc = "This function is similar to vmaBindImageMemory(), but it provides additional parameters."]
     #[doc = ""]
     #[doc = "If `pNext` is not null, #VmaAllocator object must have been created with #VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT flag"]
-    #[doc = "or with VmaAllocatorCreateInfo::vulkanApiVersion `== VK_API_VERSION_1_1`. Otherwise the call fails."]
+    #[doc = "or with VmaAllocatorCreateInfo::vulkanApiVersion `>= VK_API_VERSION_1_1`. Otherwise the call fails."]
     pub fn vmaBindImageMemory2(
         allocator: VmaAllocator,
         allocation: VmaAllocation,
@@ -2840,13 +2897,17 @@ extern "C" {
     #[doc = "no longer need them using either convenience function vmaDestroyBuffer() or"]
     #[doc = "separately, using `vkDestroyBuffer()` and vmaFreeMemory()."]
     #[doc = ""]
-    #[doc = "If VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT flag was used,"]
+    #[doc = "If #VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT flag was used,"]
     #[doc = "VK_KHR_dedicated_allocation extension is used internally to query driver whether"]
     #[doc = "it requires or prefers the new buffer to have dedicated allocation. If yes,"]
     #[doc = "and if dedicated allocation is possible (VmaAllocationCreateInfo::pool is null"]
-    #[doc = "and VMA_ALLOCATION_CREATE_NEVER_ALLOCATE_BIT is not used), it creates dedicated"]
+    #[doc = "and #VMA_ALLOCATION_CREATE_NEVER_ALLOCATE_BIT is not used), it creates dedicated"]
     #[doc = "allocation for this buffer, just like when using"]
-    #[doc = "VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT."]
+    #[doc = "#VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT."]
+    #[doc = ""]
+    #[doc = "\\note This function creates a new `VkBuffer`. Sub-allocation of parts of one large buffer,"]
+    #[doc = "although recommended as a good practice, is out of scope of this library and could be implemented"]
+    #[doc = "by the user as a higher-level logic on top of VMA."]
     pub fn vmaCreateBuffer(
         allocator: VmaAllocator,
         pBufferCreateInfo: *const VkBufferCreateInfo,
