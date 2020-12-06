@@ -1,6 +1,6 @@
 # Changes
 
-## Unreleased
+## 0.2.3 (Unreleased)
 
 * Removed `Result` return values from functions that always returned `Ok(())`
 
