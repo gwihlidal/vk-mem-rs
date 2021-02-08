@@ -11,6 +11,10 @@ fn main() {
     build.include("wrapper");
     build.include("wrapper/vulkan");
 
+    // Disable VMA_ASSERT when rust assertions are disabled
+    #[cfg(not(debug_assertions))]
+    build.define("NDEBUG", "");
+
     // We want to use the loader in ash, instead of requiring us to link
     // in vulkan.dll/.dylib in addition to ash. This is especially important
     // for MoltenVK, where there is no default installation path, unlike
