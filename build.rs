@@ -92,6 +92,7 @@ fn main() {
             .flag("-Wno-unused-parameter")
             .flag("-Wno-unused-private-field")
             .flag("-Wno-reorder")
+            .flag("-Wno-type-limits")
             .cpp_link_stdlib("stdc++")
             .cpp(true);
     }
