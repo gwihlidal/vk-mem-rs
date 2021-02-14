@@ -17,6 +17,11 @@ fn main() {
     // Linux (pkconfig) and Windows (VULKAN_SDK environment variable).
     build.define("VMA_STATIC_VULKAN_FUNCTIONS", "0");
 
+    // This prevents VMA from trying to fetch any remaining pointers
+    // that are still null after using the loader in ash, which can
+    // cause linker errors.
+    build.define("VMA_DYNAMIC_VULKAN_FUNCTIONS", "0");
+
     // TODO: Add some configuration options under crate features
     //#define VMA_HEAVY_ASSERT(expr) assert(expr)
     //#define VMA_USE_STL_CONTAINERS 1
