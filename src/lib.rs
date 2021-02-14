@@ -277,7 +277,7 @@ impl Default for AllocatorCreateInfo {
         }
         extern "C" fn get_instance_proc_addr(
             _: ash::vk::Instance,
-            name: *const std::os::raw::c_char,
+            _: *const std::os::raw::c_char,
         ) -> *const std::os::raw::c_void {
             get_device_proc_addr as *const _
         }
@@ -768,7 +768,7 @@ pub struct DefragmentationStats {
 impl Allocator {
     /// Constructor a new `Allocator` using the provided options.
     pub fn new(create_info: &AllocatorCreateInfo) -> Result<Self> {
-        use ash::version::{DeviceV1_0, DeviceV1_1, InstanceV1_0};
+        use ash::version::{DeviceV1_0, DeviceV1_1};
         let instance = create_info.instance.clone();
         let device = create_info.device.clone();
         let routed_functions = unsafe {
