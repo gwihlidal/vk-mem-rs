@@ -18,14 +18,6 @@ use std::mem;
 pub struct Allocator {
     /// Pointer to internal VmaAllocator instance
     pub(crate) internal: ffi::VmaAllocator,
-
-    /// Vulkan instance handle
-    #[allow(dead_code)]
-    pub(crate) instance: ash::Instance,
-
-    /// Vulkan device handle
-    #[allow(dead_code)]
-    pub(crate) device: ash::Device,
 }
 
 // Allocator is internally thread safe unless AllocatorCreateFlags::EXTERNALLY_SYNCHRONIZED is used (then you need to add synchronization!)
@@ -205,15 +197,15 @@ impl Default for AllocatorCreateFlags {
 }
 
 /// Description of an `Allocator` to be created.
-pub struct AllocatorCreateInfo {
+pub struct AllocatorCreateInfo<'a> {
     /// Vulkan physical device. It must be valid throughout whole lifetime of created allocator.
     pub physical_device: ash::vk::PhysicalDevice,
 
     /// Vulkan device. It must be valid throughout whole lifetime of created allocator.
-    pub device: ash::Device,
+    pub device: &'a ash::Device,
 
     /// Vulkan instance. It must be valid throughout whole lifetime of created allocator.
-    pub instance: ash::Instance,
+    pub instance: &'a ash::Instance,
 
     /// Flags for created allocator.
     pub flags: AllocatorCreateFlags,
@@ -267,27 +259,12 @@ pub struct AllocatorCreateInfo {
 ///
 /// Note that the default `device` and `instance` fields are filled with dummy
 /// implementations that will panic if used. These fields must be overwritten.
-impl Default for AllocatorCreateInfo {
+impl Default for AllocatorCreateInfo<'_> {
     fn default() -> Self {
-        extern "C" fn get_device_proc_addr(
-            _: ash::vk::Instance,
-            _: *const std::os::raw::c_char,
-        ) -> *const std::os::raw::c_void {
-            std::ptr::null()
-        }
-        extern "C" fn get_instance_proc_addr(
-            _: ash::vk::Instance,
-            _: *const std::os::raw::c_char,
-        ) -> *const std::os::raw::c_void {
-            get_device_proc_addr as *const _
-        }
-        let static_fn = ash::vk::StaticFn::load(|_| get_instance_proc_addr as *const _);
-        let instance = unsafe { ash::Instance::load(&static_fn, ash::vk::Instance::null()) };
-        let device = unsafe { ash::Device::load(&instance.fp_v1_0(), ash::vk::Device::null()) };
         AllocatorCreateInfo {
             physical_device: ash::vk::PhysicalDevice::null(),
-            device,
-            instance,
+            device: unsafe { &*std::ptr::null() },
+            instance: unsafe { &*std::ptr::null() },
             flags: AllocatorCreateFlags::NONE,
             preferred_large_heap_block_size: 0,
             frame_in_use_count: 0,
@@ -769,8 +746,8 @@ impl Allocator {
     /// Constructor a new `Allocator` using the provided options.
     pub fn new(create_info: &AllocatorCreateInfo) -> Result<Self> {
         use ash::version::{DeviceV1_0, DeviceV1_1};
-        let instance = create_info.instance.clone();
-        let device = create_info.device.clone();
+        let instance = create_info.instance;
+        let device = create_info.device;
         let routed_functions = unsafe {
             ffi::VmaVulkanFunctions {
                 vkGetPhysicalDeviceProperties: mem::transmute::<
@@ -894,8 +871,6 @@ impl Allocator {
         match result {
             ash::vk::Result::SUCCESS => Ok(Allocator {
                 internal,
-                instance,
-                device,
             }),
             _ => Err(Error::vulkan(result)),
         }
