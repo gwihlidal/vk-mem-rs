@@ -869,9 +869,7 @@ impl Allocator {
             )
         });
         match result {
-            ash::vk::Result::SUCCESS => Ok(Allocator {
-                internal,
-            }),
+            ash::vk::Result::SUCCESS => Ok(Allocator { internal }),
             _ => Err(Error::vulkan(result)),
         }
     }
