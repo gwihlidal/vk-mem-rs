@@ -7,7 +7,7 @@ use std::env;
 fn main() {
     let mut build = cc::Build::new();
 
-    build.include("vendor/src");
+    build.include("vendor/include");
     build.include("wrapper");
     build.include("wrapper/vulkan");
 
@@ -155,7 +155,7 @@ fn link_vulkan() {}
 fn generate_bindings(output_file: &str) {
     let bindings = bindgen::Builder::default()
         .clang_arg("-I./wrapper")
-        .header("vendor/src/vk_mem_alloc.h")
+        .header("vendor/include/vk_mem_alloc.h")
         .rustfmt_bindings(true)
         .size_t_is_usize(true)
         .blacklist_type("__darwin_.*")

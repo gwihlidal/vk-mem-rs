@@ -65,7 +65,7 @@ impl TestHarness {
             .enabled_layer_names(&layers_names_raw)
             .enabled_extension_names(&extension_names_raw);
 
-        let entry = ash::Entry::new().unwrap();
+        let entry = unsafe { ash::Entry::new() }.unwrap();
         let instance: ash::Instance = unsafe {
             entry
                 .create_instance(&create_info, None)

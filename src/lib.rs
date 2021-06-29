@@ -194,6 +194,81 @@ bitflags! {
         /// validation layer. You can ignore them.
         /// `> vkBindBufferMemory(): Binding memory to buffer 0x2d but vkGetBufferMemoryRequirements() has not been called on that buffer.`
         const KHR_DEDICATED_ALLOCATION = 0x0000_0002;
+
+        /// Enables usage of VK_KHR_bind_memory2 extension.
+        ///
+        /// The flag works only if VmaAllocatorCreateInfo::vulkanApiVersion `== VK_API_VERSION_1_0`.
+        /// When it's `VK_API_VERSION_1_1`, the flag is ignored because the extension has been promoted to Vulkan 1.1.
+        ///
+        /// You may set this flag only if you found out that this device extension is supported,
+        /// you enabled it while creating Vulkan device passed as VmaAllocatorCreateInfo::device,
+        /// and you want it to be used internally by this library.
+        ///
+        /// The extension provides functions `vkBindBufferMemory2KHR` and `vkBindImageMemory2KHR`,
+        /// which allow to pass a chain of `pNext` structures while binding.
+        /// This flag is required if you use `pNext` parameter in vmaBindBufferMemory2() or vmaBindImageMemory2().
+        const VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2 = 0x00000004;
+
+        /// Enables usage of VK_EXT_memory_budget extension.
+        ///
+        /// You may set this flag only if you found out that this device extension is supported,
+        /// you enabled it while creating Vulkan device passed as VmaAllocatorCreateInfo::device,
+        /// and you want it to be used internally by this library, along with another instance extension
+        /// VK_KHR_get_physical_device_properties2, which is required by it (or Vulkan 1.1, where this extension is promoted).
+        ///
+        /// The extension provides query for current memory usage and budget, which will probably
+        /// be more accurate than an estimation used by the library otherwise.
+        const VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET = 0x00000008;
+
+        /// Enables usage of VK_AMD_device_coherent_memory extension.
+        ///
+        /// You may set this flag only if you:
+        ///
+        /// - found out that this device extension is supported and enabled it while creating Vulkan device passed as VmaAllocatorCreateInfo::device,
+        /// - checked that `VkPhysicalDeviceCoherentMemoryFeaturesAMD::deviceCoherentMemory` is true and set it while creating the Vulkan device,
+        /// - want it to be used internally by this library.
+        ///
+        /// The extension and accompanying device feature provide access to memory types with
+        /// `VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD` and `VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD` flags.
+        /// They are useful mostly for writing breadcrumb markers - a common method for debugging GPU crash/hang/TDR.
+        ///
+        /// When the extension is not enabled, such memory types are still enumerated, but their usage is illegal.
+        /// To protect from this error, if you don't create the allocator with this flag, it will refuse to allocate any memory or create a custom pool in such memory type,
+        /// returning `VK_ERROR_FEATURE_NOT_PRESENT`.
+        const VMA_ALLOCATOR_CREATE_AMD_DEVICE_COHERENT_MEMORY = 0x00000010;
+
+        /// Enables usage of "buffer device address" feature, which allows you to use function
+        /// `vkGetBufferDeviceAddress*` to get raw GPU pointer to a buffer and pass it for usage inside a shader.
+        ///
+        /// You may set this flag only if you:
+        ///
+        /// 1. (For Vulkan version < 1.2) Found as available and enabled device extension
+        /// VK_KHR_buffer_device_address.
+        /// This extension is promoted to core Vulkan 1.2.
+        /// 2. Found as available and enabled device feature `VkPhysicalDeviceBufferDeviceAddressFeatures::bufferDeviceAddress`.
+        ///
+        /// When this flag is set, you can create buffers with `VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT` using VMA.
+        /// The library automatically adds `VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT` to
+        /// allocated memory blocks wherever it might be needed.
+        ///
+        /// For more information, see documentation chapter \ref enabling_buffer_device_address.
+        const VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS = 0x00000020;
+
+        /// Enables usage of VK_EXT_memory_priority extension in the library.
+        ///
+        /// You may set this flag only if you found available and enabled this device extension,
+        /// along with `VkPhysicalDeviceMemoryPriorityFeaturesEXT::memoryPriority == VK_TRUE`,
+        /// while creating Vulkan device passed as VmaAllocatorCreateInfo::device.
+        ///
+        /// When this flag is used, VmaAllocationCreateInfo::priority and VmaPoolCreateInfo::priority
+        /// are used to set priorities of allocated Vulkan memory. Without it, these variables are ignored.
+        ///
+        /// A priority must be a floating-point value between 0 and 1, indicating the priority of the allocation relative to other memory allocations.
+        /// Larger values are higher priority. The granularity of the priorities is implementation-dependent.
+        /// It is automatically passed to every call to `vkAllocateMemory` done by the library using structure `VkMemoryPriorityAllocateInfoEXT`.
+        /// The value to be used for default priority is 0.5.
+        /// For more details, see the documentation of the VK_EXT_memory_priority extension.
+        const VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY = 0x00000040;
     }
 }
 
@@ -311,6 +386,10 @@ fn allocation_create_info_to_ffi(info: &AllocationCreateInfo) -> ffi::VmaAllocat
         MemoryUsage::CpuOnly => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_CPU_ONLY,
         MemoryUsage::CpuToGpu => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_CPU_TO_GPU,
         MemoryUsage::GpuToCpu => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_TO_CPU,
+        MemoryUsage::CpuCopy => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_CPU_COPY,
+        MemoryUsage::GpuLazilyAllocated => {
+            ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED
+        }
     };
     create_info.flags = info.flags.bits();
     create_info.requiredFlags = info.required_flags.as_raw();
@@ -385,6 +464,20 @@ pub enum MemoryUsage {
     /// - Resources written by device, read by host - results of some computations, e.g. screen capture, average scene luminance for HDR tone mapping.
     /// - Any resources read or accessed randomly on host, e.g. CPU-side copy of vertex buffer used as source of transfer, but also used for collision detection.
     GpuToCpu,
+
+    /// CPU memory - memory that is preferably not `DEVICE_LOCAL`, but also not guaranteed to be `HOST_VISIBLE`.
+    ///
+    /// Usage: Staging copy of resources moved from GPU memory to CPU memory as part
+    /// of custom paging/residency mechanism, to be moved back to GPU memory when needed.
+    CpuCopy,
+
+    /// Lazily allocated GPU memory having `VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT`.
+    /// Exists mostly on mobile platforms. Using it on desktop PC or other GPUs with no such memory type present will fail the allocation.
+    ///
+    /// Usage: Memory for transient attachment images (color attachments, depth attachments etc.), created with `VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT`.
+    ///
+    /// Allocations with this usage are always created as dedicated - it implies #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT.
+    GpuLazilyAllocated,
 }
 
 bitflags! {
@@ -1321,38 +1414,6 @@ impl Allocator {
                 allocations_ffi.len(),
                 allocations_ffi.as_mut_ptr(),
             );
-        }
-    }
-
-    /// Tries to resize an allocation in place, if there is enough free memory after it.
-    ///
-    /// Tries to change allocation's size without moving or reallocating it.
-    /// You can both shrink and grow allocation size.
-    /// When growing, it succeeds only when the allocation belongs to a memory block with enough
-    /// free space after it.
-    ///
-    /// Returns `ash::vk::Result::SUCCESS` if allocation's size has been successfully changed.
-    /// Returns `ash::vk::Result::ERROR_OUT_OF_POOL_MEMORY` if allocation's size could not be changed.
-    ///
-    /// After successful call to this function, `AllocationInfo::get_size` of this allocation changes.
-    /// All other parameters stay the same: memory pool and type, alignment, offset, mapped pointer.
-    ///
-    /// - Calling this function on allocation that is in lost state fails with result `ash::vk::Result::ERROR_VALIDATION_FAILED_EXT`.
-    /// - Calling this function with `new_size` same as current allocation size does nothing and returns `ash::vk::Result::SUCCESS`.
-    /// - Resizing dedicated allocations, as well as allocations created in pools that use linear
-    ///   or buddy algorithm, is not supported. The function returns `ash::vk::Result::ERROR_FEATURE_NOT_PRESENT` in such cases.
-    ///   Support may be added in the future.
-    pub fn resize_allocation(&self, allocation: &Allocation, new_size: usize) -> Result<()> {
-        let result = ffi_to_result(unsafe {
-            ffi::vmaResizeAllocation(
-                self.internal,
-                allocation.internal,
-                new_size as ffi::VkDeviceSize,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok(()),
-            _ => Err(Error::vulkan(result)),
         }
     }
 
