@@ -11,7 +11,7 @@ extern crate failure;
 pub mod error;
 pub mod ffi;
 pub use crate::error::{Error, ErrorKind, Result};
-use ash::{version::InstanceV1_0, vk::Handle};
+use ash::vk::Handle;
 use std::mem;
 
 /// Main allocator object
@@ -768,7 +768,6 @@ pub struct DefragmentationStats {
 impl Allocator {
     /// Constructor a new `Allocator` using the provided options.
     pub fn new(create_info: &AllocatorCreateInfo) -> Result<Self> {
-        use ash::version::{DeviceV1_0, DeviceV1_1};
         let instance = create_info.instance.clone();
         let device = create_info.device.clone();
         let routed_functions = unsafe {
