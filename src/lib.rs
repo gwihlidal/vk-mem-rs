@@ -2,7 +2,13 @@
 
 #![allow(invalid_value)]
 
-extern crate ash;
+#[cfg(feature = "ash_32")]
+pub use ash_32 as ash;
+#[cfg(feature = "ash_33")]
+pub use ash_33 as ash;
+#[cfg(feature = "ash_latest")]
+pub use ash_latest as ash;
+
 #[macro_use]
 extern crate bitflags;
 #[cfg(feature = "failure")]
@@ -11,7 +17,9 @@ extern crate failure;
 pub mod error;
 pub mod ffi;
 pub use crate::error::{Error, ErrorKind, Result};
-use ash::{version::InstanceV1_0, vk::Handle};
+#[cfg(feature = "ash_32")]
+use ash::version::InstanceV1_0;
+use ash::vk::Handle;
 use std::mem;
 
 /// Main allocator object
@@ -768,6 +776,7 @@ pub struct DefragmentationStats {
 impl Allocator {
     /// Constructor a new `Allocator` using the provided options.
     pub fn new(create_info: &AllocatorCreateInfo) -> Result<Self> {
+        #[cfg(feature = "ash_32")]
         use ash::version::{DeviceV1_0, DeviceV1_1};
         let instance = create_info.instance.clone();
         let device = create_info.device.clone();

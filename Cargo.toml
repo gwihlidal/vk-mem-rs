@@ -29,7 +29,9 @@ travis-ci = { repository = "gwihlidal/vk-mem-rs" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-ash = ">= 0.27.1"
+ash_32 = { version = ">= 0.27.1, < 0.33", package = "ash", optional = true }
+ash_33 = { version = "0.33", package = "ash", optional = true }
+ash_latest = { version = ">= 0.33", package = "ash", optional = true }
 bitflags = "1.2.1"
 failure = { version = "0.1.7", optional = true }
 
@@ -46,7 +48,7 @@ opt-level = 3
 codegen-units = 1
 
 [features]
-default = []
+default = ["ash_33"]
 generate_bindings=["bindgen"]
 link_vulkan=[]
 recording=[]

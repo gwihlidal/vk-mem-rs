@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use ash;
+use crate::ash;
 #[cfg(feature = "failure")]
 use failure::{Backtrace, Context, Fail};
 #[cfg(not(feature = "failure"))]
