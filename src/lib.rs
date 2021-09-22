@@ -39,15 +39,6 @@ pub struct AllocatorPool {
     pub(crate) internal: ffi::VmaPool,
 }
 
-/// Construct `AllocatorPool` with default values
-impl Default for AllocatorPool {
-    fn default() -> Self {
-        AllocatorPool {
-            internal: unsafe { mem::zeroed() },
-        }
-    }
-}
-
 /// Represents single memory allocation.
 ///
 /// It may be either dedicated block of `ash::vk::DeviceMemory` or a specific region of a
@@ -258,39 +249,6 @@ pub struct AllocatorCreateInfo {
     /// and just silently migrate some device memory" blocks to system RAM. This driver behavior can
     /// also be controlled using the `VK_AMD_memory_overallocation_behavior` extension.
     pub heap_size_limits: Option<Vec<ash::vk::DeviceSize>>,
-}
-
-/// Construct `AllocatorCreateInfo` with default values
-///
-/// Note that the default `device` and `instance` fields are filled with dummy
-/// implementations that will panic if used. These fields must be overwritten.
-impl Default for AllocatorCreateInfo {
-    fn default() -> Self {
-        extern "C" fn get_device_proc_addr(
-            _: ash::vk::Instance,
-            _: *const std::os::raw::c_char,
-        ) -> *const std::os::raw::c_void {
-            std::ptr::null()
-        }
-        extern "C" fn get_instance_proc_addr(
-            _: ash::vk::Instance,
-            _: *const std::os::raw::c_char,
-        ) -> *const std::os::raw::c_void {
-            get_device_proc_addr as *const _
-        }
-        let static_fn = ash::vk::StaticFn::load(|_| get_instance_proc_addr as *const _);
-        let instance = unsafe { ash::Instance::load(&static_fn, ash::vk::Instance::null()) };
-        let device = unsafe { ash::Device::load(&instance.fp_v1_0(), ash::vk::Device::null()) };
-        AllocatorCreateInfo {
-            physical_device: ash::vk::PhysicalDevice::null(),
-            device,
-            instance,
-            flags: AllocatorCreateFlags::NONE,
-            preferred_large_heap_block_size: 0,
-            frame_in_use_count: 0,
-            heap_size_limits: None,
-        }
-    }
 }
 
 /// Converts a raw result into an ash result.
