@@ -31,7 +31,6 @@ maintenance = { status = "actively-developed" }
 [dependencies]
 ash = ">= 0.33"
 bitflags = "1.2.1"
-failure = { version = "0.1.7", optional = true }
 
 [build-dependencies]
 cc = "1.0.50"
