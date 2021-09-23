@@ -1,10 +1,6 @@
 //! Easy to use, high performance memory manager for Vulkan.
 
-#![allow(invalid_value)]
-
-extern crate ash;
-#[macro_use]
-extern crate bitflags;
+use bitflags::bitflags;
 
 pub mod ffi;
 use ash::prelude::VkResult;
@@ -14,15 +10,7 @@ use std::mem;
 /// Main allocator object
 pub struct Allocator {
     /// Pointer to internal VmaAllocator instance
-    pub(crate) internal: ffi::VmaAllocator,
-
-    /// Vulkan instance handle
-    #[allow(dead_code)]
-    pub(crate) instance: ash::Instance,
-
-    /// Vulkan device handle
-    #[allow(dead_code)]
-    pub(crate) device: ash::Device,
+    internal: ffi::VmaAllocator,
 }
 
 // Allocator is internally thread safe unless AllocatorCreateFlags::EXTERNALLY_SYNCHRONIZED is used (then you need to add synchronization!)
@@ -57,7 +45,7 @@ pub type Allocation = ffi::VmaAllocation;
 #[derive(Debug, Clone)]
 pub struct AllocationInfo {
     /// Pointer to internal VmaAllocationInfo instance
-    pub(crate) internal: ffi::VmaAllocationInfo,
+    internal: ffi::VmaAllocationInfo,
 }
 
 unsafe impl Send for AllocationInfo {}
@@ -762,11 +750,7 @@ impl Allocator {
             )
         })?;
 
-        Ok(Allocator {
-            internal,
-            instance,
-            device,
-        })
+        Ok(Allocator { internal })
     }
 
     /// The allocator fetches `ash::vk::PhysicalDeviceProperties` from the physical device.
