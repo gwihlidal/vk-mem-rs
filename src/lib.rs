@@ -218,6 +218,18 @@ pub struct AllocatorCreateInfo<'a> {
     /// and just silently migrate some device memory" blocks to system RAM. This driver behavior can
     /// also be controlled using the `VK_AMD_memory_overallocation_behavior` extension.
     pub heap_size_limits: Option<&'a [ash::vk::DeviceSize]>,
+
+    /// Custom CPU memory allocation callbacks.
+    pub allocation_callbacks: Option<vk::AllocationCallbacks>,
+
+    /// The highest version of Vulkan that the application is designed to use.
+    /// It must be a value in the format as created by macro `VK_MAKE_VERSION` or a constant like:
+    /// `VK_API_VERSION_1_1`, `VK_API_VERSION_1_0`. The patch version number specified is ignored.
+    /// Only the major and minor versions are considered. It must be less or equal (preferably equal)
+    /// to value as passed to `vkCreateInstance` as `VkApplicationInfo::apiVersion`. Only versions
+    /// 1.0, 1.1, 1.2 are supported by the current implementation.
+    /// Leaving it initialized to zero is equivalent to `VK_API_VERSION_1_0`.
+    pub vulkan_api_version: u32,
 }
 
 /// Converts a raw result into an ash result.
@@ -694,9 +706,10 @@ pub struct DefragmentationStats {
 
 impl Allocator {
     /// Constructor a new `Allocator` using the provided options.
-    pub fn new(create_info: &AllocatorCreateInfo) -> VkResult<Self> {
+    pub unsafe fn new(create_info: &AllocatorCreateInfo) -> VkResult<Self> {
         let instance = create_info.instance.clone();
         let device = create_info.device.clone();
+
         let routed_functions = ffi::VmaVulkanFunctions {
             vkGetPhysicalDeviceProperties: instance.fp_v1_0().get_physical_device_properties,
             vkGetPhysicalDeviceMemoryProperties: instance
@@ -725,6 +738,12 @@ impl Allocator {
                 .fp_v1_1()
                 .get_physical_device_memory_properties2,
         };
+
+        let allocation_callbacks = match create_info.allocation_callbacks {
+            None => std::ptr::null(),
+            Some(ref cb) => cb as *const _,
+        };
+
         let ffi_create_info = ffi::VmaAllocatorCreateInfo {
             physicalDevice: create_info.physical_device,
             device: create_info.device.handle(),
@@ -737,18 +756,17 @@ impl Allocator {
                 Some(limits) => limits.as_ptr(),
             },
             pVulkanFunctions: &routed_functions,
-            pAllocationCallbacks: ::std::ptr::null(), // TODO: Add support
+            pAllocationCallbacks: allocation_callbacks,
             pDeviceMemoryCallbacks: ::std::ptr::null(), // TODO: Add support
-            pRecordSettings: ::std::ptr::null(),      // TODO: Add support
-            vulkanApiVersion: 0,                      // TODO: Make configurable
+            pRecordSettings: ::std::ptr::null(),        // TODO: Add support
+            vulkanApiVersion: create_info.vulkan_api_version,
         };
-        let mut internal: ffi::VmaAllocator = unsafe { mem::zeroed() };
-        ffi_to_result(unsafe {
-            ffi::vmaCreateAllocator(
-                &ffi_create_info as *const ffi::VmaAllocatorCreateInfo,
-                &mut internal,
-            )
-        })?;
+
+        let mut internal: ffi::VmaAllocator = mem::zeroed();
+        ffi_to_result(ffi::vmaCreateAllocator(
+            &ffi_create_info as *const ffi::VmaAllocatorCreateInfo,
+            &mut internal,
+        ))?;
 
         Ok(Allocator { internal })
     }
