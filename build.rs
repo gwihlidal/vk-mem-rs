@@ -158,8 +158,12 @@ fn generate_bindings(output_file: &str) {
         .header("vendor/src/vk_mem_alloc.h")
         .rustfmt_bindings(true)
         .size_t_is_usize(true)
-        .blacklist_type("__darwin_.*")
-        .whitelist_function("vma.*")
+        .blocklist_type("__darwin_.*")
+        .allowlist_function("vma.*")
+        .parse_callbacks(Box::new(FixAshTypes))
+        .blocklist_type("Vk.*")
+        .blocklist_type("PFN_vk.*")
+        .raw_line("use ash::vk::*;")
         .trust_clang_mangling(false)
         .layout_tests(false)
         .generate()
@@ -172,3 +176,32 @@ fn generate_bindings(output_file: &str) {
 
 #[cfg(not(feature = "generate_bindings"))]
 fn generate_bindings(_: &str) {}
+
+#[cfg(feature = "generate_bindings")]
+#[derive(Debug)]
+struct FixAshTypes;
+
+#[cfg(feature = "generate_bindings")]
+impl bindgen::callbacks::ParseCallbacks for FixAshTypes {
+    fn item_name(&self, original_item_name: &str) -> Option<String> {
+        if original_item_name.starts_with("Vk") {
+            // Strip `Vk` prefix, will use `ash::vk::*` instead
+            Some(original_item_name.trim_start_matches("Vk").to_string())
+        } else if original_item_name.starts_with("PFN_vk") && original_item_name.ends_with("KHR") {
+            // VMA uses a few extensions like `PFN_vkGetBufferMemoryRequirements2KHR`,
+            // ash keeps these as `PFN_vkGetBufferMemoryRequirements2`
+            Some(original_item_name.trim_end_matches("KHR").to_string())
+        } else {
+            None
+        }
+    }
+
+    // When ignoring `Vk` types, bindgen loses derives for some type. Quick workaround.
+    fn add_derives(&self, name: &str) -> Vec<String> {
+        if name.starts_with("VmaAllocationInfo") || name.starts_with("VmaDefragmentationStats") {
+            vec!["Debug".into(), "Copy".into(), "Clone".into()]
+        } else {
+            vec![]
+        }
+    }
+}

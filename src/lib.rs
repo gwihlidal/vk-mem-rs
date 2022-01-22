@@ -1,55 +1,27 @@
 //! Easy to use, high performance memory manager for Vulkan.
 
-#![allow(invalid_value)]
+use bitflags::bitflags;
 
-extern crate ash;
-#[macro_use]
-extern crate bitflags;
-#[cfg(feature = "failure")]
-extern crate failure;
-
-pub mod error;
 pub mod ffi;
-pub use crate::error::{Error, ErrorKind, Result};
-use ash::{version::InstanceV1_0, vk::Handle};
+use ash::prelude::VkResult;
+use ash::vk;
 use std::mem;
 
 /// Main allocator object
 pub struct Allocator {
     /// Pointer to internal VmaAllocator instance
-    pub(crate) internal: ffi::VmaAllocator,
-
-    /// Vulkan instance handle
-    #[allow(dead_code)]
-    pub(crate) instance: ash::Instance,
-
-    /// Vulkan device handle
-    #[allow(dead_code)]
-    pub(crate) device: ash::Device,
+    internal: ffi::VmaAllocator,
 }
 
 // Allocator is internally thread safe unless AllocatorCreateFlags::EXTERNALLY_SYNCHRONIZED is used (then you need to add synchronization!)
 unsafe impl Send for Allocator {}
 unsafe impl Sync for Allocator {}
 
-/// Represents custom memory pool
+/// Represents custom memory pool handle.
 ///
 /// Fill structure `AllocatorPoolCreateInfo` and call `Allocator::create_pool` to create it.
 /// Call `Allocator::destroy_pool` to destroy it.
-#[derive(Debug, Clone)]
-pub struct AllocatorPool {
-    /// Pointer to internal VmaPool instance
-    pub(crate) internal: ffi::VmaPool,
-}
-
-/// Construct `AllocatorPool` with default values
-impl Default for AllocatorPool {
-    fn default() -> Self {
-        AllocatorPool {
-            internal: unsafe { mem::zeroed() },
-        }
-    }
-}
+pub type AllocatorPool = ffi::VmaPool;
 
 /// Represents single memory allocation.
 ///
@@ -67,28 +39,13 @@ impl Default for AllocatorPool {
 /// use `Allocator::get_allocation_info`.
 ///
 /// Some kinds allocations can be in lost state.
-#[derive(Debug, Copy, Clone)]
-pub struct Allocation {
-    /// Pointer to internal VmaAllocation instance
-    pub(crate) internal: ffi::VmaAllocation,
-}
-
-impl Allocation {
-    pub fn null() -> Allocation {
-        Allocation {
-            internal: std::ptr::null_mut(),
-        }
-    }
-}
-
-unsafe impl Send for Allocation {}
-unsafe impl Sync for Allocation {}
+pub type Allocation = ffi::VmaAllocation;
 
 /// Parameters of `Allocation` objects, that can be retrieved using `Allocator::get_allocation_info`.
 #[derive(Debug, Clone)]
 pub struct AllocationInfo {
     /// Pointer to internal VmaAllocationInfo instance
-    pub(crate) internal: ffi::VmaAllocationInfo,
+    internal: ffi::VmaAllocationInfo,
 }
 
 unsafe impl Send for AllocationInfo {}
@@ -111,7 +68,7 @@ impl AllocationInfo {
     /// If the allocation is lost, it is equal to `ash::vk::DeviceMemory::null()`.
     #[inline(always)]
     pub fn get_device_memory(&self) -> ash::vk::DeviceMemory {
-        ash::vk::DeviceMemory::from_raw(self.internal.deviceMemory as u64)
+        self.internal.deviceMemory
     }
 
     /// Offset into device memory object to the beginning of this allocation, in bytes.
@@ -205,7 +162,7 @@ impl Default for AllocatorCreateFlags {
 }
 
 /// Description of an `Allocator` to be created.
-pub struct AllocatorCreateInfo {
+pub struct AllocatorCreateInfo<'a> {
     /// Vulkan physical device. It must be valid throughout whole lifetime of created allocator.
     pub physical_device: ash::vk::PhysicalDevice,
 
@@ -260,46 +217,28 @@ pub struct AllocatorCreateInfo {
     /// `ash::vk::Result::ERROR_OUT_OF_DEVICE_MEMORY` result when memory capacity is exceeded. It may return success
     /// and just silently migrate some device memory" blocks to system RAM. This driver behavior can
     /// also be controlled using the `VK_AMD_memory_overallocation_behavior` extension.
-    pub heap_size_limits: Option<Vec<ash::vk::DeviceSize>>,
-}
+    pub heap_size_limits: Option<&'a [ash::vk::DeviceSize]>,
 
-/// Construct `AllocatorCreateInfo` with default values
-///
-/// Note that the default `device` and `instance` fields are filled with dummy
-/// implementations that will panic if used. These fields must be overwritten.
-impl Default for AllocatorCreateInfo {
-    fn default() -> Self {
-        extern "C" fn get_device_proc_addr(
-            _: ash::vk::Instance,
-            _: *const std::os::raw::c_char,
-        ) -> *const std::os::raw::c_void {
-            std::ptr::null()
-        }
-        extern "C" fn get_instance_proc_addr(
-            _: ash::vk::Instance,
-            _: *const std::os::raw::c_char,
-        ) -> *const std::os::raw::c_void {
-            get_device_proc_addr as *const _
-        }
-        let static_fn = ash::vk::StaticFn::load(|_| get_instance_proc_addr as *const _);
-        let instance = unsafe { ash::Instance::load(&static_fn, ash::vk::Instance::null()) };
-        let device = unsafe { ash::Device::load(&instance.fp_v1_0(), ash::vk::Device::null()) };
-        AllocatorCreateInfo {
-            physical_device: ash::vk::PhysicalDevice::null(),
-            device,
-            instance,
-            flags: AllocatorCreateFlags::NONE,
-            preferred_large_heap_block_size: 0,
-            frame_in_use_count: 0,
-            heap_size_limits: None,
-        }
-    }
+    /// Custom CPU memory allocation callbacks.
+    pub allocation_callbacks: Option<vk::AllocationCallbacks>,
+
+    /// The highest version of Vulkan that the application is designed to use.
+    /// It must be a value in the format as created by macro `VK_MAKE_VERSION` or a constant like:
+    /// `VK_API_VERSION_1_1`, `VK_API_VERSION_1_0`. The patch version number specified is ignored.
+    /// Only the major and minor versions are considered. It must be less or equal (preferably equal)
+    /// to value as passed to `vkCreateInstance` as `VkApplicationInfo::apiVersion`. Only versions
+    /// 1.0, 1.1, 1.2 are supported by the current implementation.
+    /// Leaving it initialized to zero is equivalent to `VK_API_VERSION_1_0`.
+    pub vulkan_api_version: u32,
 }
 
 /// Converts a raw result into an ash result.
 #[inline]
-fn ffi_to_result(result: ffi::VkResult) -> ash::vk::Result {
-    ash::vk::Result::from_raw(result)
+fn ffi_to_result(result: vk::Result) -> VkResult<()> {
+    match result {
+        vk::Result::SUCCESS => Ok(()),
+        _ => Err(result),
+    }
 }
 
 /// Converts an `AllocationCreateInfo` struct into the raw representation.
@@ -313,11 +252,11 @@ fn allocation_create_info_to_ffi(info: &AllocationCreateInfo) -> ffi::VmaAllocat
         MemoryUsage::GpuToCpu => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_TO_CPU,
     };
     create_info.flags = info.flags.bits();
-    create_info.requiredFlags = info.required_flags.as_raw();
-    create_info.preferredFlags = info.preferred_flags.as_raw();
+    create_info.requiredFlags = info.required_flags;
+    create_info.preferredFlags = info.preferred_flags;
     create_info.memoryTypeBits = info.memory_type_bits;
-    create_info.pool = match &info.pool {
-        Some(pool) => pool.internal,
+    create_info.pool = match info.pool {
+        Some(pool) => pool,
         None => unsafe { mem::zeroed() },
     };
     create_info.pUserData = info.user_data.unwrap_or(::std::ptr::null_mut());
@@ -329,7 +268,7 @@ fn pool_create_info_to_ffi(info: &AllocatorPoolCreateInfo) -> ffi::VmaPoolCreate
     let mut create_info: ffi::VmaPoolCreateInfo = unsafe { mem::zeroed() };
     create_info.memoryTypeIndex = info.memory_type_index;
     create_info.flags = info.flags.bits();
-    create_info.blockSize = info.block_size as ffi::VkDeviceSize;
+    create_info.blockSize = info.block_size as vk::DeviceSize;
     create_info.minBlockCount = info.min_block_count;
     create_info.maxBlockCount = info.max_block_count;
     create_info.frameInUseCount = info.frame_in_use_count;
@@ -662,7 +601,7 @@ impl Default for AllocatorPoolCreateInfo {
 #[derive(Debug)]
 pub struct DefragmentationContext {
     pub(crate) internal: ffi::VmaDefragmentationContext,
-    pub(crate) stats: Box<ffi::VmaDefragmentationStats>,
+    pub(crate) stats: ffi::VmaDefragmentationStats,
     pub(crate) changed: Vec<ash::vk::Bool32>,
 }
 
@@ -767,110 +706,48 @@ pub struct DefragmentationStats {
 
 impl Allocator {
     /// Constructor a new `Allocator` using the provided options.
-    pub fn new(create_info: &AllocatorCreateInfo) -> Result<Self> {
-        use ash::version::{DeviceV1_0, DeviceV1_1};
+    pub unsafe fn new(create_info: &AllocatorCreateInfo) -> VkResult<Self> {
         let instance = create_info.instance.clone();
         let device = create_info.device.clone();
-        let routed_functions = unsafe {
-            ffi::VmaVulkanFunctions {
-                vkGetPhysicalDeviceProperties: mem::transmute::<
-                    _,
-                    ffi::PFN_vkGetPhysicalDeviceProperties,
-                >(Some(
-                    instance.fp_v1_0().get_physical_device_properties,
-                )),
-                vkGetPhysicalDeviceMemoryProperties: mem::transmute::<
-                    _,
-                    ffi::PFN_vkGetPhysicalDeviceMemoryProperties,
-                >(Some(
-                    instance.fp_v1_0().get_physical_device_memory_properties,
-                )),
-                vkAllocateMemory: mem::transmute::<_, ffi::PFN_vkAllocateMemory>(Some(
-                    device.fp_v1_0().allocate_memory,
-                )),
-                vkFreeMemory: mem::transmute::<_, ffi::PFN_vkFreeMemory>(Some(
-                    device.fp_v1_0().free_memory,
-                )),
-                vkMapMemory: mem::transmute::<_, ffi::PFN_vkMapMemory>(Some(
-                    device.fp_v1_0().map_memory,
-                )),
-                vkUnmapMemory: mem::transmute::<_, ffi::PFN_vkUnmapMemory>(Some(
-                    device.fp_v1_0().unmap_memory,
-                )),
-                vkFlushMappedMemoryRanges: mem::transmute::<_, ffi::PFN_vkFlushMappedMemoryRanges>(
-                    Some(device.fp_v1_0().flush_mapped_memory_ranges),
-                ),
-                vkInvalidateMappedMemoryRanges: mem::transmute::<
-                    _,
-                    ffi::PFN_vkInvalidateMappedMemoryRanges,
-                >(Some(
-                    device.fp_v1_0().invalidate_mapped_memory_ranges,
-                )),
-                vkBindBufferMemory: mem::transmute::<_, ffi::PFN_vkBindBufferMemory>(Some(
-                    device.fp_v1_0().bind_buffer_memory,
-                )),
-                vkBindBufferMemory2KHR: mem::transmute::<_, ffi::PFN_vkBindBufferMemory2KHR>(Some(
-                    device.fp_v1_1().bind_buffer_memory2,
-                )),
-                vkBindImageMemory: mem::transmute::<_, ffi::PFN_vkBindImageMemory>(Some(
-                    device.fp_v1_0().bind_image_memory,
-                )),
-                vkBindImageMemory2KHR: mem::transmute::<_, ffi::PFN_vkBindImageMemory2KHR>(Some(
-                    device.fp_v1_1().bind_image_memory2,
-                )),
-                vkGetBufferMemoryRequirements: mem::transmute::<
-                    _,
-                    ffi::PFN_vkGetBufferMemoryRequirements,
-                >(Some(
-                    device.fp_v1_0().get_buffer_memory_requirements,
-                )),
-                vkGetImageMemoryRequirements: mem::transmute::<
-                    _,
-                    ffi::PFN_vkGetImageMemoryRequirements,
-                >(Some(
-                    device.fp_v1_0().get_image_memory_requirements,
-                )),
-                vkCreateBuffer: mem::transmute::<_, ffi::PFN_vkCreateBuffer>(Some(
-                    device.fp_v1_0().create_buffer,
-                )),
-                vkDestroyBuffer: mem::transmute::<_, ffi::PFN_vkDestroyBuffer>(Some(
-                    device.fp_v1_0().destroy_buffer,
-                )),
-                vkCreateImage: mem::transmute::<_, ffi::PFN_vkCreateImage>(Some(
-                    device.fp_v1_0().create_image,
-                )),
-                vkDestroyImage: mem::transmute::<_, ffi::PFN_vkDestroyImage>(Some(
-                    device.fp_v1_0().destroy_image,
-                )),
-                vkCmdCopyBuffer: mem::transmute::<_, ffi::PFN_vkCmdCopyBuffer>(Some(
-                    device.fp_v1_0().cmd_copy_buffer,
-                )),
-                vkGetBufferMemoryRequirements2KHR: mem::transmute::<
-                    _,
-                    ffi::PFN_vkGetBufferMemoryRequirements2KHR,
-                >(Some(
-                    device.fp_v1_1().get_buffer_memory_requirements2,
-                )),
-                vkGetImageMemoryRequirements2KHR: mem::transmute::<
-                    _,
-                    ffi::PFN_vkGetImageMemoryRequirements2KHR,
-                >(Some(
-                    device.fp_v1_1().get_image_memory_requirements2,
-                )),
-                // TODO:
-                vkGetPhysicalDeviceMemoryProperties2KHR: None,
-                /*vkGetPhysicalDeviceMemoryProperties2KHR: mem::transmute::<
-                    _,
-                    ffi::PFN_vkGetPhysicalDeviceMemoryProperties2KHR,
-                >(Some(
-                    device.fp_v1_1().get_physical_device_memory_properties2,
-                )),*/
-            }
+
+        let routed_functions = ffi::VmaVulkanFunctions {
+            vkGetPhysicalDeviceProperties: instance.fp_v1_0().get_physical_device_properties,
+            vkGetPhysicalDeviceMemoryProperties: instance
+                .fp_v1_0()
+                .get_physical_device_memory_properties,
+            vkAllocateMemory: device.fp_v1_0().allocate_memory,
+            vkFreeMemory: device.fp_v1_0().free_memory,
+            vkMapMemory: device.fp_v1_0().map_memory,
+            vkUnmapMemory: device.fp_v1_0().unmap_memory,
+            vkFlushMappedMemoryRanges: device.fp_v1_0().flush_mapped_memory_ranges,
+            vkInvalidateMappedMemoryRanges: device.fp_v1_0().invalidate_mapped_memory_ranges,
+            vkBindBufferMemory: device.fp_v1_0().bind_buffer_memory,
+            vkBindImageMemory: device.fp_v1_0().bind_image_memory,
+            vkGetBufferMemoryRequirements: device.fp_v1_0().get_buffer_memory_requirements,
+            vkGetImageMemoryRequirements: device.fp_v1_0().get_image_memory_requirements,
+            vkCreateBuffer: device.fp_v1_0().create_buffer,
+            vkDestroyBuffer: device.fp_v1_0().destroy_buffer,
+            vkCreateImage: device.fp_v1_0().create_image,
+            vkDestroyImage: device.fp_v1_0().destroy_image,
+            vkCmdCopyBuffer: device.fp_v1_0().cmd_copy_buffer,
+            vkGetBufferMemoryRequirements2KHR: device.fp_v1_1().get_buffer_memory_requirements2,
+            vkGetImageMemoryRequirements2KHR: device.fp_v1_1().get_image_memory_requirements2,
+            vkBindBufferMemory2KHR: device.fp_v1_1().bind_buffer_memory2,
+            vkBindImageMemory2KHR: device.fp_v1_1().bind_image_memory2,
+            vkGetPhysicalDeviceMemoryProperties2KHR: instance
+                .fp_v1_1()
+                .get_physical_device_memory_properties2,
         };
+
+        let allocation_callbacks = match create_info.allocation_callbacks {
+            None => std::ptr::null(),
+            Some(ref cb) => cb as *const _,
+        };
+
         let ffi_create_info = ffi::VmaAllocatorCreateInfo {
-            physicalDevice: create_info.physical_device.as_raw() as ffi::VkPhysicalDevice,
-            device: create_info.device.handle().as_raw() as ffi::VkDevice,
-            instance: instance.handle().as_raw() as ffi::VkInstance,
+            physicalDevice: create_info.physical_device,
+            device: create_info.device.handle(),
+            instance: instance.handle(),
             flags: create_info.flags.bits(),
             frameInUseCount: create_info.frame_in_use_count,
             preferredLargeHeapBlockSize: create_info.preferred_large_heap_block_size as u64,
@@ -879,69 +756,54 @@ impl Allocator {
                 Some(limits) => limits.as_ptr(),
             },
             pVulkanFunctions: &routed_functions,
-            pAllocationCallbacks: ::std::ptr::null(), // TODO: Add support
+            pAllocationCallbacks: allocation_callbacks,
             pDeviceMemoryCallbacks: ::std::ptr::null(), // TODO: Add support
-            pRecordSettings: ::std::ptr::null(),      // TODO: Add support
-            vulkanApiVersion: 0,                      // TODO: Make configurable
+            pRecordSettings: ::std::ptr::null(),        // TODO: Add support
+            vulkanApiVersion: create_info.vulkan_api_version,
         };
-        let mut internal: ffi::VmaAllocator = unsafe { mem::zeroed() };
-        let result = ffi_to_result(unsafe {
-            ffi::vmaCreateAllocator(
-                &ffi_create_info as *const ffi::VmaAllocatorCreateInfo,
-                &mut internal,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok(Allocator {
-                internal,
-                instance,
-                device,
-            }),
-            _ => Err(Error::vulkan(result)),
-        }
+
+        let mut internal: ffi::VmaAllocator = mem::zeroed();
+        ffi_to_result(ffi::vmaCreateAllocator(
+            &ffi_create_info as *const ffi::VmaAllocatorCreateInfo,
+            &mut internal,
+        ))?;
+
+        Ok(Allocator { internal })
     }
 
     /// The allocator fetches `ash::vk::PhysicalDeviceProperties` from the physical device.
     /// You can get it here, without fetching it again on your own.
-    pub fn get_physical_device_properties(&self) -> Result<ash::vk::PhysicalDeviceProperties> {
-        let mut ffi_properties: *const ffi::VkPhysicalDeviceProperties = unsafe { mem::zeroed() };
-        Ok(unsafe {
-            ffi::vmaGetPhysicalDeviceProperties(self.internal, &mut ffi_properties);
-            mem::transmute::<ffi::VkPhysicalDeviceProperties, ash::vk::PhysicalDeviceProperties>(
-                *ffi_properties,
-            )
-        })
+    pub unsafe fn get_physical_device_properties(&self) -> VkResult<vk::PhysicalDeviceProperties> {
+        let mut properties = vk::PhysicalDeviceProperties::default();
+        ffi::vmaGetPhysicalDeviceProperties(
+            self.internal,
+            &mut properties as *mut _ as *mut *const _,
+        );
+
+        Ok(properties)
     }
 
     /// The allocator fetches `ash::vk::PhysicalDeviceMemoryProperties` from the physical device.
     /// You can get it here, without fetching it again on your own.
-    pub fn get_memory_properties(&self) -> Result<ash::vk::PhysicalDeviceMemoryProperties> {
-        let mut ffi_properties: *const ffi::VkPhysicalDeviceMemoryProperties =
-            unsafe { mem::zeroed() };
-        Ok(unsafe {
-            ffi::vmaGetMemoryProperties(self.internal, &mut ffi_properties);
-            mem::transmute::<
-                ffi::VkPhysicalDeviceMemoryProperties,
-                ash::vk::PhysicalDeviceMemoryProperties,
-            >(*ffi_properties)
-        })
+    pub unsafe fn get_memory_properties(&self) -> VkResult<vk::PhysicalDeviceMemoryProperties> {
+        let mut properties = vk::PhysicalDeviceMemoryProperties::default();
+        ffi::vmaGetMemoryProperties(self.internal, &mut properties as *mut _ as *mut *const _);
+
+        Ok(properties)
     }
 
     /// Given a memory type index, returns `ash::vk::MemoryPropertyFlags` of this memory type.
     ///
     /// This is just a convenience function; the same information can be obtained using
     /// `Allocator::get_memory_properties`.
-    pub fn get_memory_type_properties(
+    pub unsafe fn get_memory_type_properties(
         &self,
         memory_type_index: u32,
-    ) -> Result<ash::vk::MemoryPropertyFlags> {
-        let mut ffi_properties: ffi::VkMemoryPropertyFlags = unsafe { mem::zeroed() };
-        Ok(unsafe {
-            ffi::vmaGetMemoryTypeProperties(self.internal, memory_type_index, &mut ffi_properties);
-            mem::transmute::<ffi::VkMemoryPropertyFlags, ash::vk::MemoryPropertyFlags>(
-                ffi_properties,
-            )
-        })
+    ) -> VkResult<vk::MemoryPropertyFlags> {
+        let mut flags = vk::MemoryPropertyFlags::empty();
+        ffi::vmaGetMemoryTypeProperties(self.internal, memory_type_index, &mut flags);
+
+        Ok(flags)
     }
 
     /// Sets index of the current frame.
@@ -950,42 +812,33 @@ impl Allocator {
     /// `AllocationCreateFlags::CAN_MAKE_OTHER_LOST` flags to inform the allocator when a new frame begins.
     /// Allocations queried using `Allocator::get_allocation_info` cannot become lost
     /// in the current frame.
-    pub fn set_current_frame_index(&self, frame_index: u32) {
-        unsafe {
-            ffi::vmaSetCurrentFrameIndex(self.internal, frame_index);
-        }
+    pub unsafe fn set_current_frame_index(&self, frame_index: u32) {
+        ffi::vmaSetCurrentFrameIndex(self.internal, frame_index);
     }
 
     /// Retrieves statistics from current state of the `Allocator`.
-    pub fn calculate_stats(&self) -> Result<ffi::VmaStats> {
-        let mut vma_stats: ffi::VmaStats = unsafe { mem::zeroed() };
-        unsafe {
-            ffi::vmaCalculateStats(self.internal, &mut vma_stats);
-        }
+    pub unsafe fn calculate_stats(&self) -> VkResult<ffi::VmaStats> {
+        let mut vma_stats: ffi::VmaStats = mem::zeroed();
+        ffi::vmaCalculateStats(self.internal, &mut vma_stats);
         Ok(vma_stats)
     }
 
     /// Builds and returns statistics in `JSON` format.
-    pub fn build_stats_string(&self, detailed_map: bool) -> Result<String> {
+    pub unsafe fn build_stats_string(&self, detailed_map: bool) -> VkResult<String> {
         let mut stats_string: *mut ::std::os::raw::c_char = ::std::ptr::null_mut();
-        unsafe {
-            ffi::vmaBuildStatsString(
-                self.internal,
-                &mut stats_string,
-                if detailed_map { 1 } else { 0 },
-            );
-        }
+        ffi::vmaBuildStatsString(
+            self.internal,
+            &mut stats_string,
+            if detailed_map { 1 } else { 0 },
+        );
+
         Ok(if stats_string.is_null() {
             String::new()
         } else {
-            let result = unsafe {
-                std::ffi::CStr::from_ptr(stats_string)
-                    .to_string_lossy()
-                    .into_owned()
-            };
-            unsafe {
-                ffi::vmaFreeStatsString(self.internal, stats_string);
-            }
+            let result = std::ffi::CStr::from_ptr(stats_string)
+                .to_string_lossy()
+                .into_owned();
+            ffi::vmaFreeStatsString(self.internal, stats_string);
             result
         })
     }
@@ -1004,25 +857,21 @@ impl Allocator {
     /// device doesn't support any memory type with requested features for the specific
     /// type of resource you want to use it for. Please check parameters of your
     /// resource, like image layout (OPTIMAL versus LINEAR) or mip level count.
-    pub fn find_memory_type_index(
+    pub unsafe fn find_memory_type_index(
         &self,
         memory_type_bits: u32,
         allocation_info: &AllocationCreateInfo,
-    ) -> Result<u32> {
+    ) -> VkResult<u32> {
         let create_info = allocation_create_info_to_ffi(&allocation_info);
         let mut memory_type_index: u32 = 0;
-        let result = ffi_to_result(unsafe {
-            ffi::vmaFindMemoryTypeIndex(
-                self.internal,
-                memory_type_bits,
-                &create_info,
-                &mut memory_type_index,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok(memory_type_index),
-            _ => Err(Error::vulkan(result)),
-        }
+        ffi_to_result(ffi::vmaFindMemoryTypeIndex(
+            self.internal,
+            memory_type_bits,
+            &create_info,
+            &mut memory_type_index,
+        ))?;
+
+        Ok(memory_type_index)
     }
 
     /// Helps to find memory type index, given buffer info and allocation info.
@@ -1035,28 +884,21 @@ impl Allocator {
     /// - `ash::vk::Device::get_buffer_memory_requirements`
     /// - `Allocator::find_memory_type_index`
     /// - `ash::vk::Device::destroy_buffer`
-    pub fn find_memory_type_index_for_buffer_info(
+    pub unsafe fn find_memory_type_index_for_buffer_info(
         &self,
-        buffer_info: &ash::vk::BufferCreateInfo,
+        buffer_info: ash::vk::BufferCreateInfo,
         allocation_info: &AllocationCreateInfo,
-    ) -> Result<u32> {
+    ) -> VkResult<u32> {
         let allocation_create_info = allocation_create_info_to_ffi(&allocation_info);
-        let buffer_create_info = unsafe {
-            mem::transmute::<ash::vk::BufferCreateInfo, ffi::VkBufferCreateInfo>(*buffer_info)
-        };
         let mut memory_type_index: u32 = 0;
-        let result = ffi_to_result(unsafe {
-            ffi::vmaFindMemoryTypeIndexForBufferInfo(
-                self.internal,
-                &buffer_create_info,
-                &allocation_create_info,
-                &mut memory_type_index,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok(memory_type_index),
-            _ => Err(Error::vulkan(result)),
-        }
+        ffi_to_result(ffi::vmaFindMemoryTypeIndexForBufferInfo(
+            self.internal,
+            &buffer_info,
+            &allocation_create_info,
+            &mut memory_type_index,
+        ))?;
+
+        Ok(memory_type_index)
     }
 
     /// Helps to find memory type index, given image info and allocation info.
@@ -1069,56 +911,47 @@ impl Allocator {
     /// - `ash::vk::Device::get_image_memory_requirements`
     /// - `Allocator::find_memory_type_index`
     /// - `ash::vk::Device::destroy_image`
-    pub fn find_memory_type_index_for_image_info(
+    pub unsafe fn find_memory_type_index_for_image_info(
         &self,
-        image_info: &ash::vk::ImageCreateInfo,
+        image_info: ash::vk::ImageCreateInfo,
         allocation_info: &AllocationCreateInfo,
-    ) -> Result<u32> {
+    ) -> VkResult<u32> {
         let allocation_create_info = allocation_create_info_to_ffi(&allocation_info);
-        let image_create_info = unsafe {
-            mem::transmute::<ash::vk::ImageCreateInfo, ffi::VkImageCreateInfo>(*image_info)
-        };
         let mut memory_type_index: u32 = 0;
-        let result = ffi_to_result(unsafe {
-            ffi::vmaFindMemoryTypeIndexForImageInfo(
-                self.internal,
-                &image_create_info,
-                &allocation_create_info,
-                &mut memory_type_index,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok(memory_type_index),
-            _ => Err(Error::vulkan(result)),
-        }
+        ffi_to_result(ffi::vmaFindMemoryTypeIndexForImageInfo(
+            self.internal,
+            &image_info,
+            &allocation_create_info,
+            &mut memory_type_index,
+        ))?;
+
+        Ok(memory_type_index)
     }
 
     /// Allocates Vulkan device memory and creates `AllocatorPool` object.
-    pub fn create_pool(&self, pool_info: &AllocatorPoolCreateInfo) -> Result<AllocatorPool> {
-        let mut ffi_pool: ffi::VmaPool = unsafe { mem::zeroed() };
+    pub unsafe fn create_pool(
+        &self,
+        pool_info: &AllocatorPoolCreateInfo,
+    ) -> VkResult<AllocatorPool> {
+        let mut ffi_pool: ffi::VmaPool = mem::zeroed();
         let create_info = pool_create_info_to_ffi(&pool_info);
-        let result = ffi_to_result(unsafe {
-            ffi::vmaCreatePool(self.internal, &create_info, &mut ffi_pool)
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok(AllocatorPool { internal: ffi_pool }),
-            _ => Err(Error::vulkan(result)),
-        }
+        ffi_to_result(ffi::vmaCreatePool(
+            self.internal,
+            &create_info,
+            &mut ffi_pool,
+        ))?;
+        Ok(ffi_pool)
     }
 
     /// Destroys `AllocatorPool` object and frees Vulkan device memory.
-    pub fn destroy_pool(&self, pool: &AllocatorPool) {
-        unsafe {
-            ffi::vmaDestroyPool(self.internal, pool.internal);
-        }
+    pub unsafe fn destroy_pool(&self, pool: AllocatorPool) {
+        ffi::vmaDestroyPool(self.internal, pool);
     }
 
     /// Retrieves statistics of existing `AllocatorPool` object.
-    pub fn get_pool_stats(&self, pool: &AllocatorPool) -> Result<ffi::VmaPoolStats> {
-        let mut pool_stats: ffi::VmaPoolStats = unsafe { mem::zeroed() };
-        unsafe {
-            ffi::vmaGetPoolStats(self.internal, pool.internal, &mut pool_stats);
-        }
+    pub unsafe fn get_pool_stats(&self, pool: AllocatorPool) -> VkResult<ffi::VmaPoolStats> {
+        let mut pool_stats: ffi::VmaPoolStats = mem::zeroed();
+        ffi::vmaGetPoolStats(self.internal, pool, &mut pool_stats);
         Ok(pool_stats)
     }
 
@@ -1126,11 +959,9 @@ impl Allocator {
     /// or AllocatorPoolCreateInfo::frame_in_use_count` back from now.
     ///
     /// Returns the number of allocations marked as lost.
-    pub fn make_pool_allocations_lost(&self, pool: &mut AllocatorPool) -> Result<usize> {
+    pub unsafe fn make_pool_allocations_lost(&self, pool: AllocatorPool) -> VkResult<usize> {
         let mut lost_count: usize = 0;
-        unsafe {
-            ffi::vmaMakePoolAllocationsLost(self.internal, pool.internal, &mut lost_count);
-        }
+        ffi::vmaMakePoolAllocationsLost(self.internal, pool, &mut lost_count);
         Ok(lost_count as usize)
     }
 
@@ -1146,13 +977,8 @@ impl Allocator {
     /// - `ash::vk::Result::ERROR_VALIDATION_FAILED_EXT` - corruption detection has been performed and found memory corruptions around one of the allocations.
     ///   `VMA_ASSERT` is also fired in that case.
     /// - Other value: Error returned by Vulkan, e.g. memory mapping failure.
-    pub fn check_pool_corruption(&self, pool: &AllocatorPool) -> Result<()> {
-        let result =
-            ffi_to_result(unsafe { ffi::vmaCheckPoolCorruption(self.internal, pool.internal) });
-        match result {
-            ash::vk::Result::SUCCESS => Ok(()),
-            _ => Err(Error::vulkan(result)),
-        }
+    pub unsafe fn check_pool_corruption(&self, pool: AllocatorPool) -> VkResult<()> {
+        ffi_to_result(ffi::vmaCheckPoolCorruption(self.internal, pool))
     }
 
     /// General purpose memory allocation.
@@ -1161,32 +987,23 @@ impl Allocator {
     ///
     /// It is recommended to use `Allocator::allocate_memory_for_buffer`, `Allocator::allocate_memory_for_image`,
     /// `Allocator::create_buffer`, `Allocator::create_image` instead whenever possible.
-    pub fn allocate_memory(
+    pub unsafe fn allocate_memory(
         &self,
         memory_requirements: &ash::vk::MemoryRequirements,
         allocation_info: &AllocationCreateInfo,
-    ) -> Result<(Allocation, AllocationInfo)> {
-        let ffi_requirements = unsafe {
-            mem::transmute::<ash::vk::MemoryRequirements, ffi::VkMemoryRequirements>(
-                *memory_requirements,
-            )
-        };
+    ) -> VkResult<(Allocation, AllocationInfo)> {
         let create_info = allocation_create_info_to_ffi(&allocation_info);
-        let mut allocation: Allocation = unsafe { mem::zeroed() };
-        let mut allocation_info: AllocationInfo = unsafe { mem::zeroed() };
-        let result = ffi_to_result(unsafe {
-            ffi::vmaAllocateMemory(
-                self.internal,
-                &ffi_requirements,
-                &create_info,
-                &mut allocation.internal,
-                &mut allocation_info.internal,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok((allocation, allocation_info)),
-            _ => Err(Error::vulkan(result)),
-        }
+        let mut allocation: Allocation = mem::zeroed();
+        let mut allocation_info: AllocationInfo = mem::zeroed();
+        ffi_to_result(ffi::vmaAllocateMemory(
+            self.internal,
+            memory_requirements,
+            &create_info,
+            &mut allocation,
+            &mut allocation_info.internal,
+        ))?;
+
+        Ok((allocation, allocation_info))
     }
 
     /// General purpose memory allocation for multiple allocation objects at once.
@@ -1198,109 +1015,81 @@ impl Allocator {
     /// It may be internally optimized to be more efficient than calling `Allocator::allocate_memory` `allocations.len()` times.
     ///
     /// All allocations are made using same parameters. All of them are created out of the same memory pool and type.
-    pub fn allocate_memory_pages(
+    pub unsafe fn allocate_memory_pages(
         &self,
         memory_requirements: &ash::vk::MemoryRequirements,
         allocation_info: &AllocationCreateInfo,
         allocation_count: usize,
-    ) -> Result<Vec<(Allocation, AllocationInfo)>> {
-        let ffi_requirements = unsafe {
-            mem::transmute::<ash::vk::MemoryRequirements, ffi::VkMemoryRequirements>(
-                *memory_requirements,
-            )
-        };
+    ) -> VkResult<Vec<(Allocation, AllocationInfo)>> {
         let create_info = allocation_create_info_to_ffi(&allocation_info);
-        let mut allocations: Vec<ffi::VmaAllocation> =
-            vec![unsafe { mem::zeroed() }; allocation_count];
+        let mut allocations: Vec<ffi::VmaAllocation> = vec![mem::zeroed(); allocation_count];
         let mut allocation_info: Vec<ffi::VmaAllocationInfo> =
-            vec![unsafe { mem::zeroed() }; allocation_count];
-        let result = ffi_to_result(unsafe {
-            ffi::vmaAllocateMemoryPages(
-                self.internal,
-                &ffi_requirements,
-                &create_info,
-                allocation_count,
-                allocations.as_mut_ptr(),
-                allocation_info.as_mut_ptr(),
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => {
-                let it = allocations.iter().zip(allocation_info.iter());
-                let allocations: Vec<(Allocation, AllocationInfo)> = it
-                    .map(|(alloc, info)| {
-                        (
-                            Allocation { internal: *alloc },
-                            AllocationInfo { internal: *info },
-                        )
-                    })
-                    .collect();
-                Ok(allocations)
-            }
-            _ => Err(Error::vulkan(result)),
-        }
+            vec![mem::zeroed(); allocation_count];
+        ffi_to_result(ffi::vmaAllocateMemoryPages(
+            self.internal,
+            memory_requirements,
+            &create_info,
+            allocation_count,
+            allocations.as_mut_ptr(),
+            allocation_info.as_mut_ptr(),
+        ))?;
+
+        let it = allocations.iter().zip(allocation_info.iter());
+        let allocations: Vec<(Allocation, AllocationInfo)> = it
+            .map(|(alloc, info)| (*alloc, AllocationInfo { internal: *info }))
+            .collect();
+
+        Ok(allocations)
     }
 
     /// Buffer specialized memory allocation.
     ///
     /// You should free the memory using `Allocator::free_memory` or 'Allocator::free_memory_pages'.
-    pub fn allocate_memory_for_buffer(
+    pub unsafe fn allocate_memory_for_buffer(
         &self,
         buffer: ash::vk::Buffer,
         allocation_info: &AllocationCreateInfo,
-    ) -> Result<(Allocation, AllocationInfo)> {
-        let ffi_buffer = buffer.as_raw() as ffi::VkBuffer;
+    ) -> VkResult<(Allocation, AllocationInfo)> {
         let create_info = allocation_create_info_to_ffi(&allocation_info);
-        let mut allocation: Allocation = unsafe { mem::zeroed() };
-        let mut allocation_info: AllocationInfo = unsafe { mem::zeroed() };
-        let result = ffi_to_result(unsafe {
-            ffi::vmaAllocateMemoryForBuffer(
-                self.internal,
-                ffi_buffer,
-                &create_info,
-                &mut allocation.internal,
-                &mut allocation_info.internal,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok((allocation, allocation_info)),
-            _ => Err(Error::vulkan(result)),
-        }
+        let mut allocation: Allocation = mem::zeroed();
+        let mut allocation_info: AllocationInfo = mem::zeroed();
+        ffi_to_result(ffi::vmaAllocateMemoryForBuffer(
+            self.internal,
+            buffer,
+            &create_info,
+            &mut allocation,
+            &mut allocation_info.internal,
+        ))?;
+
+        Ok((allocation, allocation_info))
     }
 
     /// Image specialized memory allocation.
     ///
     /// You should free the memory using `Allocator::free_memory` or 'Allocator::free_memory_pages'.
-    pub fn allocate_memory_for_image(
+    pub unsafe fn allocate_memory_for_image(
         &self,
         image: ash::vk::Image,
         allocation_info: &AllocationCreateInfo,
-    ) -> Result<(Allocation, AllocationInfo)> {
-        let ffi_image = image.as_raw() as ffi::VkImage;
+    ) -> VkResult<(Allocation, AllocationInfo)> {
         let create_info = allocation_create_info_to_ffi(&allocation_info);
-        let mut allocation: Allocation = unsafe { mem::zeroed() };
-        let mut allocation_info: AllocationInfo = unsafe { mem::zeroed() };
-        let result = ffi_to_result(unsafe {
-            ffi::vmaAllocateMemoryForImage(
-                self.internal,
-                ffi_image,
-                &create_info,
-                &mut allocation.internal,
-                &mut allocation_info.internal,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok((allocation, allocation_info)),
-            _ => Err(Error::vulkan(result)),
-        }
+        let mut allocation: Allocation = mem::zeroed();
+        let mut allocation_info: AllocationInfo = mem::zeroed();
+        ffi_to_result(ffi::vmaAllocateMemoryForImage(
+            self.internal,
+            image,
+            &create_info,
+            &mut allocation,
+            &mut allocation_info.internal,
+        ))?;
+
+        Ok((allocation, allocation_info))
     }
 
     /// Frees memory previously allocated using `Allocator::allocate_memory`,
     /// `Allocator::allocate_memory_for_buffer`, or `Allocator::allocate_memory_for_image`.
-    pub fn free_memory(&self, allocation: &Allocation) {
-        unsafe {
-            ffi::vmaFreeMemory(self.internal, allocation.internal);
-        }
+    pub unsafe fn free_memory(&self, allocation: Allocation) {
+        ffi::vmaFreeMemory(self.internal, allocation);
     }
 
     /// Frees memory and destroys multiple allocations.
@@ -1312,16 +1101,12 @@ impl Allocator {
     /// It may be internally optimized to be more efficient than calling 'Allocator::free_memory` `allocations.len()` times.
     ///
     /// Allocations in 'allocations' slice can come from any memory pools and types.
-    pub fn free_memory_pages(&self, allocations: &[Allocation]) {
-        let mut allocations_ffi: Vec<ffi::VmaAllocation> =
-            allocations.iter().map(|x| x.internal).collect();
-        unsafe {
-            ffi::vmaFreeMemoryPages(
-                self.internal,
-                allocations_ffi.len(),
-                allocations_ffi.as_mut_ptr(),
-            );
-        }
+    pub unsafe fn free_memory_pages(&self, allocations: &[Allocation]) {
+        ffi::vmaFreeMemoryPages(
+            self.internal,
+            allocations.len(),
+            allocations.as_ptr() as *mut _,
+        );
     }
 
     /// Tries to resize an allocation in place, if there is enough free memory after it.
@@ -1342,18 +1127,16 @@ impl Allocator {
     /// - Resizing dedicated allocations, as well as allocations created in pools that use linear
     ///   or buddy algorithm, is not supported. The function returns `ash::vk::Result::ERROR_FEATURE_NOT_PRESENT` in such cases.
     ///   Support may be added in the future.
-    pub fn resize_allocation(&self, allocation: &Allocation, new_size: usize) -> Result<()> {
-        let result = ffi_to_result(unsafe {
-            ffi::vmaResizeAllocation(
-                self.internal,
-                allocation.internal,
-                new_size as ffi::VkDeviceSize,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok(()),
-            _ => Err(Error::vulkan(result)),
-        }
+    pub unsafe fn resize_allocation(
+        &self,
+        allocation: Allocation,
+        new_size: usize,
+    ) -> VkResult<()> {
+        ffi_to_result(ffi::vmaResizeAllocation(
+            self.internal,
+            allocation,
+            new_size as vk::DeviceSize,
+        ))
     }
 
     /// Returns current information about specified allocation and atomically marks it as used in current frame.
@@ -1369,15 +1152,9 @@ impl Allocator {
     /// you can avoid calling it too often.
     ///
     /// If you just want to check if allocation is not lost, `Allocator::touch_allocation` will work faster.
-    pub fn get_allocation_info(&self, allocation: &Allocation) -> Result<AllocationInfo> {
-        let mut allocation_info: AllocationInfo = unsafe { mem::zeroed() };
-        unsafe {
-            ffi::vmaGetAllocationInfo(
-                self.internal,
-                allocation.internal,
-                &mut allocation_info.internal,
-            )
-        }
+    pub unsafe fn get_allocation_info(&self, allocation: Allocation) -> VkResult<AllocationInfo> {
+        let mut allocation_info: AllocationInfo = mem::zeroed();
+        ffi::vmaGetAllocationInfo(self.internal, allocation, &mut allocation_info.internal);
         Ok(allocation_info)
     }
 
@@ -1394,8 +1171,8 @@ impl Allocator {
     ///
     /// If the allocation has been created without `AllocationCreateFlags::CAN_BECOME_LOST` flag,
     /// this function always returns `true`.
-    pub fn touch_allocation(&self, allocation: &Allocation) -> Result<bool> {
-        let result = unsafe { ffi::vmaTouchAllocation(self.internal, allocation.internal) };
+    pub unsafe fn touch_allocation(&self, allocation: Allocation) -> VkResult<bool> {
+        let result = ffi::vmaTouchAllocation(self.internal, allocation);
         Ok(result == ash::vk::TRUE)
     }
 
@@ -1413,10 +1190,10 @@ impl Allocator {
     /// as a pointer, ordinal number or some handle to you own data.
     pub unsafe fn set_allocation_user_data(
         &self,
-        allocation: &Allocation,
+        allocation: Allocation,
         user_data: *mut ::std::os::raw::c_void,
     ) {
-        ffi::vmaSetAllocationUserData(self.internal, allocation.internal, user_data);
+        ffi::vmaSetAllocationUserData(self.internal, allocation, user_data);
     }
 
     /// Creates new allocation that is in lost state from the beginning.
@@ -1428,11 +1205,9 @@ impl Allocator {
     /// Returned allocation is not tied to any specific memory pool or memory type and
     /// not bound to any image or buffer. It has size = 0. It cannot be turned into
     /// a real, non-empty allocation.
-    pub fn create_lost_allocation(&self) -> Result<Allocation> {
-        let mut allocation: Allocation = unsafe { mem::zeroed() };
-        unsafe {
-            ffi::vmaCreateLostAllocation(self.internal, &mut allocation.internal);
-        }
+    pub unsafe fn create_lost_allocation(&self) -> VkResult<Allocation> {
+        let mut allocation: Allocation = mem::zeroed();
+        ffi::vmaCreateLostAllocation(self.internal, &mut allocation);
         Ok(allocation)
     }
 
@@ -1470,22 +1245,20 @@ impl Allocator {
     ///
     /// This function always fails when called for allocation that was created with
     /// `AllocationCreateFlags::CAN_BECOME_LOST` flag. Such allocations cannot be mapped.
-    pub fn map_memory(&self, allocation: &Allocation) -> Result<*mut u8> {
+    pub unsafe fn map_memory(&self, allocation: Allocation) -> VkResult<*mut u8> {
         let mut mapped_data: *mut ::std::os::raw::c_void = ::std::ptr::null_mut();
-        let result = ffi_to_result(unsafe {
-            ffi::vmaMapMemory(self.internal, allocation.internal, &mut mapped_data)
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok(mapped_data as *mut u8),
-            _ => Err(Error::vulkan(result)),
-        }
+        ffi_to_result(ffi::vmaMapMemory(
+            self.internal,
+            allocation,
+            &mut mapped_data,
+        ))?;
+
+        Ok(mapped_data as *mut u8)
     }
 
     /// Unmaps memory represented by given allocation, mapped previously using `Allocator::map_memory`.
-    pub fn unmap_memory(&self, allocation: &Allocation) {
-        unsafe {
-            ffi::vmaUnmapMemory(self.internal, allocation.internal);
-        }
+    pub unsafe fn unmap_memory(&self, allocation: Allocation) {
+        ffi::vmaUnmapMemory(self.internal, allocation);
     }
 
     /// Flushes memory of given allocation.
@@ -1497,15 +1270,18 @@ impl Allocator {
     /// - `offset` and `size` don't have to be aligned; hey are internally rounded down/up to multiple of `nonCoherentAtomSize`.
     /// - If `size` is 0, this call is ignored.
     /// - If memory type that the `allocation` belongs to is not `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` or it is `ash::vk::MemoryPropertyFlags::HOST_COHERENT`, this call is ignored.
-    pub fn flush_allocation(&self, allocation: &Allocation, offset: usize, size: usize) {
-        unsafe {
-            ffi::vmaFlushAllocation(
-                self.internal,
-                allocation.internal,
-                offset as ffi::VkDeviceSize,
-                size as ffi::VkDeviceSize,
-            );
-        }
+    pub unsafe fn flush_allocation(
+        &self,
+        allocation: Allocation,
+        offset: usize,
+        size: usize,
+    ) -> VkResult<()> {
+        ffi_to_result(ffi::vmaFlushAllocation(
+            self.internal,
+            allocation,
+            offset as vk::DeviceSize,
+            size as vk::DeviceSize,
+        ))
     }
 
     /// Invalidates memory of given allocation.
@@ -1517,15 +1293,18 @@ impl Allocator {
     /// - `offset` and `size` don't have to be aligned. They are internally rounded down/up to multiple of `nonCoherentAtomSize`.
     /// - If `size` is 0, this call is ignored.
     /// - If memory type that the `allocation` belongs to is not `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` or it is `ash::vk::MemoryPropertyFlags::HOST_COHERENT`, this call is ignored.
-    pub fn invalidate_allocation(&self, allocation: &Allocation, offset: usize, size: usize) {
-        unsafe {
-            ffi::vmaInvalidateAllocation(
-                self.internal,
-                allocation.internal,
-                offset as ffi::VkDeviceSize,
-                size as ffi::VkDeviceSize,
-            );
-        }
+    pub unsafe fn invalidate_allocation(
+        &self,
+        allocation: Allocation,
+        offset: usize,
+        size: usize,
+    ) -> VkResult<()> {
+        ffi_to_result(ffi::vmaInvalidateAllocation(
+            self.internal,
+            allocation,
+            offset as vk::DeviceSize,
+            size as vk::DeviceSize,
+        ))
     }
 
     /// Checks magic number in margins around all allocations in given memory types (in both default and custom pools) in search for corruptions.
@@ -1541,13 +1320,14 @@ impl Allocator {
     /// - `ash::vk::Result::ERROR_VALIDATION_FAILED_EXT` - corruption detection has been performed and found memory corruptions around one of the allocations.
     ///   `VMA_ASSERT` is also fired in that case.
     /// - Other value: Error returned by Vulkan, e.g. memory mapping failure.
-    pub fn check_corruption(&self, memory_types: ash::vk::MemoryPropertyFlags) -> Result<()> {
-        let result =
-            ffi_to_result(unsafe { ffi::vmaCheckCorruption(self.internal, memory_types.as_raw()) });
-        match result {
-            ash::vk::Result::SUCCESS => Ok(()),
-            _ => Err(Error::vulkan(result)),
-        }
+    pub unsafe fn check_corruption(
+        &self,
+        memory_types: ash::vk::MemoryPropertyFlags,
+    ) -> VkResult<()> {
+        ffi_to_result(ffi::vmaCheckCorruption(
+            self.internal,
+            memory_types.as_raw(),
+        ))
     }
 
     /// Begins defragmentation process.
@@ -1572,74 +1352,71 @@ impl Allocator {
     ///
     /// - If `info.command_buffer` is not null, you must submit that command buffer
     /// and make sure it finished execution before calling `Allocator::defragmentation_end`.
-    pub fn defragmentation_begin(
+    pub unsafe fn defragmentation_begin(
         &self,
         info: &DefragmentationInfo2,
-    ) -> Result<DefragmentationContext> {
+    ) -> VkResult<DefragmentationContext> {
         let command_buffer = match info.command_buffer {
             Some(command_buffer) => command_buffer,
             None => ash::vk::CommandBuffer::null(),
         };
-        let mut pools: Vec<ffi::VmaPool> = match info.pools {
-            Some(ref pools) => pools.iter().map(|pool| pool.internal).collect(),
-            None => Vec::new(),
-        };
-        let mut allocations: Vec<ffi::VmaAllocation> =
-            info.allocations.iter().map(|x| x.internal).collect();
+
         let mut context = DefragmentationContext {
-            internal: unsafe { mem::zeroed() },
-            stats: Box::new(unsafe { mem::zeroed() }),
-            changed: vec![ash::vk::FALSE; allocations.len()],
+            internal: mem::zeroed(),
+            stats: ffi::VmaDefragmentationStats {
+                bytesMoved: 0,
+                bytesFreed: 0,
+                allocationsMoved: 0,
+                deviceMemoryBlocksFreed: 0,
+            },
+            changed: vec![ash::vk::FALSE; info.allocations.len()],
         };
+
+        let pools = info.pools.unwrap_or(&[]);
+
         let ffi_info = ffi::VmaDefragmentationInfo2 {
             flags: 0, // Reserved for future use
             allocationCount: info.allocations.len() as u32,
-            pAllocations: allocations.as_mut_ptr(),
+            pAllocations: info.allocations.as_ptr() as *mut _,
             pAllocationsChanged: context.changed.as_mut_ptr(),
             poolCount: pools.len() as u32,
-            pPools: pools.as_mut_ptr(),
+            pPools: pools.as_ptr() as *mut _,
             maxCpuBytesToMove: info.max_cpu_bytes_to_move,
             maxCpuAllocationsToMove: info.max_cpu_allocations_to_move,
             maxGpuBytesToMove: info.max_gpu_bytes_to_move,
             maxGpuAllocationsToMove: info.max_gpu_allocations_to_move,
-            commandBuffer: command_buffer.as_raw() as ffi::VkCommandBuffer,
+            commandBuffer: command_buffer,
         };
-        let result = ffi_to_result(unsafe {
-            ffi::vmaDefragmentationBegin(
-                self.internal,
-                &ffi_info,
-                &mut *context.stats,
-                &mut context.internal,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok(context),
-            _ => Err(Error::vulkan(result)),
-        }
+
+        ffi_to_result(ffi::vmaDefragmentationBegin(
+            self.internal,
+            &ffi_info,
+            &mut context.stats as *mut _,
+            &mut context.internal,
+        ))?;
+
+        Ok(context)
     }
 
     /// Ends defragmentation process.
     ///
     /// Use this function to finish defragmentation started by `Allocator::defragmentation_begin`.
-    pub fn defragmentation_end(
+    pub unsafe fn defragmentation_end(
         &self,
         context: &mut DefragmentationContext,
-    ) -> Result<(DefragmentationStats, Vec<bool>)> {
-        let result =
-            ffi_to_result(unsafe { ffi::vmaDefragmentationEnd(self.internal, context.internal) });
+    ) -> VkResult<(DefragmentationStats, Vec<bool>)> {
+        ffi_to_result(ffi::vmaDefragmentationEnd(self.internal, context.internal))?;
+
         let changed: Vec<bool> = context.changed.iter().map(|change| *change == 1).collect();
-        match result {
-            ash::vk::Result::SUCCESS => Ok((
-                DefragmentationStats {
-                    bytes_moved: context.stats.bytesMoved as usize,
-                    bytes_freed: context.stats.bytesFreed as usize,
-                    allocations_moved: context.stats.allocationsMoved,
-                    device_memory_blocks_freed: context.stats.deviceMemoryBlocksFreed,
-                },
-                changed,
-            )),
-            _ => Err(Error::vulkan(result)),
-        }
+
+        let stats = DefragmentationStats {
+            bytes_moved: context.stats.bytesMoved as usize,
+            bytes_freed: context.stats.bytesFreed as usize,
+            allocations_moved: context.stats.allocationsMoved,
+            device_memory_blocks_freed: context.stats.deviceMemoryBlocksFreed,
+        };
+
+        Ok((stats, changed))
     }
 
     /// Compacts memory by moving allocations.
@@ -1686,19 +1463,15 @@ impl Allocator {
         since = "0.1.3",
         note = "This is a part of the old interface. It is recommended to use structure `DefragmentationInfo2` and function `Allocator::defragmentation_begin` instead."
     )]
-    pub fn defragment(
+    pub unsafe fn defragment(
         &self,
         allocations: &[Allocation],
         defrag_info: Option<&DefragmentationInfo>,
-    ) -> Result<(DefragmentationStats, Vec<bool>)> {
-        let mut ffi_allocations: Vec<ffi::VmaAllocation> = allocations
-            .iter()
-            .map(|allocation| allocation.internal)
-            .collect();
-        let mut ffi_change_list: Vec<ffi::VkBool32> = vec![0; ffi_allocations.len()];
+    ) -> VkResult<(DefragmentationStats, Vec<bool>)> {
+        let mut ffi_change_list: Vec<vk::Bool32> = vec![0; allocations.len()];
         let ffi_info = match defrag_info {
             Some(info) => ffi::VmaDefragmentationInfo {
-                maxBytesToMove: info.max_bytes_to_move as ffi::VkDeviceSize,
+                maxBytesToMove: info.max_bytes_to_move as vk::DeviceSize,
                 maxAllocationsToMove: info.max_allocations_to_move,
             },
             None => ffi::VmaDefragmentationInfo {
@@ -1706,35 +1479,30 @@ impl Allocator {
                 maxAllocationsToMove: std::u32::MAX,
             },
         };
-        let mut ffi_stats: ffi::VmaDefragmentationStats = unsafe { mem::zeroed() };
-        let result = ffi_to_result(unsafe {
-            ffi::vmaDefragment(
-                self.internal,
-                ffi_allocations.as_mut_ptr(),
-                ffi_allocations.len(),
-                ffi_change_list.as_mut_ptr(),
-                &ffi_info,
-                &mut ffi_stats,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => {
-                let change_list: Vec<bool> = ffi_change_list
-                    .iter()
-                    .map(|change| *change == ash::vk::TRUE)
-                    .collect();
-                Ok((
-                    DefragmentationStats {
-                        bytes_moved: ffi_stats.bytesMoved as usize,
-                        bytes_freed: ffi_stats.bytesFreed as usize,
-                        allocations_moved: ffi_stats.allocationsMoved,
-                        device_memory_blocks_freed: ffi_stats.deviceMemoryBlocksFreed,
-                    },
-                    change_list,
-                ))
-            }
-            _ => Err(Error::vulkan(result)),
-        }
+
+        let mut ffi_stats: ffi::VmaDefragmentationStats = mem::zeroed();
+        ffi_to_result(ffi::vmaDefragment(
+            self.internal,
+            allocations.as_ptr() as *mut _,
+            allocations.len(),
+            ffi_change_list.as_mut_ptr(),
+            &ffi_info,
+            &mut ffi_stats,
+        ))?;
+
+        let change_list: Vec<bool> = ffi_change_list
+            .iter()
+            .map(|change| *change == ash::vk::TRUE)
+            .collect();
+
+        let stats = DefragmentationStats {
+            bytes_moved: ffi_stats.bytesMoved as usize,
+            bytes_freed: ffi_stats.bytesFreed as usize,
+            allocations_moved: ffi_stats.allocationsMoved,
+            device_memory_blocks_freed: ffi_stats.deviceMemoryBlocksFreed,
+        };
+
+        Ok((stats, change_list))
     }
 
     /// Binds buffer to allocation.
@@ -1750,22 +1518,12 @@ impl Allocator {
     /// (which is illegal in Vulkan).
     ///
     /// It is recommended to use function `Allocator::create_buffer` instead of this one.
-    pub fn bind_buffer_memory(
+    pub unsafe fn bind_buffer_memory(
         &self,
         buffer: ash::vk::Buffer,
-        allocation: &Allocation,
-    ) -> Result<()> {
-        let result = ffi_to_result(unsafe {
-            ffi::vmaBindBufferMemory(
-                self.internal,
-                allocation.internal,
-                buffer.as_raw() as ffi::VkBuffer,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok(()),
-            _ => Err(Error::vulkan(result)),
-        }
+        allocation: Allocation,
+    ) -> VkResult<()> {
+        ffi_to_result(ffi::vmaBindBufferMemory(self.internal, allocation, buffer))
     }
 
     /// Binds image to allocation.
@@ -1781,18 +1539,12 @@ impl Allocator {
     /// (which is illegal in Vulkan).
     ///
     /// It is recommended to use function `Allocator::create_image` instead of this one.
-    pub fn bind_image_memory(&self, image: ash::vk::Image, allocation: &Allocation) -> Result<()> {
-        let result = ffi_to_result(unsafe {
-            ffi::vmaBindImageMemory(
-                self.internal,
-                allocation.internal,
-                image.as_raw() as ffi::VkImage,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok(()),
-            _ => Err(Error::vulkan(result)),
-        }
+    pub unsafe fn bind_image_memory(
+        &self,
+        image: ash::vk::Image,
+        allocation: Allocation,
+    ) -> VkResult<()> {
+        ffi_to_result(ffi::vmaBindImageMemory(self.internal, allocation, image))
     }
 
     /// This function automatically creates a buffer, allocates appropriate memory
@@ -1808,36 +1560,25 @@ impl Allocator {
     /// and if dedicated allocation is possible (AllocationCreateInfo::pool is null
     /// and `AllocationCreateFlags::NEVER_ALLOCATE` is not used), it creates dedicated
     /// allocation for this buffer, just like when using `AllocationCreateFlags::DEDICATED_MEMORY`.
-    pub fn create_buffer(
+    pub unsafe fn create_buffer(
         &self,
         buffer_info: &ash::vk::BufferCreateInfo,
         allocation_info: &AllocationCreateInfo,
-    ) -> Result<(ash::vk::Buffer, Allocation, AllocationInfo)> {
-        let buffer_create_info = unsafe {
-            mem::transmute::<ash::vk::BufferCreateInfo, ffi::VkBufferCreateInfo>(*buffer_info)
-        };
+    ) -> VkResult<(ash::vk::Buffer, Allocation, AllocationInfo)> {
         let allocation_create_info = allocation_create_info_to_ffi(&allocation_info);
-        let mut buffer: ffi::VkBuffer = unsafe { mem::zeroed() };
-        let mut allocation: Allocation = unsafe { mem::zeroed() };
-        let mut allocation_info: AllocationInfo = unsafe { mem::zeroed() };
-        let result = ffi_to_result(unsafe {
-            ffi::vmaCreateBuffer(
-                self.internal,
-                &buffer_create_info,
-                &allocation_create_info,
-                &mut buffer,
-                &mut allocation.internal,
-                &mut allocation_info.internal,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok((
-                ash::vk::Buffer::from_raw(buffer as u64),
-                allocation,
-                allocation_info,
-            )),
-            _ => Err(Error::vulkan(result)),
-        }
+        let mut buffer = vk::Buffer::null();
+        let mut allocation: Allocation = mem::zeroed();
+        let mut allocation_info: AllocationInfo = mem::zeroed();
+        ffi_to_result(ffi::vmaCreateBuffer(
+            self.internal,
+            &*buffer_info,
+            &allocation_create_info,
+            &mut buffer,
+            &mut allocation,
+            &mut allocation_info.internal,
+        ))?;
+
+        Ok((buffer, allocation, allocation_info))
     }
 
     /// Destroys Vulkan buffer and frees allocated memory.
@@ -1850,14 +1591,8 @@ impl Allocator {
     /// ```
     ///
     /// It it safe to pass null as `buffer` and/or `allocation`.
-    pub fn destroy_buffer(&self, buffer: ash::vk::Buffer, allocation: &Allocation) {
-        unsafe {
-            ffi::vmaDestroyBuffer(
-                self.internal,
-                buffer.as_raw() as ffi::VkBuffer,
-                allocation.internal,
-            );
-        }
+    pub unsafe fn destroy_buffer(&self, buffer: ash::vk::Buffer, allocation: Allocation) {
+        ffi::vmaDestroyBuffer(self.internal, buffer, allocation);
     }
 
     /// This function automatically creates an image, allocates appropriate memory
@@ -1877,36 +1612,25 @@ impl Allocator {
     /// If `VK_ERROR_VALIDAITON_FAILED_EXT` is returned, VMA may have encountered a problem
     /// that is not caught by the validation layers. One example is if you try to create a 0x0
     /// image, a panic will occur and `VK_ERROR_VALIDAITON_FAILED_EXT` is thrown.
-    pub fn create_image(
+    pub unsafe fn create_image(
         &self,
         image_info: &ash::vk::ImageCreateInfo,
         allocation_info: &AllocationCreateInfo,
-    ) -> Result<(ash::vk::Image, Allocation, AllocationInfo)> {
-        let image_create_info = unsafe {
-            mem::transmute::<ash::vk::ImageCreateInfo, ffi::VkImageCreateInfo>(*image_info)
-        };
+    ) -> VkResult<(ash::vk::Image, Allocation, AllocationInfo)> {
         let allocation_create_info = allocation_create_info_to_ffi(&allocation_info);
-        let mut image: ffi::VkImage = unsafe { mem::zeroed() };
-        let mut allocation: Allocation = unsafe { mem::zeroed() };
-        let mut allocation_info: AllocationInfo = unsafe { mem::zeroed() };
-        let result = ffi_to_result(unsafe {
-            ffi::vmaCreateImage(
-                self.internal,
-                &image_create_info,
-                &allocation_create_info,
-                &mut image,
-                &mut allocation.internal,
-                &mut allocation_info.internal,
-            )
-        });
-        match result {
-            ash::vk::Result::SUCCESS => Ok((
-                ash::vk::Image::from_raw(image as u64),
-                allocation,
-                allocation_info,
-            )),
-            _ => Err(Error::vulkan(result)),
-        }
+        let mut image = vk::Image::null();
+        let mut allocation: Allocation = mem::zeroed();
+        let mut allocation_info: AllocationInfo = mem::zeroed();
+        ffi_to_result(ffi::vmaCreateImage(
+            self.internal,
+            &*image_info,
+            &allocation_create_info,
+            &mut image,
+            &mut allocation,
+            &mut allocation_info.internal,
+        ))?;
+
+        Ok((image, allocation, allocation_info))
     }
 
     /// Destroys Vulkan image and frees allocated memory.
@@ -1919,26 +1643,18 @@ impl Allocator {
     /// ```
     ///
     /// It it safe to pass null as `image` and/or `allocation`.
-    pub fn destroy_image(&self, image: ash::vk::Image, allocation: &Allocation) {
-        unsafe {
-            ffi::vmaDestroyImage(
-                self.internal,
-                image.as_raw() as ffi::VkImage,
-                allocation.internal,
-            );
-        }
+    pub unsafe fn destroy_image(&self, image: ash::vk::Image, allocation: Allocation) {
+        ffi::vmaDestroyImage(self.internal, image, allocation);
     }
 
     /// Destroys the internal allocator instance. After this has been called,
     /// no other functions may be called. Useful for ensuring a specific destruction
     /// order (for example, if an Allocator is a member of something that owns the Vulkan
     /// instance and destroys it in its own Drop).
-    pub fn destroy(&mut self) {
+    pub unsafe fn destroy(&mut self) {
         if !self.internal.is_null() {
-            unsafe {
-                ffi::vmaDestroyAllocator(self.internal);
-                self.internal = std::ptr::null_mut();
-            }
+            ffi::vmaDestroyAllocator(self.internal);
+            self.internal = std::ptr::null_mut();
         }
     }
 }
@@ -1946,6 +1662,8 @@ impl Allocator {
 /// Custom `Drop` implementation to clean up internal allocation instance
 impl Drop for Allocator {
     fn drop(&mut self) {
-        self.destroy();
+        unsafe {
+            self.destroy();
+        }
     }
 }
