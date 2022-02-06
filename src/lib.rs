@@ -5,7 +5,7 @@ use bitflags::bitflags;
 pub mod ffi;
 use ash::prelude::VkResult;
 use ash::vk;
-use std::mem;
+use std::{mem, ptr};
 
 /// Main allocator object
 pub struct Allocator {
@@ -120,17 +120,24 @@ impl AllocationInfo {
     }
 }
 
+/// Construct `AllocatorCreateFlags` with default values
+impl Default for AllocatorCreateFlags {
+    fn default() -> Self {
+        AllocatorCreateFlags::NONE
+    }
+}
+
 bitflags! {
     /// Flags for configuring `Allocator` construction.
     pub struct AllocatorCreateFlags: u32 {
         /// No allocator configuration other than defaults.
-        const NONE = 0x0000_0000;
+        const NONE = 0;
 
         /// Allocator and all objects created from it will not be synchronized internally,
         /// so you must guarantee they are used from only one thread at a time or synchronized
         /// externally by you. Using this flag may increase performance because internal
         /// mutexes are not used.
-        const EXTERNALLY_SYNCHRONIZED = 0x0000_0001;
+        const EXTERNALLY_SYNCHRONIZED = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
 
         /// Enables usage of `VK_KHR_dedicated_allocation` extension.
         ///
@@ -150,14 +157,80 @@ bitflags! {
         /// When this flag is set, you can experience following warnings reported by Vulkan
         /// validation layer. You can ignore them.
         /// `> vkBindBufferMemory(): Binding memory to buffer 0x2d but vkGetBufferMemoryRequirements() has not been called on that buffer.`
-        const KHR_DEDICATED_ALLOCATION = 0x0000_0002;
-    }
-}
+        const KHR_DEDICATED_ALLOCATION = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT;
 
-/// Construct `AllocatorCreateFlags` with default values
-impl Default for AllocatorCreateFlags {
-    fn default() -> Self {
-        AllocatorCreateFlags::NONE
+        /// Enables usage of VK_KHR_bind_memory2 extension.
+        ///
+        /// The flag works only if VmaAllocatorCreateInfo::vulkanApiVersion `== VK_API_VERSION_1_0`.
+        /// When it is `VK_API_VERSION_1_1`, the flag is ignored because the extension has been promoted to Vulkan 1.1.
+        ///
+        /// You may set this flag only if you found out that this device extension is supported,
+        /// you enabled it while creating Vulkan device passed as VmaAllocatorCreateInfo::device,
+        /// and you want it to be used internally by this library.
+        ///
+        /// The extension provides functions `vkBindBufferMemory2KHR` and `vkBindImageMemory2KHR`,
+        /// which allow to pass a chain of `pNext` structures while binding.
+        /// This flag is required if you use `pNext` parameter in vmaBindBufferMemory2() or vmaBindImageMemory2().
+        const KHR_BIND_MEMORY2 = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT;
+
+        /// Enables usage of VK_EXT_memory_budget extension.
+        ///
+        /// You may set this flag only if you found out that this device extension is supported,
+        /// you enabled it while creating Vulkan device passed as VmaAllocatorCreateInfo::device,
+        /// and you want it to be used internally by this library, along with another instance extension
+        /// VK_KHR_get_physical_device_properties2, which is required by it (or Vulkan 1.1, where this extension is promoted).
+        ///
+        /// The extension provides query for current memory usage and budget, which will probably
+        /// be more accurate than an estimation used by the library otherwise.
+        const EXT_MEMORY_BUDGET = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+
+        /// Enables usage of VK_AMD_device_coherent_memory extension.
+        ///
+        /// You may set this flag only if you:
+        ///
+        /// - found out that this device extension is supported and enabled it while creating Vulkan device passed as VmaAllocatorCreateInfo::device,
+        /// - checked that `VkPhysicalDeviceCoherentMemoryFeaturesAMD::deviceCoherentMemory` is true and set it while creating the Vulkan device,
+        /// - want it to be used internally by this library.
+        ///
+        /// The extension and accompanying device feature provide access to memory types with
+        /// `VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD` and `VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD` flags.
+        /// They are useful mostly for writing breadcrumb markers - a common method for debugging GPU crash/hang/TDR.
+        ///
+        /// When the extension is not enabled, such memory types are still enumerated, but their usage is illegal.
+        /// To protect from this error, if you don't create the allocator with this flag, it will refuse to allocate any memory or create a custom pool in such memory type,
+        /// returning `VK_ERROR_FEATURE_NOT_PRESENT`.
+        const AMD_DEVICE_COHERENT_MEMORY = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_AMD_DEVICE_COHERENT_MEMORY_BIT;
+
+        /// You may set this flag only if you:
+        ///
+        /// 1. (For Vulkan version < 1.2) Found as available and enabled device extension
+        /// VK_KHR_buffer_device_address.
+        /// This extension is promoted to core Vulkan 1.2.
+        /// 2. Found as available and enabled device feature `VkPhysicalDeviceBufferDeviceAddressFeatures::bufferDeviceAddress`.
+        ///
+        /// When this flag is set, you can create buffers with `VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT` using VMA.
+        /// The library automatically adds `VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT` to
+        /// allocated memory blocks wherever it might be needed.
+        ///
+        /// For more information, see documentation chapter \ref enabling_buffer_device_address.
+        const BUFFER_DEVICE_ADDRESS = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+
+        /// Enables usage of VK_EXT_memory_priority extension in the library.
+        ///
+        /// You may set this flag only if you found available and enabled this device extension,
+        /// along with `VkPhysicalDeviceMemoryPriorityFeaturesEXT::memoryPriority == VK_TRUE`,
+        /// while creating Vulkan device passed as VmaAllocatorCreateInfo::device.
+        ///
+        /// When this flag is used, VmaAllocationCreateInfo::priority and VmaPoolCreateInfo::priority
+        /// are used to set priorities of allocated Vulkan memory. Without it, these variables are ignored.
+        ///
+        /// A priority must be a floating-point value between 0 and 1, indicating the priority of the allocation relative to other memory allocations.
+        /// Larger values are higher priority. The granularity of the priorities is implementation-dependent.
+        /// It is automatically passed to every call to `vkAllocateMemory` done by the library using structure `VkMemoryPriorityAllocateInfoEXT`.
+        /// The value to be used for default priority is 0.5.
+        /// For more details, see the documentation of the VK_EXT_memory_priority extension.
+        const EXT_MEMORY_PRIORITY = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT;
+
     }
 }
 
@@ -178,21 +251,6 @@ pub struct AllocatorCreateInfo<'a> {
     /// Preferred size of a single `ash::vk::DeviceMemory` block to be allocated from large heaps > 1 GiB.
     /// Set to 0 to use default, which is currently 256 MiB.
     pub preferred_large_heap_block_size: usize,
-
-    /// Maximum number of additional frames that are in use at the same time as current frame.
-    ///
-    /// This value is used only when you make allocations with `AllocationCreateFlags::CAN_BECOME_LOST` flag.
-    ///
-    /// Such allocations cannot become lost if:
-    /// `allocation.lastUseFrameIndex >= allocator.currentFrameIndex - frameInUseCount`
-    ///
-    /// For example, if you double-buffer your command buffers, so resources used for
-    /// rendering in previous frame may still be in use by the GPU at the moment you
-    /// allocate resources needed for the current frame, set this value to 1.
-    ///
-    /// If you want to allow any allocations other than used in the current frame to
-    /// become lost, set this value to 0.
-    pub frame_in_use_count: u32,
 
     /// Either empty or an array of limits on maximum number of bytes that can be allocated
     /// out of particular Vulkan memory heap.
@@ -250,6 +308,7 @@ fn allocation_create_info_to_ffi(info: &AllocationCreateInfo) -> ffi::VmaAllocat
         MemoryUsage::CpuOnly => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_CPU_ONLY,
         MemoryUsage::CpuToGpu => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_CPU_TO_GPU,
         MemoryUsage::GpuToCpu => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_TO_CPU,
+        MemoryUsage::GpuLazy => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED,
     };
     create_info.flags = info.flags.bits();
     create_info.requiredFlags = info.required_flags;
@@ -271,7 +330,6 @@ fn pool_create_info_to_ffi(info: &AllocatorPoolCreateInfo) -> ffi::VmaPoolCreate
     create_info.blockSize = info.block_size as vk::DeviceSize;
     create_info.minBlockCount = info.min_block_count;
     create_info.maxBlockCount = info.max_block_count;
-    create_info.frameInUseCount = info.frame_in_use_count;
     create_info
 }
 
@@ -324,6 +382,14 @@ pub enum MemoryUsage {
     /// - Resources written by device, read by host - results of some computations, e.g. screen capture, average scene luminance for HDR tone mapping.
     /// - Any resources read or accessed randomly on host, e.g. CPU-side copy of vertex buffer used as source of transfer, but also used for collision detection.
     GpuToCpu,
+
+    /// Lazily allocated GPU memory having (guarantees to be `ash::vk::MemoryPropertFlags::LAZILY_ALLOCATED`).
+    /// Exists mostly on mobile platforms. Using it on desktop PC or other GPUs with no such memory type present will fail the allocation.
+    ///
+    /// Usage:
+    ///
+    /// -  Memory for transient attachment images (color attachments, depth attachments etc.), created with `VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT`.
+    GpuLazy,
 }
 
 bitflags! {
@@ -569,19 +635,6 @@ pub struct AllocatorPoolCreateInfo {
     /// Set to same value as `AllocatorPoolCreateInfo::min_block_count` to have fixed amount
     /// of memory allocated throughout whole lifetime of this pool.
     pub max_block_count: usize,
-
-    /// Maximum number of additional frames that are in use at the same time as current frame.
-    /// This value is used only when you make allocations with `AllocationCreateFlags::CAN_BECOME_LOST` flag.
-    /// Such allocations cannot become lost if:
-    ///   `allocation.lastUseFrameIndex >= allocator.currentFrameIndex - frameInUseCount`.
-    ///
-    /// For example, if you double-buffer your command buffers, so resources used for rendering
-    /// in previous frame may still be in use by the GPU at the moment you allocate resources
-    /// needed for the current frame, set this value to 1.
-    ///
-    /// If you want to allow any allocations other than used in the current frame to become lost,
-    /// set this value to 0.
-    pub frame_in_use_count: u32,
 }
 
 /// Construct `AllocatorPoolCreateInfo` with default values
@@ -593,7 +646,6 @@ impl Default for AllocatorPoolCreateInfo {
             block_size: 0,
             min_block_count: 0,
             max_block_count: 0,
-            frame_in_use_count: 0,
         }
     }
 }
@@ -710,7 +762,23 @@ impl Allocator {
         let instance = create_info.instance.clone();
         let device = create_info.device.clone();
 
+        unsafe extern "system" fn get_instance_proc_addr_stub(
+            _instance: ash::vk::Instance,
+            _p_name: *const ::std::os::raw::c_char,
+        ) -> ash::vk::PFN_vkVoidFunction {
+            panic!("VMA_DYNAMIC_VULKAN_FUNCTIONS is unsupported")
+        }
+
+        unsafe extern "system" fn get_get_device_proc_stub(
+            _device: ash::vk::Device,
+            _p_name: *const ::std::os::raw::c_char,
+        ) -> ash::vk::PFN_vkVoidFunction {
+            panic!("VMA_DYNAMIC_VULKAN_FUNCTIONS is unsupported")
+        }
+
         let routed_functions = ffi::VmaVulkanFunctions {
+            vkGetInstanceProcAddr: get_instance_proc_addr_stub,
+            vkGetDeviceProcAddr: get_get_device_proc_stub,
             vkGetPhysicalDeviceProperties: instance.fp_v1_0().get_physical_device_properties,
             vkGetPhysicalDeviceMemoryProperties: instance
                 .fp_v1_0()
@@ -749,7 +817,6 @@ impl Allocator {
             device: create_info.device.handle(),
             instance: instance.handle(),
             flags: create_info.flags.bits(),
-            frameInUseCount: create_info.frame_in_use_count,
             preferredLargeHeapBlockSize: create_info.preferred_large_heap_block_size as u64,
             pHeapSizeLimit: match &create_info.heap_size_limits {
                 None => ::std::ptr::null(),
@@ -758,8 +825,8 @@ impl Allocator {
             pVulkanFunctions: &routed_functions,
             pAllocationCallbacks: allocation_callbacks,
             pDeviceMemoryCallbacks: ::std::ptr::null(), // TODO: Add support
-            pRecordSettings: ::std::ptr::null(),        // TODO: Add support
             vulkanApiVersion: create_info.vulkan_api_version,
+            pTypeExternalMemoryHandleTypes: ptr::null(),
         };
 
         let mut internal: ffi::VmaAllocator = mem::zeroed();
@@ -955,16 +1022,6 @@ impl Allocator {
         Ok(pool_stats)
     }
 
-    /// Marks all allocations in given pool as lost if they are not used in current frame
-    /// or AllocatorPoolCreateInfo::frame_in_use_count` back from now.
-    ///
-    /// Returns the number of allocations marked as lost.
-    pub unsafe fn make_pool_allocations_lost(&self, pool: AllocatorPool) -> VkResult<usize> {
-        let mut lost_count: usize = 0;
-        ffi::vmaMakePoolAllocationsLost(self.internal, pool, &mut lost_count);
-        Ok(lost_count as usize)
-    }
-
     /// Checks magic number in margins around all allocations in given memory pool in search for corruptions.
     ///
     /// Corruption detection is enabled only when `VMA_DEBUG_DETECT_CORRUPTION` macro is defined to nonzero,
@@ -1109,36 +1166,6 @@ impl Allocator {
         );
     }
 
-    /// Tries to resize an allocation in place, if there is enough free memory after it.
-    ///
-    /// Tries to change allocation's size without moving or reallocating it.
-    /// You can both shrink and grow allocation size.
-    /// When growing, it succeeds only when the allocation belongs to a memory block with enough
-    /// free space after it.
-    ///
-    /// Returns `ash::vk::Result::SUCCESS` if allocation's size has been successfully changed.
-    /// Returns `ash::vk::Result::ERROR_OUT_OF_POOL_MEMORY` if allocation's size could not be changed.
-    ///
-    /// After successful call to this function, `AllocationInfo::get_size` of this allocation changes.
-    /// All other parameters stay the same: memory pool and type, alignment, offset, mapped pointer.
-    ///
-    /// - Calling this function on allocation that is in lost state fails with result `ash::vk::Result::ERROR_VALIDATION_FAILED_EXT`.
-    /// - Calling this function with `new_size` same as current allocation size does nothing and returns `ash::vk::Result::SUCCESS`.
-    /// - Resizing dedicated allocations, as well as allocations created in pools that use linear
-    ///   or buddy algorithm, is not supported. The function returns `ash::vk::Result::ERROR_FEATURE_NOT_PRESENT` in such cases.
-    ///   Support may be added in the future.
-    pub unsafe fn resize_allocation(
-        &self,
-        allocation: Allocation,
-        new_size: usize,
-    ) -> VkResult<()> {
-        ffi_to_result(ffi::vmaResizeAllocation(
-            self.internal,
-            allocation,
-            new_size as vk::DeviceSize,
-        ))
-    }
-
     /// Returns current information about specified allocation and atomically marks it as used in current frame.
     ///
     /// Current parameters of given allocation are returned in the result object, available through accessors.
@@ -1156,24 +1183,6 @@ impl Allocator {
         let mut allocation_info: AllocationInfo = mem::zeroed();
         ffi::vmaGetAllocationInfo(self.internal, allocation, &mut allocation_info.internal);
         Ok(allocation_info)
-    }
-
-    /// Returns `true` if allocation is not lost and atomically marks it as used in current frame.
-    ///
-    /// If the allocation has been created with `AllocationCreateFlags::CAN_BECOME_LOST` flag,
-    /// this function returns `true` if it's not in lost state, so it can still be used.
-    /// It then also atomically "touches" the allocation - marks it as used in current frame,
-    /// so that you can be sure it won't become lost in current frame or next `frame_in_use_count` frames.
-    ///
-    /// If the allocation is in lost state, the function returns `false`.
-    /// Memory of such allocation, as well as buffer or image bound to it, should not be used.
-    /// Lost allocation and the buffer/image still need to be destroyed.
-    ///
-    /// If the allocation has been created without `AllocationCreateFlags::CAN_BECOME_LOST` flag,
-    /// this function always returns `true`.
-    pub unsafe fn touch_allocation(&self, allocation: Allocation) -> VkResult<bool> {
-        let result = ffi::vmaTouchAllocation(self.internal, allocation);
-        Ok(result == ash::vk::TRUE)
     }
 
     /// Sets user data in given allocation to new value.
@@ -1194,21 +1203,6 @@ impl Allocator {
         user_data: *mut ::std::os::raw::c_void,
     ) {
         ffi::vmaSetAllocationUserData(self.internal, allocation, user_data);
-    }
-
-    /// Creates new allocation that is in lost state from the beginning.
-    ///
-    /// It can be useful if you need a dummy, non-null allocation.
-    ///
-    /// You still need to destroy created object using `Allocator::free_memory`.
-    ///
-    /// Returned allocation is not tied to any specific memory pool or memory type and
-    /// not bound to any image or buffer. It has size = 0. It cannot be turned into
-    /// a real, non-empty allocation.
-    pub unsafe fn create_lost_allocation(&self) -> VkResult<Allocation> {
-        let mut allocation: Allocation = mem::zeroed();
-        ffi::vmaCreateLostAllocation(self.internal, &mut allocation);
-        Ok(allocation)
     }
 
     /// Maps memory represented by given allocation and returns pointer to it.
