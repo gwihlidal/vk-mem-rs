@@ -118,7 +118,7 @@ pub const VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BI
 #[doc = "while creating Vulkan device passed as VmaAllocatorCreateInfo::device."]
 #[doc = ""]
 #[doc = "When this flag is used, VmaAllocationCreateInfo::priority and VmaPoolCreateInfo::priority"]
-#[doc = "are used to set priorities of allocated VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BITVulkan memory. Without it, these variables are ignored."]
+#[doc = "are used to set priorities of allocated Vulkan memory. Without it, these variables are ignored."]
 #[doc = ""]
 #[doc = "A priority must be a floating-point value between 0 and 1, indicating the priority of the allocation relative to other memory allocations."]
 #[doc = "Larger values are higher priority. The granularity of the priorities is implementation-dependent."]
