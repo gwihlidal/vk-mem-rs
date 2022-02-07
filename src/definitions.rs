@@ -367,11 +367,6 @@ impl<'a> AllocatorCreateInfo<'a> {
         self
     }
 
-    pub fn physical_device(mut self, physical_device: ash::vk::PhysicalDevice) -> Self {
-        self.inner.physicalDevice = physical_device;
-        self
-    }
-
     pub fn flags(mut self, flags: AllocationCreateFlags) -> Self {
         self.inner.flags = flags.bits;
         self
@@ -387,11 +382,6 @@ impl<'a> AllocatorCreateInfo<'a> {
             );
         }
         self.inner.pHeapSizeLimit = device_sizes.as_ptr();
-        self
-    }
-
-    pub fn functions(mut self, functions: &'a ffi::VmaVulkanFunctions) -> Self {
-        self.inner.pVulkanFunctions = functions as *const _;
         self
     }
 
@@ -419,13 +409,6 @@ impl<'a> AllocatorCreateInfo<'a> {
         }
         self.inner.pTypeExternalMemoryHandleTypes = external_memory_handles.as_ptr();
         self
-    }
-
-    #[doc = r" Calling build will **discard** all the lifetime information. Only call this if"]
-    #[doc = r" necessary! Builders implement `Deref` targeting their corresponding Vulkan struct,"]
-    #[doc = r" so references to builders can be passed directly to Vulkan functions."]
-    pub fn build(self) -> ffi::VmaAllocatorCreateInfo {
-        self.inner
     }
 }
 
