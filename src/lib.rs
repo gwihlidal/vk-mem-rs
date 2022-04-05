@@ -11,7 +11,7 @@ extern crate failure;
 pub mod error;
 pub mod ffi;
 pub use crate::error::{Error, ErrorKind, Result};
-use ash::{version::InstanceV1_0, vk::Handle};
+use ash::vk::Handle;
 use std::mem;
 
 /// Main allocator object
@@ -336,6 +336,8 @@ pub struct AllocatorCreateInfo {
     /// and just silently migrate some device memory" blocks to system RAM. This driver behavior can
     /// also be controlled using the `VK_AMD_memory_overallocation_behavior` extension.
     pub heap_size_limits: Option<Vec<ash::vk::DeviceSize>>,
+
+    pub api_version: u32,
 }
 
 /// Construct `AllocatorCreateInfo` with default values
@@ -367,6 +369,7 @@ impl Default for AllocatorCreateInfo {
             preferred_large_heap_block_size: 0,
             frame_in_use_count: 0,
             heap_size_limits: None,
+            api_version: 0,
         }
     }
 }
@@ -861,7 +864,6 @@ pub struct DefragmentationStats {
 impl Allocator {
     /// Constructor a new `Allocator` using the provided options.
     pub fn new(create_info: &AllocatorCreateInfo) -> Result<Self> {
-        use ash::version::{DeviceV1_0, DeviceV1_1};
         let instance = create_info.instance.clone();
         let device = create_info.device.clone();
         let routed_functions = unsafe {
@@ -950,14 +952,12 @@ impl Allocator {
                 >(Some(
                     device.fp_v1_1().get_image_memory_requirements2,
                 )),
-                // TODO:
-                vkGetPhysicalDeviceMemoryProperties2KHR: None,
-                /*vkGetPhysicalDeviceMemoryProperties2KHR: mem::transmute::<
+                vkGetPhysicalDeviceMemoryProperties2KHR: mem::transmute::<
                     _,
                     ffi::PFN_vkGetPhysicalDeviceMemoryProperties2KHR,
                 >(Some(
-                    device.fp_v1_1().get_physical_device_memory_properties2,
-                )),*/
+                    instance.fp_v1_1().get_physical_device_memory_properties2,
+                )),
             }
         };
         let ffi_create_info = ffi::VmaAllocatorCreateInfo {
@@ -975,7 +975,7 @@ impl Allocator {
             pAllocationCallbacks: ::std::ptr::null(), // TODO: Add support
             pDeviceMemoryCallbacks: ::std::ptr::null(), // TODO: Add support
             pRecordSettings: ::std::ptr::null(),      // TODO: Add support
-            vulkanApiVersion: 0,                      // TODO: Make configurable
+            vulkanApiVersion: create_info.api_version,
         };
         let mut internal: ffi::VmaAllocator = unsafe { mem::zeroed() };
         let result = ffi_to_result(unsafe {

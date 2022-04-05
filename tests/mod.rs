@@ -2,7 +2,6 @@ extern crate ash;
 extern crate vk_mem;
 
 use ash::extensions::ext::DebugReport;
-use ash::version::{DeviceV1_0, EntryV1_0, InstanceV1_0};
 use std::os::raw::{c_char, c_void};
 
 fn extension_names() -> Vec<*const i8> {
