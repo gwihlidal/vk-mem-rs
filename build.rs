@@ -7,9 +7,9 @@ use std::env;
 fn main() {
     let mut build = cc::Build::new();
 
-    build.include("vendor/src");
+    build.include("vendor/VulkanMemoryAllocator/include");
+    build.include("vendor/Vulkan-Headers/include/vulkan");
     build.include("wrapper");
-    build.include("wrapper/vulkan");
 
     // Disable VMA_ASSERT when rust assertions are disabled
     #[cfg(not(debug_assertions))]
@@ -48,7 +48,7 @@ fn main() {
     let target = env::var("TARGET").unwrap();
     if target.contains("darwin") {
         build
-            .flag("-std=c++11")
+            .flag("-std=c++17")
             .flag("-Wno-missing-field-initializers")
             .flag("-Wno-unused-variable")
             .flag("-Wno-unused-parameter")
@@ -60,7 +60,7 @@ fn main() {
             .cpp(true);
     } else if target.contains("ios") {
         build
-            .flag("-std=c++11")
+            .flag("-std=c++17")
             .flag("-Wno-missing-field-initializers")
             .flag("-Wno-unused-variable")
             .flag("-Wno-unused-parameter")
@@ -71,7 +71,7 @@ fn main() {
             .cpp(true);
     } else if target.contains("android") {
         build
-            .flag("-std=c++11")
+            .flag("-std=c++17")
             .flag("-Wno-missing-field-initializers")
             .flag("-Wno-unused-variable")
             .flag("-Wno-unused-parameter")
@@ -81,7 +81,7 @@ fn main() {
             .cpp(true);
     } else if target.contains("linux") {
         build
-            .flag("-std=c++11")
+            .flag("-std=c++17")
             .flag("-Wno-missing-field-initializers")
             .flag("-Wno-unused-variable")
             .flag("-Wno-unused-parameter")
@@ -91,7 +91,7 @@ fn main() {
             .cpp(true);
     } else if target.contains("windows") && target.contains("gnu") {
         build
-            .flag("-std=c++11")
+            .flag("-std=c++17")
             .flag("-Wno-missing-field-initializers")
             .flag("-Wno-unused-variable")
             .flag("-Wno-unused-parameter")
@@ -155,11 +155,14 @@ fn link_vulkan() {}
 fn generate_bindings(output_file: &str) {
     let bindings = bindgen::Builder::default()
         .clang_arg("-I./wrapper")
-        .header("vendor/src/vk_mem_alloc.h")
+        .clang_arg("-I./vendor/Vulkan-Headers/include")
+        .header("vendor/VulkanMemoryAllocator/include/vk_mem_alloc.h")
         .rustfmt_bindings(true)
         .size_t_is_usize(true)
         .blocklist_type("__darwin_.*")
         .allowlist_function("vma.*")
+        .allowlist_function("PFN_vma.*")
+        .allowlist_type("Vma.*")
         .parse_callbacks(Box::new(FixAshTypes))
         .blocklist_type("Vk.*")
         .blocklist_type("PFN_vk.*")

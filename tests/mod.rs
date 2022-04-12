@@ -2,7 +2,6 @@ extern crate ash;
 extern crate vk_mem;
 
 use ash::extensions::ext::DebugReport;
-use ash::version::{DeviceV1_0, EntryV1_0, InstanceV1_0};
 use std::os::raw::{c_char, c_void};
 
 fn extension_names() -> Vec<*const i8> {
@@ -65,7 +64,8 @@ impl TestHarness {
             .enabled_layer_names(&layers_names_raw)
             .enabled_extension_names(&extension_names_raw);
 
-        let entry = ash::Entry::new().unwrap();
+
+        let entry = unsafe { ash::Entry::load().unwrap() };
         let instance: ash::Instance = unsafe {
             entry
                 .create_instance(&create_info, None)
@@ -136,13 +136,8 @@ impl TestHarness {
     }
 
     pub fn create_allocator(&self) -> vk_mem::Allocator {
-        let create_info = vk_mem::AllocatorCreateInfo {
-            physical_device: self.physical_device,
-            device: self.device.clone(),
-            instance: self.instance.clone(),
-            ..Default::default()
-        };
-        vk_mem::Allocator::new(&create_info).unwrap()
+        let create_info = vk_mem::AllocatorCreateInfo::new(&self.instance, &self.device, &self.physical_device);
+        vk_mem::Allocator::new(create_info).unwrap()
     }
 }
 
@@ -158,59 +153,54 @@ fn create_allocator() {
 }
 
 #[test]
-fn default_allocator_create_info() {
-    let _ = vk_mem::AllocatorCreateInfo::default();
-}
-
-#[test]
 fn create_gpu_buffer() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info = vk_mem::AllocationCreateInfo {
-        usage: vk_mem::MemoryUsage::GpuOnly,
-        ..Default::default()
-    };
-    let (buffer, allocation, allocation_info) = allocator
-        .create_buffer(
-            &ash::vk::BufferCreateInfo::builder()
-                .size(16 * 1024)
-                .usage(
-                    ash::vk::BufferUsageFlags::VERTEX_BUFFER
-                        | ash::vk::BufferUsageFlags::TRANSFER_DST,
-                )
-                .build(),
-            &allocation_info,
-        )
-        .unwrap();
-    assert_eq!(allocation_info.get_mapped_data(), std::ptr::null_mut());
-    allocator.destroy_buffer(buffer, &allocation);
+    let allocation_info =  vk_mem::AllocationCreateInfo::new().usage(vk_mem::MemoryUsage::GpuOnly);
+
+    unsafe {
+        let (buffer, allocation, allocation_info) = allocator
+            .create_buffer(
+                &ash::vk::BufferCreateInfo::builder()
+                    .size(16 * 1024)
+                    .usage(
+                        ash::vk::BufferUsageFlags::VERTEX_BUFFER
+                            | ash::vk::BufferUsageFlags::TRANSFER_DST,
+                    )
+                    .build(),
+                &allocation_info,
+            )
+            .unwrap();
+        assert_eq!(allocation_info.get_mapped_data(), std::ptr::null_mut());
+        allocator.destroy_buffer(buffer, allocation);
+    }
 }
 
 #[test]
 fn create_cpu_buffer_preferred() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info = vk_mem::AllocationCreateInfo {
-        required_flags: ash::vk::MemoryPropertyFlags::HOST_VISIBLE,
-        preferred_flags: ash::vk::MemoryPropertyFlags::HOST_COHERENT
-            | ash::vk::MemoryPropertyFlags::HOST_CACHED,
-        flags: vk_mem::AllocationCreateFlags::MAPPED,
-        ..Default::default()
-    };
-    let (buffer, allocation, allocation_info) = allocator
-        .create_buffer(
-            &ash::vk::BufferCreateInfo::builder()
-                .size(16 * 1024)
-                .usage(
-                    ash::vk::BufferUsageFlags::VERTEX_BUFFER
-                        | ash::vk::BufferUsageFlags::TRANSFER_DST,
-                )
-                .build(),
-            &allocation_info,
-        )
-        .unwrap();
-    assert_ne!(allocation_info.get_mapped_data(), std::ptr::null_mut());
-    allocator.destroy_buffer(buffer, &allocation);
+    let allocation_info =  vk_mem::AllocationCreateInfo::new()
+        .required_flags(ash::vk::MemoryPropertyFlags::HOST_VISIBLE)
+        .preferred_flags(ash::vk::MemoryPropertyFlags::HOST_COHERENT
+            | ash::vk::MemoryPropertyFlags::HOST_CACHED)
+        .flags(vk_mem::AllocationCreateFlags::MAPPED);
+    unsafe {
+        let (buffer, allocation, allocation_info) = allocator
+            .create_buffer(
+                &ash::vk::BufferCreateInfo::builder()
+                    .size(16 * 1024)
+                    .usage(
+                        ash::vk::BufferUsageFlags::VERTEX_BUFFER
+                            | ash::vk::BufferUsageFlags::TRANSFER_DST,
+                    )
+                    .build(),
+                &allocation_info,
+            )
+            .unwrap();
+        assert_ne!(allocation_info.get_mapped_data(), std::ptr::null_mut());
+        allocator.destroy_buffer(buffer, allocation);
+    }
 }
 
 #[test]
@@ -223,109 +213,108 @@ fn create_gpu_buffer_pool() {
         .usage(ash::vk::BufferUsageFlags::UNIFORM_BUFFER | ash::vk::BufferUsageFlags::TRANSFER_DST)
         .build();
 
-    let mut allocation_info = vk_mem::AllocationCreateInfo {
-        required_flags: ash::vk::MemoryPropertyFlags::HOST_VISIBLE,
-        preferred_flags: ash::vk::MemoryPropertyFlags::HOST_COHERENT
-            | ash::vk::MemoryPropertyFlags::HOST_CACHED,
-        flags: vk_mem::AllocationCreateFlags::MAPPED,
-        ..Default::default()
-    };
+    let mut allocation_info = vk_mem::AllocationCreateInfo::new()
+        .required_flags(ash::vk::MemoryPropertyFlags::HOST_VISIBLE)
+        .preferred_flags(ash::vk::MemoryPropertyFlags::HOST_COHERENT
+            | ash::vk::MemoryPropertyFlags::HOST_CACHED)
+        .flags(vk_mem::AllocationCreateFlags::MAPPED);
+    unsafe {
+        let memory_type_index = allocator
+            .find_memory_type_index_for_buffer_info(&buffer_info, &allocation_info)
+            .unwrap();
 
-    let memory_type_index = allocator
-        .find_memory_type_index_for_buffer_info(&buffer_info, &allocation_info)
-        .unwrap();
+        // Create a pool that can have at most 2 blocks, 128 MiB each.
+        let pool_info = vk_mem::PoolCreateInfo::new()
+            .memory_type_index(memory_type_index)
+            .block_size(128 * 1024 * 1024)
+            .max_block_count(2);
 
-    // Create a pool that can have at most 2 blocks, 128 MiB each.
-    let pool_info = vk_mem::AllocatorPoolCreateInfo {
-        memory_type_index,
-        block_size: 128 * 1024 * 1024,
-        max_block_count: 2,
-        ..Default::default()
-    };
-    let pool = allocator.create_pool(&pool_info).unwrap();
-    allocation_info.pool = Some(pool.clone());
+        let pool = allocator.create_pool(&pool_info).unwrap();
+        allocation_info = allocation_info.pool(pool.clone());
 
-    let (buffer, allocation, allocation_info) = allocator
-        .create_buffer(&buffer_info, &allocation_info)
-        .unwrap();
-    assert_ne!(allocation_info.get_mapped_data(), std::ptr::null_mut());
-    allocator.destroy_buffer(buffer, &allocation);
-    allocator.destroy_pool(&pool);
+        let (buffer, allocation, allocation_info) = allocator
+            .create_buffer(&buffer_info, &allocation_info)
+            .unwrap();
+        assert_ne!(allocation_info.get_mapped_data(), std::ptr::null_mut());
+        allocator.destroy_buffer(buffer, allocation);
+        allocator.destroy_pool(pool);
+    }
 }
 
 #[test]
 fn test_gpu_stats() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info = vk_mem::AllocationCreateInfo {
-        usage: vk_mem::MemoryUsage::GpuOnly,
-        ..Default::default()
-    };
+    let allocation_info = vk_mem::AllocationCreateInfo::new()
+        .usage(vk_mem::MemoryUsage::GpuOnly);
 
-    let stats_1 = allocator.calculate_stats().unwrap();
-    assert_eq!(stats_1.total.blockCount, 0);
-    assert_eq!(stats_1.total.allocationCount, 0);
-    assert_eq!(stats_1.total.usedBytes, 0);
+    unsafe {
+        let stats_1 = allocator.calculate_stats().unwrap();
+        assert_eq!(stats_1.total.blockCount, 0);
+        assert_eq!(stats_1.total.allocationCount, 0);
+        assert_eq!(stats_1.total.usedBytes, 0);
 
-    let (buffer, allocation, _allocation_info) = allocator
-        .create_buffer(
-            &ash::vk::BufferCreateInfo::builder()
-                .size(16 * 1024)
-                .usage(
-                    ash::vk::BufferUsageFlags::VERTEX_BUFFER
-                        | ash::vk::BufferUsageFlags::TRANSFER_DST,
-                )
-                .build(),
-            &allocation_info,
-        )
-        .unwrap();
+        let (buffer, allocation, _allocation_info) = allocator
+            .create_buffer(
+                &ash::vk::BufferCreateInfo::builder()
+                    .size(16 * 1024)
+                    .usage(
+                        ash::vk::BufferUsageFlags::VERTEX_BUFFER
+                            | ash::vk::BufferUsageFlags::TRANSFER_DST,
+                    )
+                    .build(),
+                &allocation_info,
+            )
+            .unwrap();
 
-    let stats_2 = allocator.calculate_stats().unwrap();
-    assert_eq!(stats_2.total.blockCount, 1);
-    assert_eq!(stats_2.total.allocationCount, 1);
-    assert_eq!(stats_2.total.usedBytes, 16 * 1024);
+        let stats_2 = allocator.calculate_stats().unwrap();
+        assert_eq!(stats_2.total.blockCount, 1);
+        assert_eq!(stats_2.total.allocationCount, 1);
+        assert_eq!(stats_2.total.usedBytes, 16 * 1024);
 
-    allocator.destroy_buffer(buffer, &allocation);
+        allocator.destroy_buffer(buffer, allocation);
 
-    let stats_3 = allocator.calculate_stats().unwrap();
-    assert_eq!(stats_3.total.blockCount, 1);
-    assert_eq!(stats_3.total.allocationCount, 0);
-    assert_eq!(stats_3.total.usedBytes, 0);
+        let stats_3 = allocator.calculate_stats().unwrap();
+        assert_eq!(stats_3.total.blockCount, 1);
+        assert_eq!(stats_3.total.allocationCount, 0);
+        assert_eq!(stats_3.total.usedBytes, 0);
+    }
 }
 
 #[test]
 fn test_stats_string() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info = vk_mem::AllocationCreateInfo {
-        usage: vk_mem::MemoryUsage::GpuOnly,
-        ..Default::default()
-    };
 
-    let stats_1 = allocator.build_stats_string(true).unwrap();
-    assert!(stats_1.len() > 0);
+    let allocation_info = vk_mem::AllocationCreateInfo::new()
+        .usage(vk_mem::MemoryUsage::GpuOnly);
 
-    let (buffer, allocation, _allocation_info) = allocator
-        .create_buffer(
-            &ash::vk::BufferCreateInfo::builder()
-                .size(16 * 1024)
-                .usage(
-                    ash::vk::BufferUsageFlags::VERTEX_BUFFER
-                        | ash::vk::BufferUsageFlags::TRANSFER_DST,
-                )
-                .build(),
-            &allocation_info,
-        )
-        .unwrap();
+    unsafe {
+        let stats_1 = allocator.build_stats_string(true).unwrap();
+        assert!(stats_1.len() > 0);
 
-    let stats_2 = allocator.build_stats_string(true).unwrap();
-    assert!(stats_2.len() > 0);
-    assert_ne!(stats_1, stats_2);
+        let (buffer, allocation, _allocation_info) = allocator
+            .create_buffer(
+                &ash::vk::BufferCreateInfo::builder()
+                    .size(16 * 1024)
+                    .usage(
+                        ash::vk::BufferUsageFlags::VERTEX_BUFFER
+                            | ash::vk::BufferUsageFlags::TRANSFER_DST,
+                    )
+                    .build(),
+                &allocation_info,
+            )
+            .unwrap();
 
-    allocator.destroy_buffer(buffer, &allocation);
+        let stats_2 = allocator.build_stats_string(true).unwrap();
+        assert!(stats_2.len() > 0);
+        assert_ne!(stats_1, stats_2);
 
-    let stats_3 = allocator.build_stats_string(true).unwrap();
-    assert!(stats_3.len() > 0);
-    assert_ne!(stats_3, stats_1);
-    assert_ne!(stats_3, stats_2);
+        allocator.destroy_buffer(buffer, allocation);
+
+        let stats_3 = allocator.build_stats_string(true).unwrap();
+        assert!(stats_3.len() > 0);
+        assert_ne!(stats_3, stats_1);
+        assert_ne!(stats_3, stats_2);
+    }
 }

@@ -16,10 +16,10 @@ include = [
     "gen/bindings.rs",
     "build.rs",
     "Cargo.toml",
-    "vendor/src/vk_mem_alloc.h",
-    "wrapper/vulkan/vk_platform.h",
-    "wrapper/vulkan/vulkan_core.h",
-    "wrapper/vulkan/vulkan.h",
+    "vendor/VulkanMemoryAllocator/include/vk_mem_alloc.h",
+    "vendor/Vulkan-Headers/include/vk_platform.h",
+    "vendor/Vulkan-Headers/include/vulkan_core.h",
+    "vendor/Vulkan-Headers/include/vulkan.h",
     "wrapper/vma_lib.cpp",
 ]
 edition = "2018"
@@ -29,7 +29,7 @@ travis-ci = { repository = "gwihlidal/vk-mem-rs" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-ash = ">= 0.33"
+ash = ">= 0.35"
 bitflags = "1.2.1"
 
 [build-dependencies]
