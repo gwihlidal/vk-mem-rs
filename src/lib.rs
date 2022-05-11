@@ -1,8 +1,10 @@
 //! Easy to use, high performance memory manager for Vulkan.
 
 mod definitions;
+mod defragmentation;
 pub mod ffi;
 pub use definitions::*;
+pub use defragmentation::*;
 
 use ash::prelude::VkResult;
 use ash::vk;
@@ -700,71 +702,6 @@ impl Allocator {
             self.internal,
             memory_types.as_raw(),
         ))
-    }
-
-    /// Begins defragmentation process.
-    ///
-    /// ## Returns
-    /// `VK_SUCCESS` if defragmentation can begin.
-    /// `VK_ERROR_FEATURE_NOT_PRESENT` if defragmentation is not supported.
-    pub unsafe fn begin_defragmentation(
-        &self,
-        info: &ffi::VmaDefragmentationInfo,
-    ) -> VkResult<ffi::VmaDefragmentationContext> {
-        let mut context: ffi::VmaDefragmentationContext = std::ptr::null_mut();
-
-        ffi::vmaBeginDefragmentation(self.internal, info, &mut context).result()?;
-
-        Ok(context)
-    }
-
-    /// Ends defragmentation process.
-    ///
-    /// Use this function to finish defragmentation started by `Allocator::begin_defragmentation`.
-    pub unsafe fn end_defragmentation(
-        &self,
-        context: ffi::VmaDefragmentationContext,
-    ) -> ffi::VmaDefragmentationStats {
-        let mut stats = ffi::VmaDefragmentationStats {
-            bytesMoved: 0,
-            bytesFreed: 0,
-            allocationsMoved: 0,
-            deviceMemoryBlocksFreed: 0,
-        };
-        ffi::vmaEndDefragmentation(self.internal, context, &mut stats);
-
-        stats
-    }
-
-    /// Ends single defragmentation pass.
-    /// * `context` - Context object that has been created by `begin_defragmentation`
-    /// * `pass_info` - Coputed informations for current pass filled by `begin_defragmentation_pass` and possibly modified by you.
-    ///
-    /// Returns:
-    /// - `false` if no more moves are possible. Then you can omit call to vmaEndDefragmentationPass() and simply end whole defragmentation.
-    /// - `true` if there are pending moves returned in pPassInfo. You need to perform them, call vmaEndDefragmentationPass(), and then
-    /// preferably try another pass with vmaBeginDefragmentationPass().
-    pub unsafe fn begin_defragmentation_pass(
-        &self,
-        context: ffi::VmaDefragmentationContext,
-        pass_info: &mut ffi::VmaDefragmentationPassMoveInfo,
-    ) -> bool {
-        let result = ffi::vmaBeginDefragmentationPass(self.internal, context, pass_info);
-        return result == vk::Result::INCOMPLETE;
-    }
-
-    /// Ends single defragmentation pass.
-    /// * `context` - Context object that has been created by `begin_defragmentation`
-    /// * `pass_info` - Coputed informations for current pass filled by `begin_defragmentation_pass` and possibly modified by you.
-    ///
-    /// Returns false if no more moves are possible or true if more defragmentations are possible.
-    pub unsafe fn end_defragmentation_pass(
-        &self,
-        context: ffi::VmaDefragmentationContext,
-        pass_info: &mut ffi::VmaDefragmentationPassMoveInfo,
-    ) -> bool {
-        let result = ffi::vmaEndDefragmentationPass(self.internal, context, pass_info);
-        return result == vk::Result::INCOMPLETE;
     }
 
     /// Binds buffer to allocation.

@@ -27,6 +27,7 @@ pub enum MemoryUsage {
     /// Allocation may still end up in `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` memory on some implementations.
     /// In such case, you are free to map it.
     /// You can use `AllocationCreateFlags::MAPPED` with this usage type.
+    #[deprecated(since = "0.3")]
     GpuOnly,
 
     /// Memory will be mappable on host.
@@ -37,6 +38,7 @@ pub enum MemoryUsage {
     /// It is roughly equivalent of `D3D12_HEAP_TYPE_UPLOAD`.
     ///
     /// Usage: Staging copy of resources used as transfer source.
+    #[deprecated(since = "0.3")]
     CpuOnly,
 
     /// Memory that is both mappable on host (guarantees to be `ash::vk::MemoryPropertyFlags::HOST_VISIBLE`) and preferably fast to access by GPU.
@@ -44,6 +46,7 @@ pub enum MemoryUsage {
     ///
     /// Usage: Resources written frequently by host (dynamic), read by device. E.g. textures, vertex buffers,
     /// uniform buffers updated every frame or every draw call.
+    #[deprecated(since = "0.3")]
     CpuToGpu,
 
     /// Memory mappable on host (guarantees to be `ash::vk::MemoryPropertFlags::HOST_VISIBLE`) and cached.
@@ -53,7 +56,12 @@ pub enum MemoryUsage {
     ///
     /// - Resources written by device, read by host - results of some computations, e.g. screen capture, average scene luminance for HDR tone mapping.
     /// - Any resources read or accessed randomly on host, e.g. CPU-side copy of vertex buffer used as source of transfer, but also used for collision detection.
+    #[deprecated(since = "0.3")]
     GpuToCpu,
+
+    /// Prefers not `VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT`.
+    #[deprecated(since = "0.3")]
+    CpuCopy,
 
     /// Lazily allocated GPU memory having (guarantees to be `ash::vk::MemoryPropertFlags::LAZILY_ALLOCATED`).
     /// Exists mostly on mobile platforms. Using it on desktop PC or other GPUs with no such memory type present will fail the allocation.
@@ -61,7 +69,42 @@ pub enum MemoryUsage {
     /// Usage:
     ///
     /// -  Memory for transient attachment images (color attachments, depth attachments etc.), created with `VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT`.
+    /// Allocations with this usage are always created as dedicated - it implies #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT.
     GpuLazy,
+
+    /// Selects best memory type automatically.
+    /// This flag is recommended for most common use cases.
+    ///
+    /// When using this flag, if you want to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT),
+    /// you must pass one of the flags: #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
+    /// in VmaAllocationCreateInfo::flags.
+    ///
+    /// It can be used only with functions that let the library know `VkBufferCreateInfo` or `VkImageCreateInfo`, e.g.
+    /// vmaCreateBuffer(), vmaCreateImage(), vmaFindMemoryTypeIndexForBufferInfo(), vmaFindMemoryTypeIndexForImageInfo()
+    /// and not with generic memory allocation functions.
+    Auto,
+
+    /// Selects best memory type automatically with preference for CPU (host) memory.
+    ///
+    /// When using this flag, if you want to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT),
+    /// you must pass one of the flags: #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
+    /// in VmaAllocationCreateInfo::flags.
+    ///
+    /// It can be used only with functions that let the library know `VkBufferCreateInfo` or `VkImageCreateInfo`, e.g.
+    /// vmaCreateBuffer(), vmaCreateImage(), vmaFindMemoryTypeIndexForBufferInfo(), vmaFindMemoryTypeIndexForImageInfo()
+    /// and not with generic memory allocation functions.
+    AutoPreferDevice,
+
+    /// Selects best memory type automatically with preference for CPU (host) memory.
+    ///
+    /// When using this flag, if you want to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT),
+    /// you must pass one of the flags: #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
+    /// in VmaAllocationCreateInfo::flags.
+    ///
+    /// It can be used only with functions that let the library know `VkBufferCreateInfo` or `VkImageCreateInfo`, e.g.
+    /// vmaCreateBuffer(), vmaCreateImage(), vmaFindMemoryTypeIndexForBufferInfo(), vmaFindMemoryTypeIndexForImageInfo()
+    /// and not with generic memory allocation functions.
+    AutoPreferHost,
 }
 
 bitflags! {
@@ -484,11 +527,22 @@ impl<'a> AllocationCreateInfo<'a> {
     pub fn usage(mut self, usage: MemoryUsage) -> Self {
         self.inner.usage = match usage {
             MemoryUsage::Unknown => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_UNKNOWN,
+            #[allow(deprecated)]
             MemoryUsage::GpuOnly => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
+            #[allow(deprecated)]
             MemoryUsage::CpuOnly => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_ONLY,
+            #[allow(deprecated)]
             MemoryUsage::CpuToGpu => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU,
+            #[allow(deprecated)]
             MemoryUsage::GpuToCpu => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_TO_CPU,
+            #[allow(deprecated)]
+            MemoryUsage::CpuCopy => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_COPY,
             MemoryUsage::GpuLazy => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED,
+            MemoryUsage::Auto => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO,
+            MemoryUsage::AutoPreferDevice => {
+                ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+            }
+            MemoryUsage::AutoPreferHost => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
         };
         self
     }
