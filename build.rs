@@ -8,7 +8,7 @@ fn main() {
     let mut build = cc::Build::new();
 
     build.include("vendor/VulkanMemoryAllocator/include");
-    build.include("vendor/Vulkan-Headers/include/vulkan");
+    build.include("vendor/Vulkan-Headers/include");
     build.include("wrapper");
 
     // Disable VMA_ASSERT when rust assertions are disabled
@@ -102,10 +102,10 @@ fn main() {
             .cpp(true);
     }
 
-    build.compile("vma_cpp");
+    build.compile("vma");
 
     link_vulkan();
-    generate_bindings("gen/bindings.rs");
+    generate_bindings("src/ffi.rs");
 }
 
 #[cfg(feature = "link_vulkan")]
@@ -166,9 +166,12 @@ fn generate_bindings(output_file: &str) {
         .parse_callbacks(Box::new(FixAshTypes))
         .blocklist_type("Vk.*")
         .blocklist_type("PFN_vk.*")
+        .raw_line("#![allow(non_camel_case_types)]")
+        .raw_line("#![allow(non_snake_case)]")
         .raw_line("use ash::vk::*;")
         .trust_clang_mangling(false)
         .layout_tests(false)
+        .rustified_enum("Vma.*")
         .generate()
         .expect("Unable to generate bindings!");
 

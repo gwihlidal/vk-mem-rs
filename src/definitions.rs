@@ -74,7 +74,7 @@ bitflags! {
         /// so you must guarantee they are used from only one thread at a time or synchronized
         /// externally by you. Using this flag may increase performance because internal
         /// mutexes are not used.
-        const EXTERNALLY_SYNCHRONIZED = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
+        const EXTERNALLY_SYNCHRONIZED = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BIT as u32;
 
         /// Enables usage of `VK_KHR_dedicated_allocation` extension.
         ///
@@ -94,7 +94,7 @@ bitflags! {
         /// When this flag is set, you can experience following warnings reported by Vulkan
         /// validation layer. You can ignore them.
         /// `> vkBindBufferMemory(): Binding memory to buffer 0x2d but vkGetBufferMemoryRequirements() has not been called on that buffer.`
-        const KHR_DEDICATED_ALLOCATION = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT;
+        const KHR_DEDICATED_ALLOCATION = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT as u32;
 
         /// Enables usage of VK_KHR_bind_memory2 extension.
         ///
@@ -108,7 +108,7 @@ bitflags! {
         /// The extension provides functions `vkBindBufferMemory2KHR` and `vkBindImageMemory2KHR`,
         /// which allow to pass a chain of `pNext` structures while binding.
         /// This flag is required if you use `pNext` parameter in vmaBindBufferMemory2() or vmaBindImageMemory2().
-        const KHR_BIND_MEMORY2 = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT;
+        const KHR_BIND_MEMORY2 = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT as u32;
 
         /// Enables usage of VK_EXT_memory_budget extension.
         ///
@@ -119,7 +119,7 @@ bitflags! {
         ///
         /// The extension provides query for current memory usage and budget, which will probably
         /// be more accurate than an estimation used by the library otherwise.
-        const EXT_MEMORY_BUDGET = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+        const EXT_MEMORY_BUDGET = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT as u32;
 
         /// Enables usage of VK_AMD_device_coherent_memory extension.
         ///
@@ -136,7 +136,7 @@ bitflags! {
         /// When the extension is not enabled, such memory types are still enumerated, but their usage is illegal.
         /// To protect from this error, if you don't create the allocator with this flag, it will refuse to allocate any memory or create a custom pool in such memory type,
         /// returning `VK_ERROR_FEATURE_NOT_PRESENT`.
-        const AMD_DEVICE_COHERENT_MEMORY = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_AMD_DEVICE_COHERENT_MEMORY_BIT;
+        const AMD_DEVICE_COHERENT_MEMORY = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_AMD_DEVICE_COHERENT_MEMORY_BIT as u32;
 
         /// You may set this flag only if you:
         ///
@@ -150,7 +150,7 @@ bitflags! {
         /// allocated memory blocks wherever it might be needed.
         ///
         /// For more information, see documentation chapter \ref enabling_buffer_device_address.
-        const BUFFER_DEVICE_ADDRESS = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+        const BUFFER_DEVICE_ADDRESS = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT as u32;
 
         /// Enables usage of VK_EXT_memory_priority extension in the library.
         ///
@@ -166,7 +166,7 @@ bitflags! {
         /// It is automatically passed to every call to `vkAllocateMemory` done by the library using structure `VkMemoryPriorityAllocateInfoEXT`.
         /// The value to be used for default priority is 0.5.
         /// For more details, see the documentation of the VK_EXT_memory_priority extension.
-        const EXT_MEMORY_PRIORITY = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT;
+        const EXT_MEMORY_PRIORITY = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT as u32;
 
     }
 }
@@ -288,7 +288,7 @@ bitflags! {
         /// buffers and linear images or only optimal images out of this pool, use this flag
         /// to make allocator disregard buffer-image granularity and so make allocations
         /// faster and more optimal.
-        const IGNORE_BUFFER_IMAGE_GRANULARITY = ffi::VmaPoolCreateFlagBits_VMA_POOL_CREATE_IGNORE_BUFFER_IMAGE_GRANULARITY_BIT;
+        const IGNORE_BUFFER_IMAGE_GRANULARITY = ffi::VmaPoolCreateFlagBits::VMA_POOL_CREATE_IGNORE_BUFFER_IMAGE_GRANULARITY_BIT as u32;
 
         /// Enables alternative, linear allocation algorithm in this pool.
         ///
@@ -301,7 +301,7 @@ bitflags! {
         /// ring buffer, and double stack.
         ///
         /// When using this flag, you must specify PoolCreateInfo::max_block_count == 1 (or 0 for default).
-        const LINEAR_ALGORITHM = ffi::VmaPoolCreateFlagBits_VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT;
+        const LINEAR_ALGORITHM = ffi::VmaPoolCreateFlagBits::VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT as u32;
 
         /// Enables alternative, buddy allocation algorithm in this pool.
         ///
@@ -309,7 +309,7 @@ bitflags! {
         /// a half of its parent's size. Comparing to default algorithm, this one provides
         /// faster allocation and deallocation and decreased external fragmentation,
         /// at the expense of more memory wasted (internal fragmentation).
-        const BUDDY_ALGORITHM = ffi::VmaPoolCreateFlagBits_VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT;
+        const BUDDY_ALGORITHM = ffi::VmaPoolCreateFlagBits::VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT as u32;
 
         /// \brief Enables alternative, Two-Level Segregated Fit (TLSF) allocation algorithm in this pool.
         ///
@@ -320,10 +320,10 @@ bitflags! {
         /// Allocation time can be sometimes slightly longer than compared to other algorithms
         /// but in return the application can avoid stalls in case of fragmentation, giving
         /// predictable results, suitable for real-time use cases.
-        const TLSF_ALGORITHM_BIT = ffi::VmaPoolCreateFlagBits_VMA_POOL_CREATE_TLSF_ALGORITHM_BIT;
+        const TLSF_ALGORITHM_BIT = ffi::VmaPoolCreateFlagBits::VMA_POOL_CREATE_TLSF_ALGORITHM_BIT as u32;
 
         /// Bit mask to extract only `*_ALGORITHM` bits from entire set of flags.
-        const ALGORITHM_MASK = ffi::VmaPoolCreateFlagBits_VMA_POOL_CREATE_ALGORITHM_MASK;
+        const ALGORITHM_MASK = ffi::VmaPoolCreateFlagBits::VMA_POOL_CREATE_ALGORITHM_MASK as u32;
     }
 }
 
@@ -485,7 +485,7 @@ impl<'a> AllocationCreateInfo<'a> {
         AllocationCreateInfo {
             inner: VmaAllocationCreateInfo {
                 flags: 0,
-                usage: 0,
+                usage: ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_UNKNOWN,
                 requiredFlags: Default::default(),
                 preferredFlags: Default::default(),
                 memoryTypeBits: 0,
@@ -504,12 +504,12 @@ impl<'a> AllocationCreateInfo<'a> {
 
     pub fn usage(mut self, usage: MemoryUsage) -> Self {
         self.inner.usage = match usage {
-            MemoryUsage::Unknown => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_UNKNOWN,
-            MemoryUsage::GpuOnly => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_ONLY,
-            MemoryUsage::CpuOnly => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_CPU_ONLY,
-            MemoryUsage::CpuToGpu => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_CPU_TO_GPU,
-            MemoryUsage::GpuToCpu => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_TO_CPU,
-            MemoryUsage::GpuLazy => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED,
+            MemoryUsage::Unknown => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_UNKNOWN,
+            MemoryUsage::GpuOnly => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
+            MemoryUsage::CpuOnly => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_ONLY,
+            MemoryUsage::CpuToGpu => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU,
+            MemoryUsage::GpuToCpu => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_TO_CPU,
+            MemoryUsage::GpuLazy => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED,
         };
         self
     }

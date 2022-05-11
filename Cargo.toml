@@ -29,14 +29,14 @@ travis-ci = { repository = "gwihlidal/vk-mem-rs" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-ash = ">= 0.35"
+ash = "0.37"
 bitflags = "1.2.1"
 
 [build-dependencies]
-cc = "1.0.50"
+cc = "1.0"
 
 [build-dependencies.bindgen]
-version = "0.59.1"
+version = "0.59"
 optional = true
 
 [profile.release]
