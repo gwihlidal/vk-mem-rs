@@ -562,8 +562,8 @@ impl<'a> AllocationCreateInfo<'a> {
         self
     }
 
-    pub fn pool(mut self, pool: AllocatorPool) -> Self {
-        self.inner.pool = pool;
+    pub fn pool(mut self, pool: &AllocatorPool) -> Self {
+        self.inner.pool = pool.raw;
         self
     }
 

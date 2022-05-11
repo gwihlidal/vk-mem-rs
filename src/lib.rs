@@ -3,8 +3,10 @@
 mod definitions;
 mod defragmentation;
 pub mod ffi;
+mod pool;
 pub use definitions::*;
 pub use defragmentation::*;
+pub use pool::*;
 
 use ash::prelude::VkResult;
 use ash::vk;
@@ -19,12 +21,6 @@ pub struct Allocator {
 // Allocator is internally thread safe unless AllocatorCreateFlags::EXTERNALLY_SYNCHRONIZED is used (then you need to add synchronization!)
 unsafe impl Send for Allocator {}
 unsafe impl Sync for Allocator {}
-
-/// Represents custom memory pool handle.
-///
-/// Fill structure `AllocatorPoolCreateInfo` and call `Allocator::create_pool` to create it.
-/// Call `Allocator::destroy_pool` to destroy it.
-pub type AllocatorPool = ffi::VmaPool;
 
 /// Represents single memory allocation.
 ///
@@ -231,25 +227,11 @@ impl Allocator {
 
     /// The allocator fetches `ash::vk::PhysicalDeviceMemoryProperties` from the physical device.
     /// You can get it here, without fetching it again on your own.
-    pub unsafe fn get_memory_properties(&self) -> VkResult<vk::PhysicalDeviceMemoryProperties> {
-        let mut properties = vk::PhysicalDeviceMemoryProperties::default();
-        ffi::vmaGetMemoryProperties(self.internal, &mut properties as *mut _ as *mut *const _);
+    pub unsafe fn get_memory_properties(&self) -> &vk::PhysicalDeviceMemoryProperties {
+        let mut properties: *const vk::PhysicalDeviceMemoryProperties = std::ptr::null();
+        ffi::vmaGetMemoryProperties(self.internal, &mut properties);
 
-        Ok(properties)
-    }
-
-    /// Given a memory type index, returns `ash::vk::MemoryPropertyFlags` of this memory type.
-    ///
-    /// This is just a convenience function; the same information can be obtained using
-    /// `Allocator::get_memory_properties`.
-    pub unsafe fn get_memory_type_properties(
-        &self,
-        memory_type_index: u32,
-    ) -> VkResult<vk::MemoryPropertyFlags> {
-        let mut flags = vk::MemoryPropertyFlags::empty();
-        ffi::vmaGetMemoryTypeProperties(self.internal, memory_type_index, &mut flags);
-
-        Ok(flags)
+        &*properties
     }
 
     /// Sets index of the current frame.
@@ -263,30 +245,29 @@ impl Allocator {
     }
 
     /// Retrieves statistics from current state of the `Allocator`.
-    pub unsafe fn calculate_statistics(&self) -> VkResult<ffi::VmaTotalStatistics> {
-        let mut vma_stats: ffi::VmaTotalStatistics = mem::zeroed();
-        ffi::vmaCalculateStatistics(self.internal, &mut vma_stats);
-        Ok(vma_stats)
+    pub fn calculate_statistics(&self) -> VkResult<ffi::VmaTotalStatistics> {
+        unsafe {
+            let mut vma_stats: ffi::VmaTotalStatistics = mem::zeroed();
+            ffi::vmaCalculateStatistics(self.internal, &mut vma_stats);
+            Ok(vma_stats)
+        }
     }
 
-    /// Builds and returns statistics in `JSON` format.
-    pub unsafe fn build_stats_string(&self, detailed_map: bool) -> VkResult<String> {
-        let mut stats_string: *mut ::std::os::raw::c_char = ::std::ptr::null_mut();
-        ffi::vmaBuildStatsString(
-            self.internal,
-            &mut stats_string,
-            if detailed_map { 1 } else { 0 },
-        );
-
-        Ok(if stats_string.is_null() {
-            String::new()
-        } else {
-            let result = std::ffi::CStr::from_ptr(stats_string)
-                .to_string_lossy()
-                .into_owned();
-            ffi::vmaFreeStatsString(self.internal, stats_string);
-            result
-        })
+    /// Retrieves information about current memory usage and budget for all memory heaps.
+    ///
+    /// This function is called "get" not "calculate" because it is very fast, suitable to be called
+    /// every frame or every allocation. For more detailed statistics use vmaCalculateStatistics().
+    ///
+    /// Note that when using allocator from multiple threads, returned information may immediately
+    /// become outdated.
+    pub fn get_heap_budgets(&self) -> VkResult<Vec<ffi::VmaBudget>> {
+        unsafe {
+            let len = self.get_memory_properties().memory_heap_count as usize;
+            let mut vma_budgets: Vec<ffi::VmaBudget> = Vec::with_capacity(len);
+            ffi::vmaGetHeapBudgets(self.internal, vma_budgets.as_mut_ptr());
+            vma_budgets.set_len(len);
+            Ok(vma_budgets)
+        }
     }
 
     /// Helps to find memory type index, given memory type bits and allocation info.
@@ -372,51 +353,6 @@ impl Allocator {
         .result()?;
 
         Ok(memory_type_index)
-    }
-
-    /// Allocates Vulkan device memory and creates `AllocatorPool` object.
-    pub unsafe fn create_pool(&self, create_info: &PoolCreateInfo) -> VkResult<AllocatorPool> {
-        let mut ffi_pool: ffi::VmaPool = mem::zeroed();
-        ffi::vmaCreatePool(self.internal, &create_info.inner, &mut ffi_pool).result()?;
-        Ok(ffi_pool)
-    }
-
-    /// Destroys `AllocatorPool` object and frees Vulkan device memory.
-    pub unsafe fn destroy_pool(&self, pool: AllocatorPool) {
-        ffi::vmaDestroyPool(self.internal, pool);
-    }
-
-    /// Retrieves statistics of existing `AllocatorPool` object.
-    pub unsafe fn get_pool_stats(&self, pool: AllocatorPool) -> VkResult<ffi::VmaStatistics> {
-        let mut pool_stats: ffi::VmaStatistics = mem::zeroed();
-        ffi::vmaGetPoolStatistics(self.internal, pool, &mut pool_stats);
-        Ok(pool_stats)
-    }
-
-    /// Retrieves detailed statistics of existing `AllocatorPool` object.
-    pub unsafe fn calculate_pool_statistics(
-        &self,
-        pool: AllocatorPool,
-    ) -> VkResult<ffi::VmaDetailedStatistics> {
-        let mut pool_stats: ffi::VmaDetailedStatistics = mem::zeroed();
-        ffi::vmaCalculatePoolStatistics(self.internal, pool, &mut pool_stats);
-        Ok(pool_stats)
-    }
-
-    /// Checks magic number in margins around all allocations in given memory pool in search for corruptions.
-    ///
-    /// Corruption detection is enabled only when `VMA_DEBUG_DETECT_CORRUPTION` macro is defined to nonzero,
-    /// `VMA_DEBUG_MARGIN` is defined to nonzero and the pool is created in memory type that is
-    /// `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` and `ash::vk::MemoryPropertyFlags::HOST_COHERENT`.
-    ///
-    /// Possible error values:
-    ///
-    /// - `ash::vk::Result::ERROR_FEATURE_NOT_PRESENT` - corruption detection is not enabled for specified pool.
-    /// - `ash::vk::Result::ERROR_VALIDATION_FAILED_EXT` - corruption detection has been performed and found memory corruptions around one of the allocations.
-    ///   `VMA_ASSERT` is also fired in that case.
-    /// - Other value: Error returned by Vulkan, e.g. memory mapping failure.
-    pub unsafe fn check_pool_corruption(&self, pool: AllocatorPool) -> VkResult<()> {
-        ffi::vmaCheckPoolCorruption(self.internal, pool).result()
     }
 
     /// General purpose memory allocation.
