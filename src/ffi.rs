@@ -122,6 +122,7 @@ pub enum VmaAllocatorCreateFlagBits {
     #[doc = "For more details, see the documentation of the VK_EXT_memory_priority extension."]
     VMA_ALLOCATOR_CREATE_FLAG_BITS_MAX_ENUM = 2147483647,
 }
+#[doc = " See #VmaAllocatorCreateFlagBits."]
 pub type VmaAllocatorCreateFlags = Flags;
 #[repr(i32)]
 #[doc = " \\brief Intended usage of the allocated memory."]
@@ -130,62 +131,68 @@ pub enum VmaMemoryUsage {
     #[doc = " No intended memory usage specified."]
     #[doc = "Use other members of VmaAllocationCreateInfo to specify your requirements."]
     VMA_MEMORY_USAGE_UNKNOWN = 0,
-    #[doc = " Memory will be used on device only, so fast access from the device is preferred."]
-    #[doc = "It usually means device-local GPU (video) memory."]
-    #[doc = "No need to be mappable on host."]
-    #[doc = "It is roughly equivalent of `D3D12_HEAP_TYPE_DEFAULT`."]
-    #[doc = ""]
-    #[doc = "Usage:"]
-    #[doc = ""]
-    #[doc = "- Resources written and read by device, e.g. images used as attachments."]
-    #[doc = "- Resources transferred from host once (immutable) or infrequently and read by"]
-    #[doc = "device multiple times, e.g. textures to be sampled, vertex buffers, uniform"]
-    #[doc = "(constant) buffers, and majority of other types of resources used on GPU."]
-    #[doc = ""]
-    #[doc = "Allocation may still end up in `HOST_VISIBLE` memory on some implementations."]
-    #[doc = "In such case, you are free to map it."]
-    #[doc = "You can use #VMA_ALLOCATION_CREATE_MAPPED_BIT with this usage type."]
+    #[doc = "\\deprecated Obsolete, preserved for backward compatibility."]
+    #[doc = "Prefers `VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT`."]
     VMA_MEMORY_USAGE_GPU_ONLY = 1,
-    #[doc = " Memory will be mappable on host."]
-    #[doc = "It usually means CPU (system) memory."]
-    #[doc = "Guarantees to be `HOST_VISIBLE` and `HOST_COHERENT`."]
-    #[doc = "CPU access is typically uncached. Writes may be write-combined."]
-    #[doc = "Resources created in this pool may still be accessible to the device, but access to them can be slow."]
-    #[doc = "It is roughly equivalent of `D3D12_HEAP_TYPE_UPLOAD`."]
-    #[doc = ""]
-    #[doc = "Usage: Staging copy of resources used as transfer source."]
+    #[doc = "\\deprecated Obsolete, preserved for backward compatibility."]
+    #[doc = "Guarantees `VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT` and `VK_MEMORY_PROPERTY_HOST_COHERENT_BIT`."]
     VMA_MEMORY_USAGE_CPU_ONLY = 2,
-    #[doc = "Memory that is both mappable on host (guarantees to be `HOST_VISIBLE`) and preferably fast to access by GPU."]
-    #[doc = "CPU access is typically uncached. Writes may be write-combined."]
-    #[doc = ""]
-    #[doc = "Usage: Resources written frequently by host (dynamic), read by device. E.g. textures (with LINEAR layout), vertex buffers, uniform buffers updated every frame or every draw call."]
+    #[doc = "\\deprecated Obsolete, preserved for backward compatibility."]
+    #[doc = "Guarantees `VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT`, prefers `VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT`."]
     VMA_MEMORY_USAGE_CPU_TO_GPU = 3,
-    #[doc = " Memory mappable on host (guarantees to be `HOST_VISIBLE`) and cached."]
-    #[doc = "It is roughly equivalent of `D3D12_HEAP_TYPE_READBACK`."]
-    #[doc = ""]
-    #[doc = "Usage:"]
-    #[doc = ""]
-    #[doc = "- Resources written by device, read by host - results of some computations, e.g. screen capture, average scene luminance for HDR tone mapping."]
-    #[doc = "- Any resources read or accessed randomly on host, e.g. CPU-side copy of vertex buffer used as source of transfer, but also used for collision detection."]
+    #[doc = "\\deprecated Obsolete, preserved for backward compatibility."]
+    #[doc = "Guarantees `VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT`, prefers `VK_MEMORY_PROPERTY_HOST_CACHED_BIT`."]
     VMA_MEMORY_USAGE_GPU_TO_CPU = 4,
-    #[doc = " CPU memory - memory that is preferably not `DEVICE_LOCAL`, but also not guaranteed to be `HOST_VISIBLE`."]
-    #[doc = ""]
-    #[doc = "Usage: Staging copy of resources moved from GPU memory to CPU memory as part"]
-    #[doc = "of custom paging/residency mechanism, to be moved back to GPU memory when needed."]
+    #[doc = "\\deprecated Obsolete, preserved for backward compatibility."]
+    #[doc = "Prefers not `VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT`."]
     VMA_MEMORY_USAGE_CPU_COPY = 5,
-    #[doc = " Lazily allocated GPU memory having `VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT`."]
+    #[doc = "Lazily allocated GPU memory having `VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT`."]
     #[doc = "Exists mostly on mobile platforms. Using it on desktop PC or other GPUs with no such memory type present will fail the allocation."]
     #[doc = ""]
     #[doc = "Usage: Memory for transient attachment images (color attachments, depth attachments etc.), created with `VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT`."]
     #[doc = ""]
     #[doc = "Allocations with this usage are always created as dedicated - it implies #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT."]
     VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED = 6,
-    #[doc = " Lazily allocated GPU memory having `VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT`."]
-    #[doc = "Exists mostly on mobile platforms. Using it on desktop PC or other GPUs with no such memory type present will fail the allocation."]
+    #[doc = "Selects best memory type automatically."]
+    #[doc = "This flag is recommended for most common use cases."]
     #[doc = ""]
-    #[doc = "Usage: Memory for transient attachment images (color attachments, depth attachments etc.), created with `VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT`."]
+    #[doc = "When using this flag, if you want to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT),"]
+    #[doc = "you must pass one of the flags: #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT"]
+    #[doc = "in VmaAllocationCreateInfo::flags."]
     #[doc = ""]
-    #[doc = "Allocations with this usage are always created as dedicated - it implies #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT."]
+    #[doc = "It can be used only with functions that let the library know `VkBufferCreateInfo` or `VkImageCreateInfo`, e.g."]
+    #[doc = "vmaCreateBuffer(), vmaCreateImage(), vmaFindMemoryTypeIndexForBufferInfo(), vmaFindMemoryTypeIndexForImageInfo()"]
+    #[doc = "and not with generic memory allocation functions."]
+    VMA_MEMORY_USAGE_AUTO = 7,
+    #[doc = "Selects best memory type automatically with preference for GPU (device) memory."]
+    #[doc = ""]
+    #[doc = "When using this flag, if you want to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT),"]
+    #[doc = "you must pass one of the flags: #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT"]
+    #[doc = "in VmaAllocationCreateInfo::flags."]
+    #[doc = ""]
+    #[doc = "It can be used only with functions that let the library know `VkBufferCreateInfo` or `VkImageCreateInfo`, e.g."]
+    #[doc = "vmaCreateBuffer(), vmaCreateImage(), vmaFindMemoryTypeIndexForBufferInfo(), vmaFindMemoryTypeIndexForImageInfo()"]
+    #[doc = "and not with generic memory allocation functions."]
+    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE = 8,
+    #[doc = "Selects best memory type automatically with preference for CPU (host) memory."]
+    #[doc = ""]
+    #[doc = "When using this flag, if you want to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT),"]
+    #[doc = "you must pass one of the flags: #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT"]
+    #[doc = "in VmaAllocationCreateInfo::flags."]
+    #[doc = ""]
+    #[doc = "It can be used only with functions that let the library know `VkBufferCreateInfo` or `VkImageCreateInfo`, e.g."]
+    #[doc = "vmaCreateBuffer(), vmaCreateImage(), vmaFindMemoryTypeIndexForBufferInfo(), vmaFindMemoryTypeIndexForImageInfo()"]
+    #[doc = "and not with generic memory allocation functions."]
+    VMA_MEMORY_USAGE_AUTO_PREFER_HOST = 9,
+    #[doc = "Selects best memory type automatically with preference for CPU (host) memory."]
+    #[doc = ""]
+    #[doc = "When using this flag, if you want to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT),"]
+    #[doc = "you must pass one of the flags: #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT"]
+    #[doc = "in VmaAllocationCreateInfo::flags."]
+    #[doc = ""]
+    #[doc = "It can be used only with functions that let the library know `VkBufferCreateInfo` or `VkImageCreateInfo`, e.g."]
+    #[doc = "vmaCreateBuffer(), vmaCreateImage(), vmaFindMemoryTypeIndexForBufferInfo(), vmaFindMemoryTypeIndexForImageInfo()"]
+    #[doc = "and not with generic memory allocation functions."]
     VMA_MEMORY_USAGE_MAX_ENUM = 2147483647,
 }
 impl VmaAllocationCreateFlagBits {
@@ -211,8 +218,6 @@ pub enum VmaAllocationCreateFlagBits {
     #[doc = ""]
     #[doc = "You should not use #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT and"]
     #[doc = "#VMA_ALLOCATION_CREATE_NEVER_ALLOCATE_BIT at the same time. It makes no sense."]
-    #[doc = ""]
-    #[doc = "If VmaAllocationCreateInfo::pool is not null, this flag is implied and ignored."]
     VMA_ALLOCATION_CREATE_NEVER_ALLOCATE_BIT = 2,
     #[doc = " \\brief Set this flag to use a memory that will be persistently mapped and retrieve pointer to it."]
     #[doc = ""]
@@ -224,13 +229,11 @@ pub enum VmaAllocationCreateFlagBits {
     #[doc = "(`DEVICE_LOCAL`) and still want to map it directly if possible on platforms that"]
     #[doc = "support it (e.g. Intel GPU)."]
     VMA_ALLOCATION_CREATE_MAPPED_BIT = 4,
-    #[doc = " \\deprecated Removed. Do not use."]
-    VMA_ALLOCATION_CREATE_RESERVED_1_BIT = 8,
-    #[doc = " \\deprecated Removed. Do not use."]
-    VMA_ALLOCATION_CREATE_RESERVED_2_BIT = 16,
-    #[doc = " Set this flag to treat VmaAllocationCreateInfo::pUserData as pointer to a"]
+    #[doc = " \\deprecated Preserved for backward compatibility. Consider using vmaSetAllocationName() instead."]
+    #[doc = ""]
+    #[doc = "Set this flag to treat VmaAllocationCreateInfo::pUserData as pointer to a"]
     #[doc = "null-terminated string. Instead of copying pointer value, a local copy of the"]
-    #[doc = "string is made and stored in allocation's `pUserData`. The string is automatically"]
+    #[doc = "string is made and stored in allocation's `pName`. The string is automatically"]
     #[doc = "freed together with the allocation. It is also used in vmaBuildStatsString()."]
     VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT = 32,
     #[doc = " Allocation will be created from upper stack in a double stack pool."]
@@ -241,6 +244,10 @@ pub enum VmaAllocationCreateFlagBits {
     #[doc = "It is useful when you want to bind yourself to do some more advanced binding, e.g. using some extensions."]
     #[doc = "The flag is meaningful only with functions that bind by default: vmaCreateBuffer(), vmaCreateImage()."]
     #[doc = "Otherwise it is ignored."]
+    #[doc = ""]
+    #[doc = "If you want to make sure the new buffer/image is not tied to the new memory allocation"]
+    #[doc = "through `VkMemoryDedicatedAllocateInfoKHR` structure in case the allocation ends up in its own memory block,"]
+    #[doc = "use also flag #VMA_ALLOCATION_CREATE_CAN_ALIAS_BIT."]
     VMA_ALLOCATION_CREATE_DONT_BIND_BIT = 128,
     #[doc = " Create allocation only if additional device memory required for it, if any, won't exceed"]
     #[doc = "memory budget. Otherwise return `VK_ERROR_OUT_OF_DEVICE_MEMORY`."]
@@ -250,6 +257,40 @@ pub enum VmaAllocationCreateFlagBits {
     #[doc = "Usage of this flag prevents supplying `VkMemoryDedicatedAllocateInfoKHR` when #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT is specified."]
     #[doc = "Otherwise created dedicated memory will not be suitable for aliasing resources, resulting in Vulkan Validation Layer errors."]
     VMA_ALLOCATION_CREATE_CAN_ALIAS_BIT = 512,
+    #[doc = "Requests possibility to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT)."]
+    #[doc = ""]
+    #[doc = "- If you use #VMA_MEMORY_USAGE_AUTO or other `VMA_MEMORY_USAGE_AUTO*` value,"]
+    #[doc = "you must use this flag to be able to map the allocation. Otherwise, mapping is incorrect."]
+    #[doc = "- If you use other value of #VmaMemoryUsage, this flag is ignored and mapping is always possible in memory types that are `HOST_VISIBLE`."]
+    #[doc = "This includes allocations created in \\ref custom_memory_pools."]
+    #[doc = ""]
+    #[doc = "Declares that mapped memory will only be written sequentially, e.g. using `memcpy()` or a loop writing number-by-number,"]
+    #[doc = "never read or accessed randomly, so a memory type can be selected that is uncached and write-combined."]
+    #[doc = ""]
+    #[doc = "\\warning Violating this declaration may work correctly, but will likely be very slow."]
+    #[doc = "Watch out for implicit reads introduced by doing e.g. `pMappedData[i] += x;`"]
+    #[doc = "Better prepare your data in a local variable and `memcpy()` it to the mapped pointer all at once."]
+    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT = 1024,
+    #[doc = "Requests possibility to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT)."]
+    #[doc = ""]
+    #[doc = "- If you use #VMA_MEMORY_USAGE_AUTO or other `VMA_MEMORY_USAGE_AUTO*` value,"]
+    #[doc = "you must use this flag to be able to map the allocation. Otherwise, mapping is incorrect."]
+    #[doc = "- If you use other value of #VmaMemoryUsage, this flag is ignored and mapping is always possible in memory types that are `HOST_VISIBLE`."]
+    #[doc = "This includes allocations created in \\ref custom_memory_pools."]
+    #[doc = ""]
+    #[doc = "Declares that mapped memory can be read, written, and accessed in random order,"]
+    #[doc = "so a `HOST_CACHED` memory type is required."]
+    VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT = 2048,
+    #[doc = "Together with #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,"]
+    #[doc = "it says that despite request for host access, a not-`HOST_VISIBLE` memory type can be selected"]
+    #[doc = "if it may improve performance."]
+    #[doc = ""]
+    #[doc = "By using this flag, you declare that you will check if the allocation ended up in a `HOST_VISIBLE` memory type"]
+    #[doc = "(e.g. using vmaGetAllocationMemoryProperties()) and if not, you will create some \"staging\" buffer and"]
+    #[doc = "issue an explicit transfer to write/read your data."]
+    #[doc = "To prepare for this possibility, don't forget to add appropriate flags like"]
+    #[doc = "`VK_BUFFER_USAGE_TRANSFER_DST_BIT`, `VK_BUFFER_USAGE_TRANSFER_SRC_BIT` to the parameters of created buffer or image."]
+    VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT = 4096,
     #[doc = " Allocation strategy that chooses smallest possible free range for the allocation"]
     #[doc = "to minimize memory usage and fragmentation, possibly at the expense of allocation time."]
     VMA_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT = 65536,
@@ -257,12 +298,21 @@ pub enum VmaAllocationCreateFlagBits {
     #[doc = "not necessarily in terms of the smallest offset but the one that is easiest and fastest to find"]
     #[doc = "to minimize allocation time, possibly at the expense of allocation quality."]
     VMA_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT = 131072,
+    #[doc = " Allocation strategy that chooses always the lowest offset in available space."]
+    #[doc = "This is not the most efficient strategy but achieves highly packed data."]
+    #[doc = "Used internally by defragmentation, not recomended in typical usage."]
+    VMA_ALLOCATION_CREATE_STRATEGY_MIN_OFFSET_BIT = 262144,
     #[doc = " A bit mask to extract only `STRATEGY` bits from entire set of flags."]
-    VMA_ALLOCATION_CREATE_STRATEGY_MASK = 196608,
+    VMA_ALLOCATION_CREATE_STRATEGY_MASK = 458752,
     #[doc = " A bit mask to extract only `STRATEGY` bits from entire set of flags."]
     VMA_ALLOCATION_CREATE_FLAG_BITS_MAX_ENUM = 2147483647,
 }
+#[doc = " See #VmaAllocationCreateFlagBits."]
 pub type VmaAllocationCreateFlags = Flags;
+impl VmaPoolCreateFlagBits {
+    pub const VMA_POOL_CREATE_ALGORITHM_MASK: VmaPoolCreateFlagBits =
+        VmaPoolCreateFlagBits::VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT;
+}
 #[repr(i32)]
 #[doc = " Flags to be passed as VmaPoolCreateInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -295,39 +345,45 @@ pub enum VmaPoolCreateFlagBits {
     #[doc = "ring buffer, and double stack."]
     #[doc = "For details, see documentation chapter \\ref linear_algorithm."]
     VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT = 4,
-    #[doc = " \\brief Enables alternative, buddy allocation algorithm in this pool."]
-    #[doc = ""]
-    #[doc = "It operates on a tree of blocks, each having size that is a power of two and"]
-    #[doc = "a half of its parent's size. Comparing to default algorithm, this one provides"]
-    #[doc = "faster allocation and deallocation and decreased external fragmentation,"]
-    #[doc = "at the expense of more memory wasted (internal fragmentation)."]
-    #[doc = "For details, see documentation chapter \\ref buddy_algorithm."]
-    VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT = 8,
-    #[doc = " \\brief Enables alternative, Two-Level Segregated Fit (TLSF) allocation algorithm in this pool."]
-    #[doc = ""]
-    #[doc = "This algorithm is based on 2-level lists dividing address space into smaller"]
-    #[doc = "chunks. The first level is aligned to power of two which serves as buckets for requested"]
-    #[doc = "memory to fall into, and the second level is lineary subdivided into lists of free memory."]
-    #[doc = "This algorithm aims to achieve bounded response time even in the worst case scenario."]
-    #[doc = "Allocation time can be sometimes slightly longer than compared to other algorithms"]
-    #[doc = "but in return the application can avoid stalls in case of fragmentation, giving"]
-    #[doc = "predictable results, suitable for real-time use cases."]
-    VMA_POOL_CREATE_TLSF_ALGORITHM_BIT = 16,
-    #[doc = " Bit mask to extract only `ALGORITHM` bits from entire set of flags."]
-    VMA_POOL_CREATE_ALGORITHM_MASK = 28,
     #[doc = " Bit mask to extract only `ALGORITHM` bits from entire set of flags."]
     VMA_POOL_CREATE_FLAG_BITS_MAX_ENUM = 2147483647,
 }
 #[doc = " Flags to be passed as VmaPoolCreateInfo::flags. See #VmaPoolCreateFlagBits."]
 pub type VmaPoolCreateFlags = Flags;
 #[repr(i32)]
-#[doc = " Flags to be used in vmaDefragmentationBegin(). None at the moment. Reserved for future use."]
+#[doc = " Flags to be passed as VmaDefragmentationInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaDefragmentationFlagBits {
-    VMA_DEFRAGMENTATION_FLAG_INCREMENTAL = 1,
+    VMA_DEFRAGMENTATION_FLAG_ALGORITHM_FAST_BIT = 1,
+    VMA_DEFRAGMENTATION_FLAG_ALGORITHM_BALANCED_BIT = 2,
+    VMA_DEFRAGMENTATION_FLAG_ALGORITHM_FULL_BIT = 4,
+    #[doc = " \\brief Use the most roboust algorithm at the cost of time to compute and number of copies to make."]
+    #[doc = "Only available when bufferImageGranularity is greater than 1, since it aims to reduce"]
+    #[doc = "alignment issues between different types of resources."]
+    #[doc = "Otherwise falls back to same behavior as #VMA_DEFRAGMENTATION_FLAG_ALGORITHM_FULL_BIT."]
+    VMA_DEFRAGMENTATION_FLAG_ALGORITHM_EXTENSIVE_BIT = 8,
+    #[doc = " A bit mask to extract only `ALGORITHM` bits from entire set of flags."]
+    VMA_DEFRAGMENTATION_FLAG_ALGORITHM_MASK = 15,
+    #[doc = " A bit mask to extract only `ALGORITHM` bits from entire set of flags."]
     VMA_DEFRAGMENTATION_FLAG_BITS_MAX_ENUM = 2147483647,
 }
+#[doc = " See #VmaDefragmentationFlagBits."]
 pub type VmaDefragmentationFlags = Flags;
+#[repr(i32)]
+#[doc = " Operation performed on single defragmentation move. See structure #VmaDefragmentationMove."]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum VmaDefragmentationMoveOperation {
+    #[doc = " Buffer/image has been recreated at `dstTmpAllocation`, data has been copied, old buffer/image has been destroyed. `srcAllocation` should be changed to point to the new place. This is the default value set by vmaBeginDefragmentationPass()."]
+    VMA_DEFRAGMENTATION_MOVE_OPERATION_COPY = 0,
+    #[doc = " Set this value if you cannot move the allocation. New place reserved at `dstTmpAllocation` will be freed. `srcAllocation` will remain unchanged."]
+    VMA_DEFRAGMENTATION_MOVE_OPERATION_IGNORE = 1,
+    #[doc = " Set this value if you decide to abandon the allocation and you destroyed the buffer/image. New place reserved at `dstTmpAllocation` will be freed, along with `srcAllocation`, which will be destroyed."]
+    VMA_DEFRAGMENTATION_MOVE_OPERATION_DESTROY = 2,
+}
+impl VmaVirtualBlockCreateFlagBits {
+    pub const VMA_VIRTUAL_BLOCK_CREATE_ALGORITHM_MASK: VmaVirtualBlockCreateFlagBits =
+        VmaVirtualBlockCreateFlagBits::VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT;
+}
 #[repr(i32)]
 #[doc = " Flags to be passed as VmaVirtualBlockCreateInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -343,26 +399,6 @@ pub enum VmaVirtualBlockCreateFlagBits {
     #[doc = "ring buffer, and double stack."]
     #[doc = "For details, see documentation chapter \\ref linear_algorithm."]
     VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT = 1,
-    #[doc = " \\brief Enables alternative, buddy allocation algorithm in this virtual block."]
-    #[doc = ""]
-    #[doc = "It operates on a tree of blocks, each having size that is a power of two and"]
-    #[doc = "a half of its parent's size. Comparing to default algorithm, this one provides"]
-    #[doc = "faster allocation and deallocation and decreased external fragmentation,"]
-    #[doc = "at the expense of more memory wasted (internal fragmentation)."]
-    #[doc = "For details, see documentation chapter \\ref buddy_algorithm."]
-    VMA_VIRTUAL_BLOCK_CREATE_BUDDY_ALGORITHM_BIT = 2,
-    #[doc = " \\brief Enables alternative, TLSF allocation algorithm in virtual block."]
-    #[doc = ""]
-    #[doc = "This algorithm is based on 2-level lists dividing address space into smaller"]
-    #[doc = "chunks. The first level is aligned to power of two which serves as buckets for requested"]
-    #[doc = "memory to fall into, and the second level is lineary subdivided into lists of free memory."]
-    #[doc = "This algorithm aims to achieve bounded response time even in the worst case scenario."]
-    #[doc = "Allocation time can be sometimes slightly longer than compared to other algorithms"]
-    #[doc = "but in return the application can avoid stalls in case of fragmentation, giving"]
-    #[doc = "predictable results, suitable for real-time use cases."]
-    VMA_VIRTUAL_BLOCK_CREATE_TLSF_ALGORITHM_BIT = 4,
-    #[doc = " \\brief Bit mask to extract only `ALGORITHM` bits from entire set of flags."]
-    VMA_VIRTUAL_BLOCK_CREATE_ALGORITHM_MASK = 7,
     #[doc = " \\brief Bit mask to extract only `ALGORITHM` bits from entire set of flags."]
     VMA_VIRTUAL_BLOCK_CREATE_FLAG_BITS_MAX_ENUM = 2147483647,
 }
@@ -380,10 +416,13 @@ pub enum VmaVirtualAllocationCreateFlagBits {
     VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT = 65536,
     #[doc = " \\brief Allocation strategy that tries to minimize allocation time."]
     VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT = 131072,
+    #[doc = " Allocation strategy that chooses always the lowest offset in available space."]
+    #[doc = "This is not the most efficient strategy but achieves highly packed data."]
+    VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MIN_OFFSET_BIT = 262144,
     #[doc = " \\brief A bit mask to extract only `STRATEGY` bits from entire set of flags."]
     #[doc = ""]
     #[doc = "These strategy flags are binary compatible with equivalent flags in #VmaAllocationCreateFlagBits."]
-    VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MASK = 196608,
+    VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MASK = 458752,
     #[doc = " \\brief A bit mask to extract only `STRATEGY` bits from entire set of flags."]
     #[doc = ""]
     #[doc = "These strategy flags are binary compatible with equivalent flags in #VmaAllocationCreateFlagBits."]
@@ -498,6 +537,10 @@ pub struct VmaVulkanFunctions {
     #[doc = " Fetch \"vkBindImageMemory2\" on Vulkan >= 1.1, fetch \"vkBindImageMemory2KHR\" when using VK_KHR_bind_memory2 extension."]
     pub vkBindImageMemory2KHR: PFN_vkBindImageMemory2,
     pub vkGetPhysicalDeviceMemoryProperties2KHR: PFN_vkGetPhysicalDeviceMemoryProperties2,
+    #[doc = " Fetch from \"vkGetDeviceBufferMemoryRequirements\" on Vulkan >= 1.3, but you can also fetch it from \"vkGetDeviceBufferMemoryRequirementsKHR\" if you enabled extension VK_KHR_maintenance4."]
+    pub vkGetDeviceBufferMemoryRequirements: PFN_vkGetDeviceBufferMemoryRequirements,
+    #[doc = " Fetch from \"vkGetDeviceImageMemoryRequirements\" on Vulkan >= 1.3, but you can also fetch it from \"vkGetDeviceImageMemoryRequirementsKHR\" if you enabled extension VK_KHR_maintenance4."]
+    pub vkGetDeviceImageMemoryRequirements: PFN_vkGetDeviceImageMemoryRequirements,
 }
 #[doc = " Description of a Allocator to be created."]
 #[repr(C)]
@@ -585,64 +628,99 @@ pub struct VmaAllocatorInfo {
     #[doc = "This is the same value as has been passed through VmaAllocatorCreateInfo::device."]
     pub device: Device,
 }
-#[doc = " Calculated statistics of memory usage in entire allocator."]
+#[doc = " \\brief Calculated statistics of memory usage e.g. in a specific memory type, heap, custom pool, or total."]
+#[doc = ""]
+#[doc = "These are fast to calculate."]
+#[doc = "See functions: vmaGetHeapBudgets(), vmaGetPoolStatistics()."]
 #[repr(C)]
-pub struct VmaStatInfo {
-    #[doc = " Number of `VkDeviceMemory` Vulkan memory blocks allocated."]
+pub struct VmaStatistics {
+    #[doc = " \\brief Number of `VkDeviceMemory` objects - Vulkan memory blocks allocated."]
     pub blockCount: u32,
-    #[doc = " Number of #VmaAllocation allocation objects allocated."]
+    #[doc = " \\brief Number of #VmaAllocation objects allocated."]
+    #[doc = ""]
+    #[doc = "Dedicated allocations have their own blocks, so each one adds 1 to `allocationCount` as well as `blockCount`."]
     pub allocationCount: u32,
+    #[doc = " \\brief Number of bytes allocated in `VkDeviceMemory` blocks."]
+    #[doc = ""]
+    #[doc = "\\note To avoid confusion, please be aware that what Vulkan calls an \"allocation\" - a whole `VkDeviceMemory` object"]
+    #[doc = "(e.g. as in `VkPhysicalDeviceLimits::maxMemoryAllocationCount`) is called a \"block\" in VMA, while VMA calls"]
+    #[doc = "\"allocation\" a #VmaAllocation object that represents a memory region sub-allocated from such block, usually for a single buffer or image."]
+    pub blockBytes: DeviceSize,
+    #[doc = " \\brief Total number of bytes occupied by all #VmaAllocation objects."]
+    #[doc = ""]
+    #[doc = "Always less or equal than `blockBytes`."]
+    #[doc = "Difference `(blockBytes - allocationBytes)` is the amount of memory allocated from Vulkan"]
+    #[doc = "but unused by any #VmaAllocation."]
+    pub allocationBytes: DeviceSize,
+}
+#[doc = " \\brief More detailed statistics than #VmaStatistics."]
+#[doc = ""]
+#[doc = "These are slower to calculate. Use for debugging purposes."]
+#[doc = "See functions: vmaCalculateStatistics(), vmaCalculatePoolStatistics()."]
+#[doc = ""]
+#[doc = "Previous version of the statistics API provided averages, but they have been removed"]
+#[doc = "because they can be easily calculated as:"]
+#[doc = ""]
+#[doc = "\\code"]
+#[doc = "VkDeviceSize allocationSizeAvg = detailedStats.statistics.allocationBytes / detailedStats.statistics.allocationCount;"]
+#[doc = "VkDeviceSize unusedBytes = detailedStats.statistics.blockBytes - detailedStats.statistics.allocationBytes;"]
+#[doc = "VkDeviceSize unusedRangeSizeAvg = unusedBytes / detailedStats.unusedRangeCount;"]
+#[doc = "\\endcode"]
+#[repr(C)]
+pub struct VmaDetailedStatistics {
+    #[doc = " Basic statistics."]
+    pub statistics: VmaStatistics,
     #[doc = " Number of free ranges of memory between allocations."]
     pub unusedRangeCount: u32,
-    #[doc = " Total number of bytes occupied by all allocations."]
-    pub usedBytes: DeviceSize,
-    #[doc = " Total number of bytes occupied by unused ranges."]
-    pub unusedBytes: DeviceSize,
+    #[doc = " Smallest allocation size. `VK_WHOLE_SIZE` if there are 0 allocations."]
     pub allocationSizeMin: DeviceSize,
-    pub allocationSizeAvg: DeviceSize,
+    #[doc = " Largest allocation size. 0 if there are 0 allocations."]
     pub allocationSizeMax: DeviceSize,
+    #[doc = " Smallest empty range size. `VK_WHOLE_SIZE` if there are 0 empty ranges."]
     pub unusedRangeSizeMin: DeviceSize,
-    pub unusedRangeSizeAvg: DeviceSize,
+    #[doc = " Largest empty range size. 0 if there are 0 empty ranges."]
     pub unusedRangeSizeMax: DeviceSize,
 }
-#[doc = " General statistics from current state of Allocator."]
+#[doc = " \\brief  General statistics from current state of the Allocator -"]
+#[doc = "total memory usage across all memory heaps and types."]
+#[doc = ""]
+#[doc = "These are slower to calculate. Use for debugging purposes."]
+#[doc = "See function vmaCalculateStatistics()."]
 #[repr(C)]
-pub struct VmaStats {
-    pub memoryType: [VmaStatInfo; 32usize],
-    pub memoryHeap: [VmaStatInfo; 16usize],
-    pub total: VmaStatInfo,
+pub struct VmaTotalStatistics {
+    pub memoryType: [VmaDetailedStatistics; 32usize],
+    pub memoryHeap: [VmaDetailedStatistics; 16usize],
+    pub total: VmaDetailedStatistics,
 }
-#[doc = " Statistics of current memory usage and available budget, in bytes, for specific memory heap."]
+#[doc = " \\brief Statistics of current memory usage and available budget for a specific memory heap."]
+#[doc = ""]
+#[doc = "These are fast to calculate."]
+#[doc = "See function vmaGetHeapBudgets()."]
 #[repr(C)]
 pub struct VmaBudget {
-    #[doc = " \\brief Sum size of all `VkDeviceMemory` blocks allocated from particular heap, in bytes."]
-    pub blockBytes: DeviceSize,
-    #[doc = " \\brief Sum size of all allocations created in particular heap, in bytes."]
-    #[doc = ""]
-    #[doc = "Usually less or equal than `blockBytes`."]
-    #[doc = "Difference `blockBytes - allocationBytes` is the amount of memory allocated but unused -"]
-    #[doc = "available for new allocations or wasted due to fragmentation."]
-    pub allocationBytes: DeviceSize,
+    #[doc = " \\brief Statistics fetched from the library."]
+    pub statistics: VmaStatistics,
     #[doc = " \\brief Estimated current memory usage of the program, in bytes."]
     #[doc = ""]
-    #[doc = "Fetched from system using `VK_EXT_memory_budget` extension if enabled."]
+    #[doc = "Fetched from system using VK_EXT_memory_budget extension if enabled."]
     #[doc = ""]
-    #[doc = "It might be different than `blockBytes` (usually higher) due to additional implicit objects"]
+    #[doc = "It might be different than `statistics.blockBytes` (usually higher) due to additional implicit objects"]
     #[doc = "also occupying the memory, like swapchain, pipelines, descriptor heaps, command buffers, or"]
     #[doc = "`VkDeviceMemory` blocks allocated outside of this library, if any."]
     pub usage: DeviceSize,
     #[doc = " \\brief Estimated amount of memory available to the program, in bytes."]
     #[doc = ""]
-    #[doc = "Fetched from system using `VK_EXT_memory_budget` extension if enabled."]
+    #[doc = "Fetched from system using VK_EXT_memory_budget extension if enabled."]
     #[doc = ""]
     #[doc = "It might be different (most probably smaller) than `VkMemoryHeap::size[heapIndex]` due to factors"]
-    #[doc = "external to the program, like other programs also consuming system resources."]
+    #[doc = "external to the program, decided by the operating system."]
     #[doc = "Difference `budget - usage` is the amount of additional memory that can probably"]
     #[doc = "be allocated without problems. Exceeding the budget may result in various problems."]
     pub budget: DeviceSize,
 }
-#[doc = "\\addtogroup group_alloc"]
-#[doc = "@{"]
+#[doc = " \\brief Parameters of new #VmaAllocation."]
+#[doc = ""]
+#[doc = "To be used with functions like vmaCreateBuffer(), vmaCreateImage(), and many others."]
 #[repr(C)]
 pub struct VmaAllocationCreateInfo {
     #[doc = " Use #VmaAllocationCreateFlagBits enum."]
@@ -735,20 +813,6 @@ pub struct VmaPoolCreateInfo {
     #[doc = "can be attached automatically by this library when using other, more convenient of its features."]
     pub pMemoryAllocateNext: *mut ::std::os::raw::c_void,
 }
-#[doc = " Describes parameter of existing #VmaPool."]
-#[repr(C)]
-pub struct VmaPoolStats {
-    #[doc = " \\brief Total amount of `VkDeviceMemory` allocated from Vulkan for this pool, in bytes."]
-    pub size: DeviceSize,
-    #[doc = " \\brief Total number of bytes in the pool not used by any #VmaAllocation."]
-    pub unusedSize: DeviceSize,
-    #[doc = " \\brief Number of #VmaAllocation objects created from this pool that were not destroyed."]
-    pub allocationCount: usize,
-    #[doc = " \\brief Number of continuous memory ranges in the pool not used by any #VmaAllocation."]
-    pub unusedRangeCount: usize,
-    #[doc = " \\brief Number of `VkDeviceMemory` blocks allocated for this pool."]
-    pub blockCount: usize,
-}
 #[doc = " Parameters of #VmaAllocation objects, that can be retrieved using function vmaGetAllocationInfo()."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -761,7 +825,7 @@ pub struct VmaAllocationInfo {
     #[doc = ""]
     #[doc = "Same memory object can be shared by multiple allocations."]
     #[doc = ""]
-    #[doc = "It can change after call to vmaDefragment() if this allocation is passed to the function."]
+    #[doc = "It can change after the allocation is moved during \\ref defragmentation."]
     pub deviceMemory: DeviceMemory,
     #[doc = " \\brief Offset in `VkDeviceMemory` object to the beginning of this allocation, in bytes. `(deviceMemory, offset)` pair is unique to this allocation."]
     #[doc = ""]
@@ -770,7 +834,7 @@ pub struct VmaAllocationInfo {
     #[doc = "not entire device memory block. Functions like vmaMapMemory(), vmaBindBufferMemory() also refer to the beginning of the allocation"]
     #[doc = "and apply this offset automatically."]
     #[doc = ""]
-    #[doc = "It can change after call to vmaDefragment() if this allocation is passed to the function."]
+    #[doc = "It can change after the allocation is moved during \\ref defragmentation."]
     pub offset: DeviceSize,
     #[doc = " \\brief Size of this allocation, in bytes."]
     #[doc = ""]
@@ -788,106 +852,88 @@ pub struct VmaAllocationInfo {
     #[doc = "created with #VMA_ALLOCATION_CREATE_MAPPED_BIT flag, this value is null."]
     #[doc = ""]
     #[doc = "It can change after call to vmaMapMemory(), vmaUnmapMemory()."]
-    #[doc = "It can also change after call to vmaDefragment() if this allocation is passed to the function."]
+    #[doc = "It can also change after the allocation is moved during \\ref defragmentation."]
     pub pMappedData: *mut ::std::os::raw::c_void,
     #[doc = " \\brief Custom general-purpose pointer that was passed as VmaAllocationCreateInfo::pUserData or set using vmaSetAllocationUserData()."]
     #[doc = ""]
     #[doc = "It can change after call to vmaSetAllocationUserData() for this allocation."]
     pub pUserData: *mut ::std::os::raw::c_void,
+    #[doc = " \\brief Custom allocation name that was set with vmaSetAllocationName()."]
+    #[doc = ""]
+    #[doc = "It can change after call to vmaSetAllocationName() for this allocation."]
+    #[doc = ""]
+    #[doc = "Another way to set custom name is to pass it in VmaAllocationCreateInfo::pUserData with"]
+    #[doc = "additional flag #VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT set [DEPRECATED]."]
+    pub pName: *const ::std::os::raw::c_char,
 }
 #[doc = " \\brief Parameters for defragmentation."]
 #[doc = ""]
-#[doc = "To be used with function vmaDefragmentationBegin()."]
+#[doc = "To be used with function vmaBeginDefragmentation()."]
 #[repr(C)]
-pub struct VmaDefragmentationInfo2 {
-    #[doc = " \\brief Reserved for future use. Should be 0."]
+pub struct VmaDefragmentationInfo {
+    #[doc = " \\brief Use combination of #VmaDefragmentationFlagBits."]
     pub flags: VmaDefragmentationFlags,
-    #[doc = " \\brief Number of allocations in `pAllocations` array."]
-    pub allocationCount: u32,
-    #[doc = " \\brief Pointer to array of allocations that can be defragmented."]
+    #[doc = " \\brief Custom pool to be defragmented."]
     #[doc = ""]
-    #[doc = "The array should have `allocationCount` elements."]
-    #[doc = "The array should not contain nulls."]
-    #[doc = "Elements in the array should be unique - same allocation cannot occur twice."]
-    #[doc = "All allocations not present in this array are considered non-moveable during this defragmentation."]
-    pub pAllocations: *mut VmaAllocation,
-    #[doc = " \\brief Optional, output. Pointer to array that will be filled with information whether the allocation at certain index has been changed during defragmentation."]
+    #[doc = "If null then default pools will undergo defragmentation process."]
+    pub pool: VmaPool,
+    #[doc = " \\brief Maximum numbers of bytes that can be copied during single pass, while moving allocations to different places."]
     #[doc = ""]
-    #[doc = "The array should have `allocationCount` elements."]
-    #[doc = "You can pass null if you are not interested in this information."]
-    pub pAllocationsChanged: *mut Bool32,
-    #[doc = " \\brief Numer of pools in `pPools` array."]
-    pub poolCount: u32,
-    #[doc = " \\brief Either null or pointer to array of pools to be defragmented."]
+    #[doc = "`0` means no limit."]
+    pub maxBytesPerPass: DeviceSize,
+    #[doc = " \\brief Maximum number of allocations that can be moved during single pass to a different place."]
     #[doc = ""]
-    #[doc = "All the allocations in the specified pools can be moved during defragmentation"]
-    #[doc = "and there is no way to check if they were really moved as in `pAllocationsChanged`,"]
-    #[doc = "so you must query all the allocations in all these pools for new `VkDeviceMemory`"]
-    #[doc = "and offset using vmaGetAllocationInfo() if you might need to recreate buffers"]
-    #[doc = "and images bound to them."]
-    #[doc = ""]
-    #[doc = "The array should have `poolCount` elements."]
-    #[doc = "The array should not contain nulls."]
-    #[doc = "Elements in the array should be unique - same pool cannot occur twice."]
-    #[doc = ""]
-    #[doc = "Using this array is equivalent to specifying all allocations from the pools in `pAllocations`."]
-    #[doc = "It might be more efficient."]
-    pub pPools: *mut VmaPool,
-    #[doc = " \\brief Maximum total numbers of bytes that can be copied while moving allocations to different places using transfers on CPU side, like `memcpy()`, `memmove()`."]
-    #[doc = ""]
-    #[doc = "`VK_WHOLE_SIZE` means no limit."]
-    pub maxCpuBytesToMove: DeviceSize,
-    #[doc = " \\brief Maximum number of allocations that can be moved to a different place using transfers on CPU side, like `memcpy()`, `memmove()`."]
-    #[doc = ""]
-    #[doc = "`UINT32_MAX` means no limit."]
-    pub maxCpuAllocationsToMove: u32,
-    #[doc = " \\brief Maximum total numbers of bytes that can be copied while moving allocations to different places using transfers on GPU side, posted to `commandBuffer`."]
-    #[doc = ""]
-    #[doc = "`VK_WHOLE_SIZE` means no limit."]
-    pub maxGpuBytesToMove: DeviceSize,
-    #[doc = " \\brief Maximum number of allocations that can be moved to a different place using transfers on GPU side, posted to `commandBuffer`."]
-    #[doc = ""]
-    #[doc = "`UINT32_MAX` means no limit."]
-    pub maxGpuAllocationsToMove: u32,
-    #[doc = " \\brief Optional. Command buffer where GPU copy commands will be posted."]
-    #[doc = ""]
-    #[doc = "If not null, it must be a valid command buffer handle that supports Transfer queue type."]
-    #[doc = "It must be in the recording state and outside of a render pass instance."]
-    #[doc = "You need to submit it and make sure it finished execution before calling vmaDefragmentationEnd()."]
-    #[doc = ""]
-    #[doc = "Passing null means that only CPU defragmentation will be performed."]
-    pub commandBuffer: CommandBuffer,
+    #[doc = "`0` means no limit."]
+    pub maxAllocationsPerPass: u32,
 }
+#[doc = " Single move of an allocation to be done for defragmentation."]
 #[repr(C)]
-pub struct VmaDefragmentationPassMoveInfo {
-    pub allocation: VmaAllocation,
-    pub memory: DeviceMemory,
-    pub offset: DeviceSize,
+#[derive(Debug, Copy, Clone)]
+pub struct VmaDefragmentationMove {
+    #[doc = " Operation to be performed on the allocation by vmaEndDefragmentationPass(). Default value is #VMA_DEFRAGMENTATION_MOVE_OPERATION_COPY. You can modify it."]
+    pub operation: VmaDefragmentationMoveOperation,
+    #[doc = " Allocation that should be moved."]
+    pub srcAllocation: VmaAllocation,
+    #[doc = " \\brief Temporary allocation pointing to destination memory that will replace `srcAllocation`."]
+    #[doc = ""]
+    #[doc = "\\warning Do not store this allocation in your data structures! It exists only temporarily, for the duration of the defragmentation pass,"]
+    #[doc = "to be used for binding new buffer/image to the destination memory using e.g. vmaBindBufferMemory()."]
+    #[doc = "vmaEndDefragmentationPass() will destroy it and make `srcAllocation` point to this memory."]
+    pub dstTmpAllocation: VmaAllocation,
 }
 #[doc = " \\brief Parameters for incremental defragmentation steps."]
 #[doc = ""]
 #[doc = "To be used with function vmaBeginDefragmentationPass()."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct VmaDefragmentationPassInfo {
+pub struct VmaDefragmentationPassMoveInfo {
+    #[doc = " Number of elements in the `pMoves` array."]
     pub moveCount: u32,
-    pub pMoves: *mut VmaDefragmentationPassMoveInfo,
-}
-#[doc = " \\brief Deprecated. Optional configuration parameters to be passed to function vmaDefragment()."]
-#[doc = ""]
-#[doc = "\\deprecated This is a part of the old interface. It is recommended to use structure #VmaDefragmentationInfo2 and function vmaDefragmentationBegin() instead."]
-#[repr(C)]
-pub struct VmaDefragmentationInfo {
-    #[doc = " \\brief Maximum total numbers of bytes that can be copied while moving allocations to different places."]
+    #[doc = " \\brief Array of moves to be performed by the user in the current defragmentation pass."]
     #[doc = ""]
-    #[doc = "Default is `VK_WHOLE_SIZE`, which means no limit."]
-    pub maxBytesToMove: DeviceSize,
-    #[doc = " \\brief Maximum number of allocations that can be moved to different place."]
+    #[doc = "Pointer to an array of `moveCount` elements, owned by VMA, created in vmaBeginDefragmentationPass(), destroyed in vmaEndDefragmentationPass()."]
     #[doc = ""]
-    #[doc = "Default is `UINT32_MAX`, which means no limit."]
-    pub maxAllocationsToMove: u32,
+    #[doc = "For each element, you should:"]
+    #[doc = ""]
+    #[doc = "1. Create a new buffer/image in the place pointed by VmaDefragmentationMove::dstMemory + VmaDefragmentationMove::dstOffset."]
+    #[doc = "2. Copy data from the VmaDefragmentationMove::srcAllocation e.g. using `vkCmdCopyBuffer`, `vkCmdCopyImage`."]
+    #[doc = "3. Make sure these commands finished executing on the GPU."]
+    #[doc = "4. Destroy the old buffer/image."]
+    #[doc = ""]
+    #[doc = "Only then you can finish defragmentation pass by calling vmaEndDefragmentationPass()."]
+    #[doc = "After this call, the allocation will point to the new place in memory."]
+    #[doc = ""]
+    #[doc = "Alternatively, if you cannot move specific allocation, you can set VmaDefragmentationMove::operation to #VMA_DEFRAGMENTATION_MOVE_OPERATION_IGNORE."]
+    #[doc = ""]
+    #[doc = "Alternatively, if you decide you want to completely remove the allocation:"]
+    #[doc = ""]
+    #[doc = "1. Destroy its buffer/image."]
+    #[doc = "2. Set VmaDefragmentationMove::operation to #VMA_DEFRAGMENTATION_MOVE_OPERATION_DESTROY."]
+    #[doc = ""]
+    #[doc = "Then, after vmaEndDefragmentationPass() the allocation will be freed."]
+    pub pMoves: *mut VmaDefragmentationMove,
 }
-#[doc = " Statistics returned by function vmaDefragment()."]
+#[doc = " Statistics returned for defragmentation process in function vmaEndDefragmentation()."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct VmaDefragmentationStats {
@@ -1002,21 +1048,22 @@ extern "C" {
     #[doc = " \\brief Retrieves statistics from current state of the Allocator."]
     #[doc = ""]
     #[doc = "This function is called \"calculate\" not \"get\" because it has to traverse all"]
-    #[doc = "internal data structures, so it may be quite slow. For faster but more brief statistics"]
-    #[doc = "suitable to be called every frame or every allocation, use vmaGetHeapBudgets()."]
+    #[doc = "internal data structures, so it may be quite slow. Use it for debugging purposes."]
+    #[doc = "For faster but more brief statistics suitable to be called every frame or every allocation,"]
+    #[doc = "use vmaGetHeapBudgets()."]
     #[doc = ""]
     #[doc = "Note that when using allocator from multiple threads, returned information may immediately"]
     #[doc = "become outdated."]
-    pub fn vmaCalculateStats(allocator: VmaAllocator, pStats: *mut VmaStats);
+    pub fn vmaCalculateStatistics(allocator: VmaAllocator, pStats: *mut VmaTotalStatistics);
 }
 extern "C" {
-    #[doc = " \\brief Retrieves information about current memory budget for all memory heaps."]
+    #[doc = " \\brief Retrieves information about current memory usage and budget for all memory heaps."]
     #[doc = ""]
     #[doc = "\\param allocator"]
     #[doc = "\\param[out] pBudgets Must point to array with number of elements at least equal to number of memory heaps in physical device used."]
     #[doc = ""]
     #[doc = "This function is called \"get\" not \"calculate\" because it is very fast, suitable to be called"]
-    #[doc = "every frame or every allocation. For more detailed statistics use vmaCalculateStats()."]
+    #[doc = "every frame or every allocation. For more detailed statistics use vmaCalculateStatistics()."]
     #[doc = ""]
     #[doc = "Note that when using allocator from multiple threads, returned information may immediately"]
     #[doc = "become outdated."]
@@ -1049,12 +1096,6 @@ extern "C" {
     #[doc = ""]
     #[doc = "It can be useful e.g. to determine value to be used as VmaPoolCreateInfo::memoryTypeIndex."]
     #[doc = "It internally creates a temporary, dummy buffer that never has memory bound."]
-    #[doc = "It is just a convenience function, equivalent to calling:"]
-    #[doc = ""]
-    #[doc = "- `vkCreateBuffer`"]
-    #[doc = "- `vkGetBufferMemoryRequirements`"]
-    #[doc = "- `vmaFindMemoryTypeIndex`"]
-    #[doc = "- `vkDestroyBuffer`"]
     pub fn vmaFindMemoryTypeIndexForBufferInfo(
         allocator: VmaAllocator,
         pBufferCreateInfo: *const BufferCreateInfo,
@@ -1067,12 +1108,6 @@ extern "C" {
     #[doc = ""]
     #[doc = "It can be useful e.g. to determine value to be used as VmaPoolCreateInfo::memoryTypeIndex."]
     #[doc = "It internally creates a temporary, dummy image that never has memory bound."]
-    #[doc = "It is just a convenience function, equivalent to calling:"]
-    #[doc = ""]
-    #[doc = "- `vkCreateImage`"]
-    #[doc = "- `vkGetImageMemoryRequirements`"]
-    #[doc = "- `vmaFindMemoryTypeIndex`"]
-    #[doc = "- `vkDestroyImage`"]
     pub fn vmaFindMemoryTypeIndexForImageInfo(
         allocator: VmaAllocator,
         pImageCreateInfo: *const ImageCreateInfo,
@@ -1102,7 +1137,23 @@ extern "C" {
     #[doc = "\\param allocator Allocator object."]
     #[doc = "\\param pool Pool object."]
     #[doc = "\\param[out] pPoolStats Statistics of specified pool."]
-    pub fn vmaGetPoolStats(allocator: VmaAllocator, pool: VmaPool, pPoolStats: *mut VmaPoolStats);
+    pub fn vmaGetPoolStatistics(
+        allocator: VmaAllocator,
+        pool: VmaPool,
+        pPoolStats: *mut VmaStatistics,
+    );
+}
+extern "C" {
+    #[doc = " \\brief Retrieves detailed statistics of existing #VmaPool object."]
+    #[doc = ""]
+    #[doc = "\\param allocator Allocator object."]
+    #[doc = "\\param pool Pool object."]
+    #[doc = "\\param[out] pPoolStats Statistics of specified pool."]
+    pub fn vmaCalculatePoolStatistics(
+        allocator: VmaAllocator,
+        pool: VmaPool,
+        pPoolStats: *mut VmaDetailedStatistics,
+    );
 }
 extern "C" {
     #[doc = " \\brief Checks magic number in margins around all allocations in given memory pool in search for corruptions."]
@@ -1193,13 +1244,19 @@ extern "C" {
     ) -> Result;
 }
 extern "C" {
+    #[doc = " \\brief Allocates memory suitable for given `VkBuffer`."]
+    #[doc = ""]
     #[doc = "\\param allocator"]
     #[doc = "\\param buffer"]
     #[doc = "\\param pCreateInfo"]
     #[doc = "\\param[out] pAllocation Handle to allocated memory."]
     #[doc = "\\param[out] pAllocationInfo Optional. Information about allocated memory. It can be later fetched using function vmaGetAllocationInfo()."]
     #[doc = ""]
-    #[doc = "You should free the memory using vmaFreeMemory()."]
+    #[doc = "It only creates #VmaAllocation. To bind the memory to the buffer, use vmaBindBufferMemory()."]
+    #[doc = ""]
+    #[doc = "This is a special-purpose function. In most cases you should use vmaCreateBuffer()."]
+    #[doc = ""]
+    #[doc = "You must free the allocation using vmaFreeMemory() when no longer needed."]
     pub fn vmaAllocateMemoryForBuffer(
         allocator: VmaAllocator,
         buffer: Buffer,
@@ -1209,7 +1266,19 @@ extern "C" {
     ) -> Result;
 }
 extern "C" {
-    #[doc = " Function similar to vmaAllocateMemoryForBuffer()."]
+    #[doc = " \\brief Allocates memory suitable for given `VkImage`."]
+    #[doc = ""]
+    #[doc = "\\param allocator"]
+    #[doc = "\\param image"]
+    #[doc = "\\param pCreateInfo"]
+    #[doc = "\\param[out] pAllocation Handle to allocated memory."]
+    #[doc = "\\param[out] pAllocationInfo Optional. Information about allocated memory. It can be later fetched using function vmaGetAllocationInfo()."]
+    #[doc = ""]
+    #[doc = "It only creates #VmaAllocation. To bind the memory to the buffer, use vmaBindImageMemory()."]
+    #[doc = ""]
+    #[doc = "This is a special-purpose function. In most cases you should use vmaCreateImage()."]
+    #[doc = ""]
+    #[doc = "You must free the allocation using vmaFreeMemory() when no longer needed."]
     pub fn vmaAllocateMemoryForImage(
         allocator: VmaAllocator,
         image: Image,
@@ -1259,20 +1328,27 @@ extern "C" {
 extern "C" {
     #[doc = " \\brief Sets pUserData in given allocation to new value."]
     #[doc = ""]
-    #[doc = "If the allocation was created with VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT,"]
-    #[doc = "pUserData must be either null, or pointer to a null-terminated string. The function"]
-    #[doc = "makes local copy of the string and sets it as allocation's `pUserData`. String"]
-    #[doc = "passed as pUserData doesn't need to be valid for whole lifetime of the allocation -"]
-    #[doc = "you can free it after this call. String previously pointed by allocation's"]
-    #[doc = "pUserData is freed from memory."]
-    #[doc = ""]
-    #[doc = "If the flag was not used, the value of pointer `pUserData` is just copied to"]
-    #[doc = "allocation's `pUserData`. It is opaque, so you can use it however you want - e.g."]
+    #[doc = "The value of pointer `pUserData` is copied to allocation's `pUserData`."]
+    #[doc = "It is opaque, so you can use it however you want - e.g."]
     #[doc = "as a pointer, ordinal number or some handle to you own data."]
     pub fn vmaSetAllocationUserData(
         allocator: VmaAllocator,
         allocation: VmaAllocation,
         pUserData: *mut ::std::os::raw::c_void,
+    );
+}
+extern "C" {
+    #[doc = " \\brief Sets pName in given allocation to new value."]
+    #[doc = ""]
+    #[doc = "`pName` must be either null, or pointer to a null-terminated string. The function"]
+    #[doc = "makes local copy of the string and sets it as allocation's `pName`. String"]
+    #[doc = "passed as pName doesn't need to be valid for whole lifetime of the allocation -"]
+    #[doc = "you can free it after this call. String previously pointed by allocation's"]
+    #[doc = "`pName` is freed from memory."]
+    pub fn vmaSetAllocationName(
+        allocator: VmaAllocator,
+        allocation: VmaAllocation,
+        pName: *const ::std::os::raw::c_char,
     );
 }
 extern "C" {
@@ -1463,108 +1539,71 @@ extern "C" {
     #[doc = ""]
     #[doc = "\\param allocator Allocator object."]
     #[doc = "\\param pInfo Structure filled with parameters of defragmentation."]
-    #[doc = "\\param[out] pStats Optional. Statistics of defragmentation. You can pass null if you are not interested in this information."]
-    #[doc = "\\param[out] pContext Context object that must be passed to vmaDefragmentationEnd() to finish defragmentation."]
-    #[doc = "\\return `VK_SUCCESS` and `*pContext == null` if defragmentation finished within this function call. `VK_NOT_READY` and `*pContext != null` if defragmentation has been started and you need to call vmaDefragmentationEnd() to finish it. Negative value in case of error."]
+    #[doc = "\\param[out] pContext Context object that must be passed to vmaEndDefragmentation() to finish defragmentation."]
+    #[doc = "\\returns"]
+    #[doc = "- `VK_SUCCESS` if defragmentation can begin."]
+    #[doc = "- `VK_ERROR_FEATURE_NOT_PRESENT` if defragmentation is not supported."]
     #[doc = ""]
-    #[doc = "Use this function instead of old, deprecated vmaDefragment()."]
-    #[doc = ""]
-    #[doc = "Warning! Between the call to vmaDefragmentationBegin() and vmaDefragmentationEnd():"]
-    #[doc = ""]
-    #[doc = "- You should not use any of allocations passed as `pInfo->pAllocations` or"]
-    #[doc = "any allocations that belong to pools passed as `pInfo->pPools`,"]
-    #[doc = "including calling vmaGetAllocationInfo(), or access"]
-    #[doc = "their data."]
-    #[doc = "- Some mutexes protecting internal data structures may be locked, so trying to"]
-    #[doc = "make or free any allocations, bind buffers or images, map memory, or launch"]
-    #[doc = "another simultaneous defragmentation in between may cause stall (when done on"]
-    #[doc = "another thread) or deadlock (when done on the same thread), unless you are"]
-    #[doc = "100% sure that defragmented allocations are in different pools."]
-    #[doc = "- Information returned via `pStats` and `pInfo->pAllocationsChanged` are undefined."]
-    #[doc = "They become valid after call to vmaDefragmentationEnd()."]
-    #[doc = "- If `pInfo->commandBuffer` is not null, you must submit that command buffer"]
-    #[doc = "and make sure it finished execution before calling vmaDefragmentationEnd()."]
-    #[doc = ""]
-    #[doc = "For more information and important limitations regarding defragmentation, see documentation chapter:"]
+    #[doc = "For more information about defragmentation, see documentation chapter:"]
     #[doc = "[Defragmentation](@ref defragmentation)."]
-    pub fn vmaDefragmentationBegin(
+    pub fn vmaBeginDefragmentation(
         allocator: VmaAllocator,
-        pInfo: *const VmaDefragmentationInfo2,
-        pStats: *mut VmaDefragmentationStats,
+        pInfo: *const VmaDefragmentationInfo,
         pContext: *mut VmaDefragmentationContext,
     ) -> Result;
 }
 extern "C" {
     #[doc = " \\brief Ends defragmentation process."]
     #[doc = ""]
-    #[doc = "Use this function to finish defragmentation started by vmaDefragmentationBegin()."]
-    #[doc = "It is safe to pass `context == null`. The function then does nothing."]
-    pub fn vmaDefragmentationEnd(
+    #[doc = "\\param allocator Allocator object."]
+    #[doc = "\\param context Context object that has been created by vmaBeginDefragmentation()."]
+    #[doc = "\\param[out] pStats Optional stats for the defragmentation. Can be null."]
+    #[doc = ""]
+    #[doc = "Use this function to finish defragmentation started by vmaBeginDefragmentation()."]
+    pub fn vmaEndDefragmentation(
         allocator: VmaAllocator,
         context: VmaDefragmentationContext,
-    ) -> Result;
+        pStats: *mut VmaDefragmentationStats,
+    );
 }
 extern "C" {
+    #[doc = " \\brief Starts single defragmentation pass."]
+    #[doc = ""]
+    #[doc = "\\param allocator Allocator object."]
+    #[doc = "\\param context Context object that has been created by vmaBeginDefragmentation()."]
+    #[doc = "\\param[out] pPassInfo Computed informations for current pass."]
+    #[doc = "\\returns"]
+    #[doc = "- `VK_SUCCESS` if no more moves are possible. Then you can omit call to vmaEndDefragmentationPass() and simply end whole defragmentation."]
+    #[doc = "- `VK_INCOMPLETE` if there are pending moves returned in `pPassInfo`. You need to perform them, call vmaEndDefragmentationPass(),"]
+    #[doc = "and then preferably try another pass with vmaBeginDefragmentationPass()."]
     pub fn vmaBeginDefragmentationPass(
         allocator: VmaAllocator,
         context: VmaDefragmentationContext,
-        pInfo: *mut VmaDefragmentationPassInfo,
+        pPassInfo: *mut VmaDefragmentationPassMoveInfo,
     ) -> Result;
 }
 extern "C" {
+    #[doc = " \\brief Ends single defragmentation pass."]
+    #[doc = ""]
+    #[doc = "\\param allocator Allocator object."]
+    #[doc = "\\param context Context object that has been created by vmaBeginDefragmentation()."]
+    #[doc = "\\param pPassInfo Computed informations for current pass filled by vmaBeginDefragmentationPass() and possibly modified by you."]
+    #[doc = ""]
+    #[doc = "Returns `VK_SUCCESS` if no more moves are possible or `VK_INCOMPLETE` if more defragmentations are possible."]
+    #[doc = ""]
+    #[doc = "Ends incremental defragmentation pass and commits all defragmentation moves from `pPassInfo`."]
+    #[doc = "After this call:"]
+    #[doc = ""]
+    #[doc = "- Allocations at `pPassInfo[i].srcAllocation` that had `pPassInfo[i].operation ==` #VMA_DEFRAGMENTATION_MOVE_OPERATION_COPY"]
+    #[doc = "(which is the default) will be pointing to the new destination place."]
+    #[doc = "- Allocation at `pPassInfo[i].srcAllocation` that had `pPassInfo[i].operation ==` #VMA_DEFRAGMENTATION_MOVE_OPERATION_DESTROY"]
+    #[doc = "will be freed."]
+    #[doc = ""]
+    #[doc = "If no more moves are possible you can end whole defragmentation."]
     pub fn vmaEndDefragmentationPass(
         allocator: VmaAllocator,
         context: VmaDefragmentationContext,
-    ) -> Result;
-}
-extern "C" {
-    #[doc = " \\brief Deprecated. Compacts memory by moving allocations."]
-    #[doc = ""]
-    #[doc = "\\param allocator"]
-    #[doc = "\\param pAllocations Array of allocations that can be moved during this compation."]
-    #[doc = "\\param allocationCount Number of elements in pAllocations and pAllocationsChanged arrays."]
-    #[doc = "\\param[out] pAllocationsChanged Array of boolean values that will indicate whether matching allocation in pAllocations array has been moved. This parameter is optional. Pass null if you don't need this information."]
-    #[doc = "\\param pDefragmentationInfo Configuration parameters. Optional - pass null to use default values."]
-    #[doc = "\\param[out] pDefragmentationStats Statistics returned by the function. Optional - pass null if you don't need this information."]
-    #[doc = "\\return `VK_SUCCESS` if completed, negative error code in case of error."]
-    #[doc = ""]
-    #[doc = "\\deprecated This is a part of the old interface. It is recommended to use structure #VmaDefragmentationInfo2 and function vmaDefragmentationBegin() instead."]
-    #[doc = ""]
-    #[doc = "This function works by moving allocations to different places (different"]
-    #[doc = "`VkDeviceMemory` objects and/or different offsets) in order to optimize memory"]
-    #[doc = "usage. Only allocations that are in `pAllocations` array can be moved. All other"]
-    #[doc = "allocations are considered nonmovable in this call. Basic rules:"]
-    #[doc = ""]
-    #[doc = "- Only allocations made in memory types that have"]
-    #[doc = "`VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT` and `VK_MEMORY_PROPERTY_HOST_COHERENT_BIT`"]
-    #[doc = "flags can be compacted. You may pass other allocations but it makes no sense -"]
-    #[doc = "these will never be moved."]
-    #[doc = "- Custom pools created with #VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT or"]
-    #[doc = "#VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT flag are not defragmented. Allocations"]
-    #[doc = "passed to this function that come from such pools are ignored."]
-    #[doc = "- Allocations created with #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT or"]
-    #[doc = "created as dedicated allocations for any other reason are also ignored."]
-    #[doc = "- Both allocations made with or without #VMA_ALLOCATION_CREATE_MAPPED_BIT"]
-    #[doc = "flag can be compacted. If not persistently mapped, memory will be mapped"]
-    #[doc = "temporarily inside this function if needed."]
-    #[doc = "- You must not pass same #VmaAllocation object multiple times in `pAllocations` array."]
-    #[doc = ""]
-    #[doc = "The function also frees empty `VkDeviceMemory` blocks."]
-    #[doc = ""]
-    #[doc = "Warning: This function may be time-consuming, so you shouldn't call it too often"]
-    #[doc = "(like after every resource creation/destruction)."]
-    #[doc = "You can call it on special occasions (like when reloading a game level or"]
-    #[doc = "when you just destroyed a lot of objects). Calling it every frame may be OK, but"]
-    #[doc = "you should measure that on your platform."]
-    #[doc = ""]
-    #[doc = "For more information, see [Defragmentation](@ref defragmentation) chapter."]
-    pub fn vmaDefragment(
-        allocator: VmaAllocator,
-        pAllocations: *mut VmaAllocation,
-        allocationCount: usize,
-        pAllocationsChanged: *mut Bool32,
-        pDefragmentationInfo: *const VmaDefragmentationInfo,
-        pDefragmentationStats: *mut VmaDefragmentationStats,
+        pPassInfo: *mut VmaDefragmentationPassMoveInfo,
     ) -> Result;
 }
 extern "C" {
@@ -1646,6 +1685,8 @@ extern "C" {
     ) -> Result;
 }
 extern "C" {
+    #[doc = " \\brief Creates a new `VkBuffer`, allocates and binds memory for it."]
+    #[doc = ""]
     #[doc = "\\param allocator"]
     #[doc = "\\param pBufferCreateInfo"]
     #[doc = "\\param pAllocationCreateInfo"]
@@ -1660,7 +1701,7 @@ extern "C" {
     #[doc = "-# Binds the buffer with the memory."]
     #[doc = ""]
     #[doc = "If any of these operations fail, buffer and allocation are not created,"]
-    #[doc = "returned value is negative error code, *pBuffer and *pAllocation are null."]
+    #[doc = "returned value is negative error code, `*pBuffer` and `*pAllocation` are null."]
     #[doc = ""]
     #[doc = "If the function succeeded, you must destroy both buffer and allocation when you"]
     #[doc = "no longer need them using either convenience function vmaDestroyBuffer() or"]
@@ -1703,6 +1744,32 @@ extern "C" {
     ) -> Result;
 }
 extern "C" {
+    #[doc = " \\brief Creates a new `VkBuffer`, binds already created memory for it."]
+    #[doc = ""]
+    #[doc = "\\param allocator"]
+    #[doc = "\\param allocation Allocation that provides memory to be used for binding new buffer to it."]
+    #[doc = "\\param pBufferCreateInfo"]
+    #[doc = "\\param[out] pBuffer Buffer that was created."]
+    #[doc = ""]
+    #[doc = "This function automatically:"]
+    #[doc = ""]
+    #[doc = "-# Creates buffer."]
+    #[doc = "-# Binds the buffer with the supplied memory."]
+    #[doc = ""]
+    #[doc = "If any of these operations fail, buffer is not created,"]
+    #[doc = "returned value is negative error code and `*pBuffer` is null."]
+    #[doc = ""]
+    #[doc = "If the function succeeded, you must destroy the buffer when you"]
+    #[doc = "no longer need it using `vkDestroyBuffer()`. If you want to also destroy the corresponding"]
+    #[doc = "allocation you can use convenience function vmaDestroyBuffer()."]
+    pub fn vmaCreateAliasingBuffer(
+        allocator: VmaAllocator,
+        allocation: VmaAllocation,
+        pBufferCreateInfo: *const BufferCreateInfo,
+        pBuffer: *mut Buffer,
+    ) -> Result;
+}
+extern "C" {
     #[doc = " \\brief Destroys Vulkan buffer and frees allocated memory."]
     #[doc = ""]
     #[doc = "This is just a convenience function equivalent to:"]
@@ -1724,6 +1791,15 @@ extern "C" {
         pImage: *mut Image,
         pAllocation: *mut VmaAllocation,
         pAllocationInfo: *mut VmaAllocationInfo,
+    ) -> Result;
+}
+extern "C" {
+    #[doc = " Function similar to vmaCreateAliasingBuffer()."]
+    pub fn vmaCreateAliasingImage(
+        allocator: VmaAllocator,
+        allocation: VmaAllocation,
+        pImageCreateInfo: *const ImageCreateInfo,
+        pImage: *mut Image,
     ) -> Result;
 }
 extern "C" {
@@ -1816,16 +1892,25 @@ extern "C" {
 }
 extern "C" {
     #[doc = " \\brief Calculates and returns statistics about virtual allocations and memory usage in given #VmaVirtualBlock."]
-    pub fn vmaCalculateVirtualBlockStats(
+    #[doc = ""]
+    #[doc = "This function is fast to call. For more detailed statistics, see vmaCalculateVirtualBlockStatistics()."]
+    pub fn vmaGetVirtualBlockStatistics(virtualBlock: VmaVirtualBlock, pStats: *mut VmaStatistics);
+}
+extern "C" {
+    #[doc = " \\brief Calculates and returns detailed statistics about virtual allocations and memory usage in given #VmaVirtualBlock."]
+    #[doc = ""]
+    #[doc = "This function is slow to call. Use for debugging purposes."]
+    #[doc = "For less detailed statistics, see vmaGetVirtualBlockStatistics()."]
+    pub fn vmaCalculateVirtualBlockStatistics(
         virtualBlock: VmaVirtualBlock,
-        pStatInfo: *mut VmaStatInfo,
+        pStats: *mut VmaDetailedStatistics,
     );
 }
 extern "C" {
     #[doc = " \\brief Builds and returns a null-terminated string in JSON format with information about given #VmaVirtualBlock."]
     #[doc = "\\param virtualBlock Virtual block."]
     #[doc = "\\param[out] ppStatsString Returned string."]
-    #[doc = "\\param detailedMap Pass `VK_FALSE` to only obtain statistics as returned by vmaCalculateVirtualBlockStats(). Pass `VK_TRUE` to also obtain full list of allocations and free spaces."]
+    #[doc = "\\param detailedMap Pass `VK_FALSE` to only obtain statistics as returned by vmaCalculateVirtualBlockStatistics(). Pass `VK_TRUE` to also obtain full list of allocations and free spaces."]
     #[doc = ""]
     #[doc = "Returned string must be freed using vmaFreeVirtualBlockStatsString()."]
     pub fn vmaBuildVirtualBlockStatsString(

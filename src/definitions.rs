@@ -303,25 +303,6 @@ bitflags! {
         /// When using this flag, you must specify PoolCreateInfo::max_block_count == 1 (or 0 for default).
         const LINEAR_ALGORITHM = ffi::VmaPoolCreateFlagBits::VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT as u32;
 
-        /// Enables alternative, buddy allocation algorithm in this pool.
-        ///
-        /// It operates on a tree of blocks, each having size that is a power of two and
-        /// a half of its parent's size. Comparing to default algorithm, this one provides
-        /// faster allocation and deallocation and decreased external fragmentation,
-        /// at the expense of more memory wasted (internal fragmentation).
-        const BUDDY_ALGORITHM = ffi::VmaPoolCreateFlagBits::VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT as u32;
-
-        /// \brief Enables alternative, Two-Level Segregated Fit (TLSF) allocation algorithm in this pool.
-        ///
-        /// This algorithm is based on 2-level lists dividing address space into smaller
-        /// chunks. The first level is aligned to power of two which serves as buckets for requested
-        /// memory to fall into, and the second level is lineary subdivided into lists of free memory.
-        /// This algorithm aims to achieve bounded response time even in the worst case scenario.
-        /// Allocation time can be sometimes slightly longer than compared to other algorithms
-        /// but in return the application can avoid stalls in case of fragmentation, giving
-        /// predictable results, suitable for real-time use cases.
-        const TLSF_ALGORITHM_BIT = ffi::VmaPoolCreateFlagBits::VMA_POOL_CREATE_TLSF_ALGORITHM_BIT as u32;
-
         /// Bit mask to extract only `*_ALGORITHM` bits from entire set of flags.
         const ALGORITHM_MASK = ffi::VmaPoolCreateFlagBits::VMA_POOL_CREATE_ALGORITHM_MASK as u32;
     }
