@@ -275,7 +275,7 @@ impl Allocator {
     }
 
     /// Retrieves statistics from current state of the `Allocator`.
-    pub unsafe fn calculate_stats(&self) -> VkResult<ffi::VmaTotalStatistics> {
+    pub unsafe fn calculate_statistics(&self) -> VkResult<ffi::VmaTotalStatistics> {
         let mut vma_stats: ffi::VmaTotalStatistics = mem::zeroed();
         ffi::vmaCalculateStatistics(self.internal, &mut vma_stats);
         Ok(vma_stats)
@@ -403,6 +403,16 @@ impl Allocator {
     pub unsafe fn get_pool_stats(&self, pool: AllocatorPool) -> VkResult<ffi::VmaStatistics> {
         let mut pool_stats: ffi::VmaStatistics = mem::zeroed();
         ffi::vmaGetPoolStatistics(self.internal, pool, &mut pool_stats);
+        Ok(pool_stats)
+    }
+
+    /// Retrieves detailed statistics of existing `AllocatorPool` object.
+    pub unsafe fn calculate_pool_statistics(
+        &self,
+        pool: AllocatorPool,
+    ) -> VkResult<ffi::VmaDetailedStatistics> {
+        let mut pool_stats: ffi::VmaDetailedStatistics = mem::zeroed();
+        ffi::vmaCalculatePoolStatistics(self.internal, pool, &mut pool_stats);
         Ok(pool_stats)
     }
 
