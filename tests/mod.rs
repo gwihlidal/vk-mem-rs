@@ -2,7 +2,7 @@ extern crate ash;
 extern crate vk_mem;
 
 use ash::{extensions::ext::DebugUtils, vk};
-use std::os::raw::c_void;
+use std::{os::raw::c_void, sync::Arc};
 
 fn extension_names() -> Vec<*const i8> {
     vec![DebugUtils::name().as_ptr()]
@@ -50,7 +50,7 @@ impl TestHarness {
             .application_version(0)
             .engine_name(&app_name)
             .engine_version(0)
-            .api_version(ash::vk::make_api_version(0, 1, 0, 0));
+            .api_version(ash::vk::make_api_version(0, 1, 3, 0));
 
         let layer_names = [::std::ffi::CString::new("VK_LAYER_KHRONOS_validation").unwrap()];
         let layers_names_raw: Vec<*const i8> = layer_names
@@ -76,7 +76,11 @@ impl TestHarness {
                 ash::vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
                     | ash::vk::DebugUtilsMessageSeverityFlagsEXT::WARNING,
             )
-            .message_type(vk::DebugUtilsMessageTypeFlagsEXT::GENERAL | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION)
+            .message_type(
+                vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
+                    | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
+                    | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
+            )
             .pfn_user_callback(Some(vulkan_debug_callback));
 
         let debug_report_loader = DebugUtils::new(&entry, &instance);
@@ -208,6 +212,7 @@ fn create_cpu_buffer_preferred() {
 fn create_gpu_buffer_pool() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
+    let allocator = Arc::new(allocator);
 
     let buffer_info = ash::vk::BufferCreateInfo::builder()
         .size(16 * 1024)
@@ -232,14 +237,13 @@ fn create_gpu_buffer_pool() {
             .max_block_count(2);
 
         let pool = allocator.create_pool(&pool_info).unwrap();
-        allocation_info = allocation_info.pool(pool.clone());
+        allocation_info = allocation_info.pool(&pool);
 
         let (buffer, allocation, allocation_info) = allocator
             .create_buffer(&buffer_info, &allocation_info)
             .unwrap();
         assert_ne!(allocation_info.get_mapped_data(), std::ptr::null_mut());
         allocator.destroy_buffer(buffer, allocation);
-        allocator.destroy_pool(pool);
     }
 }
 
@@ -250,10 +254,10 @@ fn test_gpu_stats() {
     let allocation_info = vk_mem::AllocationCreateInfo::new().usage(vk_mem::MemoryUsage::GpuOnly);
 
     unsafe {
-        let stats_1 = allocator.calculate_stats().unwrap();
-        assert_eq!(stats_1.total.blockCount, 0);
-        assert_eq!(stats_1.total.allocationCount, 0);
-        assert_eq!(stats_1.total.usedBytes, 0);
+        let stats_1 = allocator.calculate_statistics().unwrap();
+        assert_eq!(stats_1.total.statistics.blockCount, 0);
+        assert_eq!(stats_1.total.statistics.allocationCount, 0);
+        assert_eq!(stats_1.total.statistics.allocationBytes, 0);
 
         let (buffer, allocation, _allocation_info) = allocator
             .create_buffer(
@@ -268,53 +272,16 @@ fn test_gpu_stats() {
             )
             .unwrap();
 
-        let stats_2 = allocator.calculate_stats().unwrap();
-        assert_eq!(stats_2.total.blockCount, 1);
-        assert_eq!(stats_2.total.allocationCount, 1);
-        assert_eq!(stats_2.total.usedBytes, 16 * 1024);
+        let stats_2 = allocator.calculate_statistics().unwrap();
+        assert_eq!(stats_2.total.statistics.blockCount, 1);
+        assert_eq!(stats_2.total.statistics.allocationCount, 1);
+        assert_eq!(stats_2.total.statistics.allocationBytes, 16 * 1024);
 
         allocator.destroy_buffer(buffer, allocation);
 
-        let stats_3 = allocator.calculate_stats().unwrap();
-        assert_eq!(stats_3.total.blockCount, 1);
-        assert_eq!(stats_3.total.allocationCount, 0);
-        assert_eq!(stats_3.total.usedBytes, 0);
-    }
-}
-
-#[test]
-fn test_stats_string() {
-    let harness = TestHarness::new();
-    let allocator = harness.create_allocator();
-
-    let allocation_info = vk_mem::AllocationCreateInfo::new().usage(vk_mem::MemoryUsage::GpuOnly);
-
-    unsafe {
-        let stats_1 = allocator.build_stats_string(true).unwrap();
-        assert!(stats_1.len() > 0);
-
-        let (buffer, allocation, _allocation_info) = allocator
-            .create_buffer(
-                &ash::vk::BufferCreateInfo::builder()
-                    .size(16 * 1024)
-                    .usage(
-                        ash::vk::BufferUsageFlags::VERTEX_BUFFER
-                            | ash::vk::BufferUsageFlags::TRANSFER_DST,
-                    )
-                    .build(),
-                &allocation_info,
-            )
-            .unwrap();
-
-        let stats_2 = allocator.build_stats_string(true).unwrap();
-        assert!(stats_2.len() > 0);
-        assert_ne!(stats_1, stats_2);
-
-        allocator.destroy_buffer(buffer, allocation);
-
-        let stats_3 = allocator.build_stats_string(true).unwrap();
-        assert!(stats_3.len() > 0);
-        assert_ne!(stats_3, stats_1);
-        assert_ne!(stats_3, stats_2);
+        let stats_3 = allocator.calculate_statistics().unwrap();
+        assert_eq!(stats_3.total.statistics.blockCount, 1);
+        assert_eq!(stats_3.total.statistics.allocationCount, 0);
+        assert_eq!(stats_3.total.statistics.allocationBytes, 0);
     }
 }

@@ -777,24 +777,14 @@ impl Allocator {
     pub unsafe fn destroy_image(&self, image: ash::vk::Image, allocation: Allocation) {
         ffi::vmaDestroyImage(self.internal, image, allocation);
     }
-
-    /// Destroys the internal allocator instance. After this has been called,
-    /// no other functions may be called. Useful for ensuring a specific destruction
-    /// order (for example, if an Allocator is a member of something that owns the Vulkan
-    /// instance and destroys it in its own Drop).
-    pub unsafe fn destroy(&mut self) {
-        if !self.internal.is_null() {
-            ffi::vmaDestroyAllocator(self.internal);
-            self.internal = std::ptr::null_mut();
-        }
-    }
 }
 
 /// Custom `Drop` implementation to clean up internal allocation instance
 impl Drop for Allocator {
     fn drop(&mut self) {
         unsafe {
-            self.destroy();
+            ffi::vmaDestroyAllocator(self.internal);
+            self.internal = std::ptr::null_mut();
         }
     }
 }
