@@ -8,7 +8,7 @@ fn main() {
     let mut build = cc::Build::new();
 
     build.include("vendor/VulkanMemoryAllocator/include");
-    build.include("vendor/Vulkan-Headers/include/vulkan");
+    build.include("vendor/Vulkan-Headers/include");
     build.include("wrapper");
 
     // Disable VMA_ASSERT when rust assertions are disabled
