@@ -130,15 +130,6 @@ impl Default for AllocatorCreateFlags {
     }
 }
 
-/// Converts a raw result into an ash result.
-#[inline]
-fn ffi_to_result(result: vk::Result) -> VkResult<()> {
-    match result {
-        vk::Result::SUCCESS => Ok(()),
-        _ => Err(result),
-    }
-}
-
 impl Allocator {
     /// Constructor a new `Allocator` using the provided options.
     pub fn new(mut create_info: AllocatorCreateInfo) -> VkResult<Self> {
@@ -220,10 +211,7 @@ impl Allocator {
         }
         unsafe {
             let mut internal: ffi::VmaAllocator = mem::zeroed();
-            ffi_to_result(ffi::vmaCreateAllocator(
-                &create_info.inner as *const _,
-                &mut internal,
-            ))?;
+            ffi::vmaCreateAllocator(&create_info.inner as *const _, &mut internal).result()?;
 
             Ok(Allocator { internal })
         }
@@ -321,12 +309,13 @@ impl Allocator {
         allocation_info: &AllocationCreateInfo,
     ) -> VkResult<u32> {
         let mut memory_type_index: u32 = 0;
-        ffi_to_result(ffi::vmaFindMemoryTypeIndex(
+        ffi::vmaFindMemoryTypeIndex(
             self.internal,
             memory_type_bits,
             &allocation_info.inner,
             &mut memory_type_index,
-        ))?;
+        )
+        .result()?;
 
         Ok(memory_type_index)
     }
@@ -347,12 +336,13 @@ impl Allocator {
         allocation_info: &AllocationCreateInfo,
     ) -> VkResult<u32> {
         let mut memory_type_index: u32 = 0;
-        ffi_to_result(ffi::vmaFindMemoryTypeIndexForBufferInfo(
+        ffi::vmaFindMemoryTypeIndexForBufferInfo(
             self.internal,
             buffer_info,
             &allocation_info.inner,
             &mut memory_type_index,
-        ))?;
+        )
+        .result()?;
 
         Ok(memory_type_index)
     }
@@ -373,12 +363,13 @@ impl Allocator {
         allocation_info: &AllocationCreateInfo,
     ) -> VkResult<u32> {
         let mut memory_type_index: u32 = 0;
-        ffi_to_result(ffi::vmaFindMemoryTypeIndexForImageInfo(
+        ffi::vmaFindMemoryTypeIndexForImageInfo(
             self.internal,
             &image_info,
             &allocation_info.inner,
             &mut memory_type_index,
-        ))?;
+        )
+        .result()?;
 
         Ok(memory_type_index)
     }
@@ -386,11 +377,7 @@ impl Allocator {
     /// Allocates Vulkan device memory and creates `AllocatorPool` object.
     pub unsafe fn create_pool(&self, create_info: &PoolCreateInfo) -> VkResult<AllocatorPool> {
         let mut ffi_pool: ffi::VmaPool = mem::zeroed();
-        ffi_to_result(ffi::vmaCreatePool(
-            self.internal,
-            &create_info.inner,
-            &mut ffi_pool,
-        ))?;
+        ffi::vmaCreatePool(self.internal, &create_info.inner, &mut ffi_pool).result()?;
         Ok(ffi_pool)
     }
 
@@ -429,7 +416,7 @@ impl Allocator {
     ///   `VMA_ASSERT` is also fired in that case.
     /// - Other value: Error returned by Vulkan, e.g. memory mapping failure.
     pub unsafe fn check_pool_corruption(&self, pool: AllocatorPool) -> VkResult<()> {
-        ffi_to_result(ffi::vmaCheckPoolCorruption(self.internal, pool))
+        ffi::vmaCheckPoolCorruption(self.internal, pool).result()
     }
 
     /// General purpose memory allocation.
@@ -445,13 +432,14 @@ impl Allocator {
     ) -> VkResult<(Allocation, AllocationInfo)> {
         let mut allocation: Allocation = mem::zeroed();
         let mut allocation_info: AllocationInfo = mem::zeroed();
-        ffi_to_result(ffi::vmaAllocateMemory(
+        ffi::vmaAllocateMemory(
             self.internal,
             memory_requirements,
             &create_info.inner,
             &mut allocation,
             &mut allocation_info.internal,
-        ))?;
+        )
+        .result()?;
 
         Ok((allocation, allocation_info))
     }
@@ -474,14 +462,15 @@ impl Allocator {
         let mut allocations: Vec<ffi::VmaAllocation> = vec![mem::zeroed(); allocation_count];
         let mut allocation_info: Vec<ffi::VmaAllocationInfo> =
             vec![mem::zeroed(); allocation_count];
-        ffi_to_result(ffi::vmaAllocateMemoryPages(
+        ffi::vmaAllocateMemoryPages(
             self.internal,
             memory_requirements,
             &create_info.inner,
             allocation_count,
             allocations.as_mut_ptr(),
             allocation_info.as_mut_ptr(),
-        ))?;
+        )
+        .result()?;
 
         let it = allocations.iter().zip(allocation_info.iter());
         let allocations: Vec<(Allocation, AllocationInfo)> = it
@@ -501,13 +490,14 @@ impl Allocator {
     ) -> VkResult<(Allocation, AllocationInfo)> {
         let mut allocation: Allocation = mem::zeroed();
         let mut allocation_info: AllocationInfo = mem::zeroed();
-        ffi_to_result(ffi::vmaAllocateMemoryForBuffer(
+        ffi::vmaAllocateMemoryForBuffer(
             self.internal,
             buffer,
             &create_info.inner,
             &mut allocation,
             &mut allocation_info.internal,
-        ))?;
+        )
+        .result()?;
 
         Ok((allocation, allocation_info))
     }
@@ -522,13 +512,14 @@ impl Allocator {
     ) -> VkResult<(Allocation, AllocationInfo)> {
         let mut allocation: Allocation = mem::zeroed();
         let mut allocation_info: AllocationInfo = mem::zeroed();
-        ffi_to_result(ffi::vmaAllocateMemoryForImage(
+        ffi::vmaAllocateMemoryForImage(
             self.internal,
             image,
             &create_info.inner,
             &mut allocation,
             &mut allocation_info.internal,
-        ))?;
+        )
+        .result()?;
 
         Ok((allocation, allocation_info))
     }
@@ -631,11 +622,7 @@ impl Allocator {
     /// `AllocationCreateFlags::CAN_BECOME_LOST` flag. Such allocations cannot be mapped.
     pub unsafe fn map_memory(&self, allocation: Allocation) -> VkResult<*mut u8> {
         let mut mapped_data: *mut ::std::os::raw::c_void = ::std::ptr::null_mut();
-        ffi_to_result(ffi::vmaMapMemory(
-            self.internal,
-            allocation,
-            &mut mapped_data,
-        ))?;
+        ffi::vmaMapMemory(self.internal, allocation, &mut mapped_data).result()?;
 
         Ok(mapped_data as *mut u8)
     }
@@ -660,12 +647,13 @@ impl Allocator {
         offset: usize,
         size: usize,
     ) -> VkResult<()> {
-        ffi_to_result(ffi::vmaFlushAllocation(
+        ffi::vmaFlushAllocation(
             self.internal,
             allocation,
             offset as vk::DeviceSize,
             size as vk::DeviceSize,
-        ))
+        )
+        .result()
     }
 
     /// Invalidates memory of given allocation.
@@ -683,12 +671,13 @@ impl Allocator {
         offset: usize,
         size: usize,
     ) -> VkResult<()> {
-        ffi_to_result(ffi::vmaInvalidateAllocation(
+        ffi::vmaInvalidateAllocation(
             self.internal,
             allocation,
             offset as vk::DeviceSize,
             size as vk::DeviceSize,
-        ))
+        )
+        .result()
     }
 
     /// Checks magic number in margins around all allocations in given memory types (in both default and custom pools) in search for corruptions.
@@ -708,10 +697,7 @@ impl Allocator {
         &self,
         memory_types: ash::vk::MemoryPropertyFlags,
     ) -> VkResult<()> {
-        ffi_to_result(ffi::vmaCheckCorruption(
-            self.internal,
-            memory_types.as_raw(),
-        ))
+        ffi::vmaCheckCorruption(self.internal, memory_types.as_raw()).result()
     }
 
     /// Binds buffer to allocation.
@@ -732,7 +718,7 @@ impl Allocator {
         buffer: ash::vk::Buffer,
         allocation: Allocation,
     ) -> VkResult<()> {
-        ffi_to_result(ffi::vmaBindBufferMemory(self.internal, allocation, buffer))
+        ffi::vmaBindBufferMemory(self.internal, allocation, buffer).result()
     }
 
     /// Binds image to allocation.
@@ -753,7 +739,7 @@ impl Allocator {
         image: ash::vk::Image,
         allocation: Allocation,
     ) -> VkResult<()> {
-        ffi_to_result(ffi::vmaBindImageMemory(self.internal, allocation, image))
+        ffi::vmaBindImageMemory(self.internal, allocation, image).result()
     }
 
     /// This function automatically creates a buffer, allocates appropriate memory
@@ -777,14 +763,15 @@ impl Allocator {
         let mut buffer = vk::Buffer::null();
         let mut allocation: Allocation = mem::zeroed();
         let mut allocation_info: AllocationInfo = mem::zeroed();
-        ffi_to_result(ffi::vmaCreateBuffer(
+        ffi::vmaCreateBuffer(
             self.internal,
             &*buffer_info,
             &allocation_create_info.inner,
             &mut buffer,
             &mut allocation,
             &mut allocation_info.internal,
-        ))?;
+        )
+        .result()?;
 
         Ok((buffer, allocation, allocation_info))
     }
@@ -828,14 +815,15 @@ impl Allocator {
         let mut image = vk::Image::null();
         let mut allocation: Allocation = mem::zeroed();
         let mut allocation_info: AllocationInfo = mem::zeroed();
-        ffi_to_result(ffi::vmaCreateImage(
+        ffi::vmaCreateImage(
             self.internal,
             &*image_info,
             &allocation_create_info.inner,
             &mut image,
             &mut allocation,
             &mut allocation_info.internal,
-        ))?;
+        )
+        .result()?;
 
         Ok((image, allocation, allocation_info))
     }
