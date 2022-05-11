@@ -329,22 +329,21 @@ bitflags! {
 
 pub struct AllocatorCreateInfo<'a> {
     pub(crate) inner: ffi::VmaAllocatorCreateInfo,
-    pub(crate) physical_device: &'a PhysicalDevice,
+    pub(crate) physical_device: PhysicalDevice,
     pub(crate) device: &'a Device,
     pub(crate) instance: &'a Instance,
-    pub(crate) marker: ::std::marker::PhantomData<&'a ()>,
 }
 
 impl<'a> AllocatorCreateInfo<'a> {
     pub fn new(
         instance: &'a ash::Instance,
         device: &'a ash::Device,
-        physical_device: &'a ash::vk::PhysicalDevice,
+        physical_device: ash::vk::PhysicalDevice,
     ) -> AllocatorCreateInfo<'a> {
         AllocatorCreateInfo {
             inner: ffi::VmaAllocatorCreateInfo {
                 flags: 0,
-                physicalDevice: *physical_device,
+                physicalDevice: physical_device,
                 instance: instance.handle(),
                 device: device.handle(),
                 preferredLargeHeapBlockSize: 0,
@@ -358,7 +357,6 @@ impl<'a> AllocatorCreateInfo<'a> {
             physical_device,
             device,
             instance,
-            marker: ::std::marker::PhantomData,
         }
     }
 
@@ -376,7 +374,7 @@ impl<'a> AllocatorCreateInfo<'a> {
         unsafe {
             debug_assert!(
                 self.instance
-                    .get_physical_device_memory_properties(*self.physical_device)
+                    .get_physical_device_memory_properties(self.physical_device)
                     .memory_heap_count
                     == device_sizes.len() as u32
             );
@@ -402,7 +400,7 @@ impl<'a> AllocatorCreateInfo<'a> {
         unsafe {
             debug_assert!(
                 self.instance
-                    .get_physical_device_memory_properties(*self.physical_device)
+                    .get_physical_device_memory_properties(self.physical_device)
                     .memory_type_count
                     == external_memory_handles.len() as u32
             );
