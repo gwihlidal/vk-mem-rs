@@ -1,24 +1,24 @@
 extern crate ash;
 extern crate vk_mem;
 
-use ash::extensions::ext::DebugReport;
-use std::os::raw::{c_char, c_void};
+use ash::{extensions::ext::DebugUtils, vk};
+use std::os::raw::c_void;
 
 fn extension_names() -> Vec<*const i8> {
-    vec![DebugReport::name().as_ptr()]
+    vec![DebugUtils::name().as_ptr()]
 }
 
 unsafe extern "system" fn vulkan_debug_callback(
-    _: ash::vk::DebugReportFlagsEXT,
-    _: ash::vk::DebugReportObjectTypeEXT,
-    _: u64,
-    _: usize,
-    _: i32,
-    _: *const c_char,
-    p_message: *const c_char,
-    _: *mut c_void,
-) -> u32 {
-    println!("{:?}", ::std::ffi::CStr::from_ptr(p_message));
+    _message_severity: ash::vk::DebugUtilsMessageSeverityFlagsEXT,
+    _message_types: ash::vk::DebugUtilsMessageTypeFlagsEXT,
+    p_callback_data: *const ash::vk::DebugUtilsMessengerCallbackDataEXT,
+    _p_user_data: *mut c_void,
+) -> ash::vk::Bool32 {
+    let p_callback_data = &*p_callback_data;
+    println!(
+        "{:?}",
+        ::std::ffi::CStr::from_ptr(p_callback_data.p_message)
+    );
     ash::vk::FALSE
 }
 
@@ -27,8 +27,8 @@ pub struct TestHarness {
     pub instance: ash::Instance,
     pub device: ash::Device,
     pub physical_device: ash::vk::PhysicalDevice,
-    pub debug_callback: ash::vk::DebugReportCallbackEXT,
-    pub debug_report_loader: ash::extensions::ext::DebugReport,
+    pub debug_callback: ash::vk::DebugUtilsMessengerEXT,
+    pub debug_report_loader: ash::extensions::ext::DebugUtils,
 }
 
 impl Drop for TestHarness {
@@ -37,7 +37,7 @@ impl Drop for TestHarness {
             self.device.device_wait_idle().unwrap();
             self.device.destroy_device(None);
             self.debug_report_loader
-                .destroy_debug_report_callback(self.debug_callback, None);
+                .destroy_debug_utils_messenger(self.debug_callback, None);
             self.instance.destroy_instance(None);
         }
     }
@@ -50,7 +50,7 @@ impl TestHarness {
             .application_version(0)
             .engine_name(&app_name)
             .engine_version(0)
-            .api_version(ash::vk::make_version(1, 0, 0));
+            .api_version(ash::vk::make_api_version(0, 1, 0, 0));
 
         let layer_names = [::std::ffi::CString::new("VK_LAYER_KHRONOS_validation").unwrap()];
         let layers_names_raw: Vec<*const i8> = layer_names
@@ -64,7 +64,6 @@ impl TestHarness {
             .enabled_layer_names(&layers_names_raw)
             .enabled_extension_names(&extension_names_raw);
 
-
         let entry = unsafe { ash::Entry::load().unwrap() };
         let instance: ash::Instance = unsafe {
             entry
@@ -72,18 +71,18 @@ impl TestHarness {
                 .expect("Instance creation error")
         };
 
-        let debug_info = ash::vk::DebugReportCallbackCreateInfoEXT::builder()
-            .flags(
-                ash::vk::DebugReportFlagsEXT::ERROR
-                    | ash::vk::DebugReportFlagsEXT::WARNING
-                    | ash::vk::DebugReportFlagsEXT::PERFORMANCE_WARNING,
+        let debug_info = ash::vk::DebugUtilsMessengerCreateInfoEXT::builder()
+            .message_severity(
+                ash::vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+                    | ash::vk::DebugUtilsMessageSeverityFlagsEXT::WARNING,
             )
-            .pfn_callback(Some(vulkan_debug_callback));
+            .message_type(vk::DebugUtilsMessageTypeFlagsEXT::GENERAL | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION)
+            .pfn_user_callback(Some(vulkan_debug_callback));
 
-        let debug_report_loader = DebugReport::new(&entry, &instance);
+        let debug_report_loader = DebugUtils::new(&entry, &instance);
         let debug_callback = unsafe {
             debug_report_loader
-                .create_debug_report_callback(&debug_info, None)
+                .create_debug_utils_messenger(&debug_info, None)
                 .unwrap()
         };
 
@@ -136,7 +135,8 @@ impl TestHarness {
     }
 
     pub fn create_allocator(&self) -> vk_mem::Allocator {
-        let create_info = vk_mem::AllocatorCreateInfo::new(&self.instance, &self.device, &self.physical_device);
+        let create_info =
+            vk_mem::AllocatorCreateInfo::new(&self.instance, &self.device, self.physical_device);
         vk_mem::Allocator::new(create_info).unwrap()
     }
 }
@@ -156,7 +156,7 @@ fn create_allocator() {
 fn create_gpu_buffer() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info =  vk_mem::AllocationCreateInfo::new().usage(vk_mem::MemoryUsage::GpuOnly);
+    let allocation_info = vk_mem::AllocationCreateInfo::new().usage(vk_mem::MemoryUsage::GpuOnly);
 
     unsafe {
         let (buffer, allocation, allocation_info) = allocator
@@ -180,10 +180,11 @@ fn create_gpu_buffer() {
 fn create_cpu_buffer_preferred() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info =  vk_mem::AllocationCreateInfo::new()
+    let allocation_info = vk_mem::AllocationCreateInfo::new()
         .required_flags(ash::vk::MemoryPropertyFlags::HOST_VISIBLE)
-        .preferred_flags(ash::vk::MemoryPropertyFlags::HOST_COHERENT
-            | ash::vk::MemoryPropertyFlags::HOST_CACHED)
+        .preferred_flags(
+            ash::vk::MemoryPropertyFlags::HOST_COHERENT | ash::vk::MemoryPropertyFlags::HOST_CACHED,
+        )
         .flags(vk_mem::AllocationCreateFlags::MAPPED);
     unsafe {
         let (buffer, allocation, allocation_info) = allocator
@@ -215,8 +216,9 @@ fn create_gpu_buffer_pool() {
 
     let mut allocation_info = vk_mem::AllocationCreateInfo::new()
         .required_flags(ash::vk::MemoryPropertyFlags::HOST_VISIBLE)
-        .preferred_flags(ash::vk::MemoryPropertyFlags::HOST_COHERENT
-            | ash::vk::MemoryPropertyFlags::HOST_CACHED)
+        .preferred_flags(
+            ash::vk::MemoryPropertyFlags::HOST_COHERENT | ash::vk::MemoryPropertyFlags::HOST_CACHED,
+        )
         .flags(vk_mem::AllocationCreateFlags::MAPPED);
     unsafe {
         let memory_type_index = allocator
@@ -245,8 +247,7 @@ fn create_gpu_buffer_pool() {
 fn test_gpu_stats() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info = vk_mem::AllocationCreateInfo::new()
-        .usage(vk_mem::MemoryUsage::GpuOnly);
+    let allocation_info = vk_mem::AllocationCreateInfo::new().usage(vk_mem::MemoryUsage::GpuOnly);
 
     unsafe {
         let stats_1 = allocator.calculate_stats().unwrap();
@@ -286,8 +287,7 @@ fn test_stats_string() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
 
-    let allocation_info = vk_mem::AllocationCreateInfo::new()
-        .usage(vk_mem::MemoryUsage::GpuOnly);
+    let allocation_info = vk_mem::AllocationCreateInfo::new().usage(vk_mem::MemoryUsage::GpuOnly);
 
     unsafe {
         let stats_1 = allocator.build_stats_string(true).unwrap();
