@@ -39,7 +39,8 @@ unsafe impl Sync for Allocator {}
 ///
 /// Some kinds allocations can be in lost state.
 pub struct Allocation(ffi::VmaAllocation);
-unsafe impl Send for Allocation{}
+unsafe impl Send for Allocation {}
+unsafe impl Sync for Allocation {}
 
 impl Allocator {
     /// Constructor a new `Allocator` using the provided options.
@@ -221,7 +222,7 @@ impl Allocator {
     /// you can avoid calling it too often.
     ///
     /// If you just want to check if allocation is not lost, `Allocator::touch_allocation` will work faster.
-    pub unsafe fn get_allocation_info(&self, allocation: Allocation) -> VkResult<AllocationInfo> {
+    pub unsafe fn get_allocation_info(&self, allocation: &Allocation) -> VkResult<AllocationInfo> {
         let mut allocation_info: ffi::VmaAllocationInfo = mem::zeroed();
         ffi::vmaGetAllocationInfo(self.internal, allocation.0, &mut allocation_info);
         Ok(allocation_info.into())
@@ -241,7 +242,7 @@ impl Allocator {
     /// as a pointer, ordinal number or some handle to you own data.
     pub unsafe fn set_allocation_user_data(
         &self,
-        allocation: Allocation,
+        allocation: &mut Allocation,
         user_data: *mut ::std::os::raw::c_void,
     ) {
         ffi::vmaSetAllocationUserData(self.internal, allocation.0, user_data);
@@ -281,7 +282,7 @@ impl Allocator {
     ///
     /// This function always fails when called for allocation that was created with
     /// `AllocationCreateFlags::CAN_BECOME_LOST` flag. Such allocations cannot be mapped.
-    pub unsafe fn map_memory(&self, allocation: Allocation) -> VkResult<*mut u8> {
+    pub unsafe fn map_memory(&self, allocation: &mut Allocation) -> VkResult<*mut u8> {
         let mut mapped_data: *mut ::std::os::raw::c_void = ::std::ptr::null_mut();
         ffi::vmaMapMemory(self.internal, allocation.0, &mut mapped_data).result()?;
 
@@ -289,7 +290,7 @@ impl Allocator {
     }
 
     /// Unmaps memory represented by given allocation, mapped previously using `Allocator::map_memory`.
-    pub unsafe fn unmap_memory(&self, allocation: Allocation) {
+    pub unsafe fn unmap_memory(&self, allocation: &mut Allocation) {
         ffi::vmaUnmapMemory(self.internal, allocation.0);
     }
 
@@ -302,19 +303,21 @@ impl Allocator {
     /// - `offset` and `size` don't have to be aligned; hey are internally rounded down/up to multiple of `nonCoherentAtomSize`.
     /// - If `size` is 0, this call is ignored.
     /// - If memory type that the `allocation` belongs to is not `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` or it is `ash::vk::MemoryPropertyFlags::HOST_COHERENT`, this call is ignored.
-    pub unsafe fn flush_allocation(
+    pub fn flush_allocation(
         &self,
-        allocation: Allocation,
+        allocation: &Allocation,
         offset: usize,
         size: usize,
     ) -> VkResult<()> {
-        ffi::vmaFlushAllocation(
-            self.internal,
-            allocation.0,
-            offset as vk::DeviceSize,
-            size as vk::DeviceSize,
-        )
-        .result()
+        unsafe {
+            ffi::vmaFlushAllocation(
+                self.internal,
+                allocation.0,
+                offset as vk::DeviceSize,
+                size as vk::DeviceSize,
+            )
+            .result()
+        }
     }
 
     /// Invalidates memory of given allocation.
@@ -326,19 +329,21 @@ impl Allocator {
     /// - `offset` and `size` don't have to be aligned. They are internally rounded down/up to multiple of `nonCoherentAtomSize`.
     /// - If `size` is 0, this call is ignored.
     /// - If memory type that the `allocation` belongs to is not `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` or it is `ash::vk::MemoryPropertyFlags::HOST_COHERENT`, this call is ignored.
-    pub unsafe fn invalidate_allocation(
+    pub fn invalidate_allocation(
         &self,
-        allocation: Allocation,
+        allocation: &Allocation,
         offset: usize,
         size: usize,
     ) -> VkResult<()> {
-        ffi::vmaInvalidateAllocation(
-            self.internal,
-            allocation.0,
-            offset as vk::DeviceSize,
-            size as vk::DeviceSize,
-        )
-        .result()
+        unsafe {
+            ffi::vmaInvalidateAllocation(
+                self.internal,
+                allocation.0,
+                offset as vk::DeviceSize,
+                size as vk::DeviceSize,
+            )
+            .result()
+        }
     }
 
     /// Checks magic number in margins around all allocations in given memory types (in both default and custom pools) in search for corruptions.
@@ -376,7 +381,7 @@ impl Allocator {
     /// It is recommended to use function `Allocator::create_buffer` instead of this one.
     pub unsafe fn bind_buffer_memory(
         &self,
-        allocation: Allocation,
+        allocation: &Allocation,
         buffer: ash::vk::Buffer,
     ) -> VkResult<()> {
         ffi::vmaBindBufferMemory(self.internal, allocation.0, buffer).result()
@@ -395,7 +400,7 @@ impl Allocator {
     /// or with VmaAllocatorCreateInfo::vulkanApiVersion `>= VK_API_VERSION_1_1`. Otherwise the call fails.
     pub unsafe fn bind_buffer_memory2(
         &self,
-        allocation: Allocation,
+        allocation: &Allocation,
         allocation_local_offset: vk::DeviceSize,
         buffer: ash::vk::Buffer,
         next: *const ::std::os::raw::c_void,
@@ -425,7 +430,7 @@ impl Allocator {
     /// It is recommended to use function `Allocator::create_image` instead of this one.
     pub unsafe fn bind_image_memory(
         &self,
-        allocation: Allocation,
+        allocation: &Allocation,
         image: ash::vk::Image,
     ) -> VkResult<()> {
         ffi::vmaBindImageMemory(self.internal, allocation.0, image).result()
@@ -444,7 +449,7 @@ impl Allocator {
     /// or with VmaAllocatorCreateInfo::vulkanApiVersion `>= VK_API_VERSION_1_1`. Otherwise the call fails.
     pub unsafe fn bind_image_memory2(
         &self,
-        allocation: Allocation,
+        allocation: &Allocation,
         allocation_local_offset: vk::DeviceSize,
         image: ash::vk::Image,
         next: *const ::std::os::raw::c_void,
@@ -494,12 +499,13 @@ impl Allocator {
     /// * `allocations`
     /// * `offsets` - If not None, it must be a slice of offsets of regions to flush, relative to the beginning of respective allocations. None means all ofsets are zero.
     /// * `sizes` - If not None, it must be a slice of sizes of regions to flush in respective allocations. None means `VK_WHOLE_SIZE` for all allocations.
-    pub unsafe fn flush_allocations(
+    pub unsafe fn flush_allocations<'a>(
         &self,
-        allocations: &[Allocation],
+        allocations: impl IntoIterator<Item = &'a Allocation>,
         offsets: Option<&[vk::DeviceSize]>,
         sizes: Option<&[vk::DeviceSize]>,
     ) -> VkResult<()> {
+        let allocations: Vec<ffi::VmaAllocation> = allocations.into_iter().map(|a| a.0).collect();
         ffi::vmaFlushAllocations(
             self.internal,
             allocations.len() as u32,
@@ -518,12 +524,13 @@ impl Allocator {
     /// * `allocations`
     /// * `offsets` - If not None, it must be a slice of offsets of regions to flush, relative to the beginning of respective allocations. None means all ofsets are zero.
     /// * `sizes` - If not None, it must be a slice of sizes of regions to flush in respective allocations. None means `VK_WHOLE_SIZE` for all allocations.
-    pub unsafe fn invalidate_allocations(
+    pub unsafe fn invalidate_allocations<'a>(
         &self,
-        allocations: &[Allocation],
+        allocations: impl IntoIterator<Item = &'a Allocation>,
         offsets: Option<&[vk::DeviceSize]>,
         sizes: Option<&[vk::DeviceSize]>,
     ) -> VkResult<()> {
+        let allocations: Vec<ffi::VmaAllocation> = allocations.into_iter().map(|a| a.0).collect();
         ffi::vmaInvalidateAllocations(
             self.internal,
             allocations.len() as u32,

@@ -84,7 +84,7 @@ pub enum MemoryUsage {
     /// and not with generic memory allocation functions.
     Auto,
 
-    /// Selects best memory type automatically with preference for CPU (host) memory.
+    /// Selects best memory type automatically with preference for GPU (device) memory.
     ///
     /// When using this flag, if you want to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT),
     /// you must pass one of the flags: #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
