@@ -124,6 +124,7 @@ fn generate_bindings(output_file: &str) {
         .blocklist_type("PFN_vk.*")
         .raw_line("#![allow(non_camel_case_types)]")
         .raw_line("#![allow(non_snake_case)]")
+        .raw_line("#![allow(dead_code)]")
         .raw_line("use ash::vk::*;")
         .trust_clang_mangling(false)
         .layout_tests(false)

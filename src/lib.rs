@@ -461,10 +461,38 @@ impl Allocator {
     /// It is recommended to use function `Allocator::create_buffer` instead of this one.
     pub unsafe fn bind_buffer_memory(
         &self,
-        buffer: ash::vk::Buffer,
         allocation: Allocation,
+        buffer: ash::vk::Buffer,
     ) -> VkResult<()> {
         ffi::vmaBindBufferMemory(self.internal, allocation, buffer).result()
+    }
+
+    /// Binds buffer to allocation with additional parameters.
+    ///
+    /// * `allocation`
+    /// * `allocation_local_offset` - Additional offset to be added while binding, relative to the beginning of the `allocation`. Normally it should be 0.
+    /// * `buffer`
+    /// * `next` - A chain of structures to be attached to `VkBindImageMemoryInfoKHR` structure used internally. Normally it should be null.
+    ///
+    /// This function is similar to vmaBindImageMemory(), but it provides additional parameters.
+    ///
+    /// If `pNext` is not null, #VmaAllocator object must have been created with #VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT flag
+    /// or with VmaAllocatorCreateInfo::vulkanApiVersion `>= VK_API_VERSION_1_1`. Otherwise the call fails.
+    pub unsafe fn bind_buffer_memory2(
+        &self,
+        allocation: Allocation,
+        allocation_local_offset: vk::DeviceSize,
+        buffer: ash::vk::Buffer,
+        next: *const ::std::os::raw::c_void,
+    ) -> VkResult<()> {
+        ffi::vmaBindBufferMemory2(
+            self.internal,
+            allocation,
+            allocation_local_offset,
+            buffer,
+            next,
+        )
+        .result()
     }
 
     /// Binds image to allocation.
@@ -482,10 +510,38 @@ impl Allocator {
     /// It is recommended to use function `Allocator::create_image` instead of this one.
     pub unsafe fn bind_image_memory(
         &self,
-        image: ash::vk::Image,
         allocation: Allocation,
+        image: ash::vk::Image,
     ) -> VkResult<()> {
         ffi::vmaBindImageMemory(self.internal, allocation, image).result()
+    }
+
+    /// Binds image to allocation with additional parameters.
+    ///
+    /// * `allocation`
+    /// * `allocation_local_offset` - Additional offset to be added while binding, relative to the beginning of the `allocation`. Normally it should be 0.
+    /// * `image`
+    /// * `next` - A chain of structures to be attached to `VkBindImageMemoryInfoKHR` structure used internally. Normally it should be null.
+    ///
+    /// This function is similar to vmaBindImageMemory(), but it provides additional parameters.
+    ///
+    /// If `pNext` is not null, #VmaAllocator object must have been created with #VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT flag
+    /// or with VmaAllocatorCreateInfo::vulkanApiVersion `>= VK_API_VERSION_1_1`. Otherwise the call fails.
+    pub unsafe fn bind_image_memory2(
+        &self,
+        allocation: Allocation,
+        allocation_local_offset: vk::DeviceSize,
+        image: ash::vk::Image,
+        next: *const ::std::os::raw::c_void,
+    ) -> VkResult<()> {
+        ffi::vmaBindImageMemory2(
+            self.internal,
+            allocation,
+            allocation_local_offset,
+            image,
+            next,
+        )
+        .result()
     }
 
     /// Destroys Vulkan buffer and frees allocated memory.
@@ -514,6 +570,53 @@ impl Allocator {
     /// It it safe to pass null as `image` and/or `allocation`.
     pub unsafe fn destroy_image(&self, image: ash::vk::Image, allocation: Allocation) {
         ffi::vmaDestroyImage(self.internal, image, allocation);
+    }
+    /// Flushes memory of given set of allocations."]
+    ///
+    /// Calls `vkFlushMappedMemoryRanges()` for memory associated with given ranges of given allocations."]
+    /// For more information, see documentation of vmaFlushAllocation()."]
+    ///
+    /// * `allocations`
+    /// * `offsets` - If not None, it must be a slice of offsets of regions to flush, relative to the beginning of respective allocations. None means all ofsets are zero.
+    /// * `sizes` - If not None, it must be a slice of sizes of regions to flush in respective allocations. None means `VK_WHOLE_SIZE` for all allocations.
+    pub unsafe fn flush_allocations(
+        &self,
+        allocations: &[Allocation],
+        offsets: Option<&[vk::DeviceSize]>,
+        sizes: Option<&[vk::DeviceSize]>,
+    ) -> VkResult<()> {
+        ffi::vmaFlushAllocations(
+            self.internal,
+            allocations.len() as u32,
+            allocations.as_ptr() as *mut _,
+            offsets.map_or(std::ptr::null(), |offsets| offsets.as_ptr()),
+            sizes.map_or(std::ptr::null(), |sizes| sizes.as_ptr()),
+        )
+        .result()
+    }
+
+    /// Invalidates memory of given set of allocations."]
+    ///
+    /// Calls `vkInvalidateMappedMemoryRanges()` for memory associated with given ranges of given allocations."]
+    /// For more information, see documentation of vmaInvalidateAllocation()."]
+    ///
+    /// * `allocations`
+    /// * `offsets` - If not None, it must be a slice of offsets of regions to flush, relative to the beginning of respective allocations. None means all ofsets are zero.
+    /// * `sizes` - If not None, it must be a slice of sizes of regions to flush in respective allocations. None means `VK_WHOLE_SIZE` for all allocations.
+    pub unsafe fn invalidate_allocations(
+        &self,
+        allocations: &[Allocation],
+        offsets: Option<&[vk::DeviceSize]>,
+        sizes: Option<&[vk::DeviceSize]>,
+    ) -> VkResult<()> {
+        ffi::vmaInvalidateAllocations(
+            self.internal,
+            allocations.len() as u32,
+            allocations.as_ptr() as *mut _,
+            offsets.map_or(std::ptr::null(), |offsets| offsets.as_ptr()),
+            sizes.map_or(std::ptr::null(), |sizes| sizes.as_ptr()),
+        )
+        .result()
     }
 }
 

@@ -1,3 +1,4 @@
+use std::ffi::CStr;
 use std::sync::Arc;
 
 use crate::ffi;
@@ -31,6 +32,13 @@ impl Allocator {
             })
         }
     }
+
+    pub fn default_pool(self: &Arc<Self>) -> AllocatorPool {
+        AllocatorPool {
+            pool: PoolHandle(std::ptr::null_mut()),
+            allocator: self.clone(),
+        }
+    }
 }
 
 impl Drop for AllocatorPool {
@@ -42,6 +50,31 @@ impl Drop for AllocatorPool {
 }
 
 impl AllocatorPool {
+    pub fn set_name(&self, name: Option<&CStr>) {
+        if self.pool.0.is_null() {
+            return;
+        }
+        unsafe {
+            ffi::vmaSetPoolName(
+                self.allocator.internal,
+                self.pool.0,
+                name.map_or(std::ptr::null(), CStr::as_ptr),
+            );
+        }
+    }
+    pub fn name(&self) -> Option<&CStr> {
+        if self.pool.0.is_null() {
+            return None;
+        }
+        let mut ptr: *const ::std::os::raw::c_char = std::ptr::null();
+        unsafe {
+            ffi::vmaGetPoolName(self.allocator.internal, self.pool.0, &mut ptr);
+            if ptr.is_null() {
+                return None;
+            }
+            Some(CStr::from_ptr(ptr))
+        }
+    }
     /// Retrieves statistics of existing `AllocatorPool` object.
     pub fn get_statistics(&self) -> VkResult<ffi::VmaStatistics> {
         unsafe {
@@ -320,7 +353,7 @@ pub trait Alloc {
         Ok((buffer, allocation, allocation_info))
     }
     /// brief Creates a buffer with additional minimum alignment.
-    /// 
+    ///
     /// Similar to vmaCreateBuffer() but provides additional parameter `minAlignment` which allows to specify custom,
     /// minimum alignment to be used when placing the buffer inside a larger memory block, which may be needed e.g.
     /// for interop with OpenGL.
