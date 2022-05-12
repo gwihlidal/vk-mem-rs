@@ -3,6 +3,7 @@ use ash::vk;
 use ash::vk::PhysicalDevice;
 use ash::{Device, Instance};
 use bitflags::bitflags;
+use std::ffi::CStr;
 use std::ptr;
 
 /// Intended usage of memory.
@@ -608,5 +609,79 @@ impl From<&AllocationCreateInfo> for ffi::VmaAllocationCreateInfo {
             pUserData: info.user_data as _,
             priority: info.priority,
         }
+    }
+}
+
+/// Parameters of `Allocation` objects, that can be retrieved using `Allocator::get_allocation_info`.
+#[derive(Debug, Clone)]
+pub struct AllocationInfo<'a> {
+    /// Memory type index that this allocation was allocated from. It never changes.
+    pub memory_type: u32,
+    /// Handle to Vulkan memory object.
+    ///
+    /// Same memory object can be shared by multiple allocations.
+    ///
+    /// It can change after the allocation is moved during \\ref defragmentation.
+    pub device_memory: vk::DeviceMemory,
+    /// Offset in `VkDeviceMemory` object to the beginning of this allocation, in bytes. `(deviceMemory, offset)` pair is unique to this allocation.
+    ///
+    /// You usually don't need to use this offset. If you create a buffer or an image together with the allocation using e.g. function
+    /// vmaCreateBuffer(), vmaCreateImage(), functions that operate on these resources refer to the beginning of the buffer or image,
+    /// not entire device memory block. Functions like vmaMapMemory(), vmaBindBufferMemory() also refer to the beginning of the allocation
+    /// and apply this offset automatically.
+    ///
+    /// It can change after the allocation is moved during \\ref defragmentation.
+    pub offset: vk::DeviceSize,
+    /// Size of this allocation, in bytes. It never changes.
+    ///
+    /// Allocation size returned in this variable may be greater than the size
+    /// requested for the resource e.g. as `VkBufferCreateInfo::size`. Whole size of the
+    /// allocation is accessible for operations on memory e.g. using a pointer after
+    /// mapping with vmaMapMemory(), but operations on the resource e.g. using
+    /// `vkCmdCopyBuffer` must be limited to the size of the resource.
+    pub size: vk::DeviceSize,
+    /// Pointer to the beginning of this allocation as mapped data.
+    ///
+    /// If the allocation hasn't been mapped using vmaMapMemory() and hasn't been
+    /// created with #VMA_ALLOCATION_CREATE_MAPPED_BIT flag, this value is null.
+    ///
+    /// It can change after call to vmaMapMemory(), vmaUnmapMemory().
+    /// It can also change after the allocation is moved during defragmentation.
+    pub mapped_data: *mut ::std::os::raw::c_void,
+    /// Custom general-purpose pointer that was passed as VmaAllocationCreateInfo::pUserData or set using vmaSetAllocationUserData().
+    ///
+    /// It can change after call to vmaSetAllocationUserData() for this allocation.
+    pub user_data: usize,
+    /// Custom allocation name that was set with vmaSetAllocationName().
+    ///
+    /// It can change after call to vmaSetAllocationName() for this allocation.
+    ///
+    /// Another way to set custom name is to pass it in VmaAllocationCreateInfo::pUserData with
+    /// additional flag #VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT set [DEPRECATED].
+    pub name: Option<&'a CStr>,
+}
+
+impl<'a> From<&ffi::VmaAllocationInfo> for AllocationInfo<'a> {
+    fn from(info: &ffi::VmaAllocationInfo) -> Self {
+        Self {
+            memory_type: info.memoryType,
+            device_memory: info.deviceMemory,
+            offset: info.offset,
+            size: info.size,
+            mapped_data: info.pMappedData,
+            user_data: info.pUserData as _,
+            name: unsafe {
+                if info.pName.is_null() {
+                    None
+                } else {
+                    Some(CStr::from_ptr(info.pName))
+                }
+            },
+        }
+    }
+}
+impl<'a> From<ffi::VmaAllocationInfo> for AllocationInfo<'a> {
+    fn from(info: ffi::VmaAllocationInfo) -> Self {
+        (&info).into()
     }
 }

@@ -179,7 +179,7 @@ fn create_gpu_buffer() {
                 &allocation_info,
             )
             .unwrap();
-        assert_eq!(allocation_info.get_mapped_data(), std::ptr::null_mut());
+        assert_eq!(allocation_info.mapped_data, std::ptr::null_mut());
         allocator.destroy_buffer(buffer, allocation);
     }
 }
@@ -208,7 +208,7 @@ fn create_cpu_buffer_preferred() {
                 &allocation_info,
             )
             .unwrap();
-        assert_ne!(allocation_info.get_mapped_data(), std::ptr::null_mut());
+        assert_ne!(allocation_info.mapped_data, std::ptr::null_mut());
         allocator.destroy_buffer(buffer, allocation);
     }
 }
@@ -247,7 +247,7 @@ fn create_gpu_buffer_pool() {
 
         let (buffer, allocation, allocation_info) =
             pool.create_buffer(&buffer_info, &allocation_info).unwrap();
-        assert_ne!(allocation_info.get_mapped_data(), std::ptr::null_mut());
+        assert_ne!(allocation_info.mapped_data, std::ptr::null_mut());
         allocator.destroy_buffer(buffer, allocation);
     }
 }

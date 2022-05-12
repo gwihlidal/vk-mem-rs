@@ -38,93 +38,7 @@ unsafe impl Sync for Allocator {}
 /// use `Allocator::get_allocation_info`.
 ///
 /// Some kinds allocations can be in lost state.
-pub type Allocation = ffi::VmaAllocation;
-
-/// Parameters of `Allocation` objects, that can be retrieved using `Allocator::get_allocation_info`.
-#[derive(Debug, Clone)]
-pub struct AllocationInfo {
-    /// Pointer to internal VmaAllocationInfo instance
-    internal: ffi::VmaAllocationInfo,
-}
-
-unsafe impl Send for AllocationInfo {}
-unsafe impl Sync for AllocationInfo {}
-
-impl AllocationInfo {
-    #[inline(always)]
-    // Gets the memory type index that this allocation was allocated from. (Never changes)
-    pub fn get_memory_type(&self) -> u32 {
-        self.internal.memoryType
-    }
-
-    /// Handle to Vulkan memory object.
-    ///
-    /// Same memory object can be shared by multiple allocations.
-    ///
-    /// It can change after call to `Allocator::defragment` if this allocation is passed
-    /// to the function, or if allocation is lost.
-    ///
-    /// If the allocation is lost, it is equal to `ash::vk::DeviceMemory::null()`.
-    #[inline(always)]
-    pub fn get_device_memory(&self) -> ash::vk::DeviceMemory {
-        self.internal.deviceMemory
-    }
-
-    /// Offset into device memory object to the beginning of this allocation, in bytes.
-    /// (`self.get_device_memory()`, `self.get_offset()`) pair is unique to this allocation.
-    ///
-    /// It can change after call to `Allocator::defragment` if this allocation is passed
-    /// to the function, or if allocation is lost.
-    #[inline(always)]
-    pub fn get_offset(&self) -> usize {
-        self.internal.offset as usize
-    }
-
-    /// Size of this allocation, in bytes.
-    ///
-    /// It never changes, unless allocation is lost.
-    #[inline(always)]
-    pub fn get_size(&self) -> usize {
-        self.internal.size as usize
-    }
-
-    /// Pointer to the beginning of this allocation as mapped data.
-    ///
-    /// If the allocation hasn't been mapped using `Allocator::map_memory` and hasn't been
-    /// created with `AllocationCreateFlags::MAPPED` flag, this value is null.
-    ///
-    /// It can change after call to `Allocator::map_memory`, `Allocator::unmap_memory`.
-    /// It can also change after call to `Allocator::defragment` if this allocation is
-    /// passed to the function.
-    #[inline(always)]
-    pub fn get_mapped_data(&self) -> *mut u8 {
-        self.internal.pMappedData as *mut u8
-    }
-
-    /*#[inline(always)]
-    pub fn get_mapped_slice(&self) -> Option<&mut &[u8]> {
-        if self.internal.pMappedData.is_null() {
-            None
-        } else {
-            Some(unsafe { &mut ::std::slice::from_raw_parts(self.internal.pMappedData as *mut u8, self.get_size()) })
-        }
-    }*/
-
-    /// Custom general-purpose pointer that was passed as `AllocationCreateInfo::user_data` or set using `Allocator::set_allocation_user_data`.
-    ///
-    /// It can change after a call to `Allocator::set_allocation_user_data` for this allocation.
-    #[inline(always)]
-    pub fn get_user_data(&self) -> *mut ::std::os::raw::c_void {
-        self.internal.pUserData
-    }
-}
-
-/// Construct `AllocatorCreateFlags` with default values
-impl Default for AllocatorCreateFlags {
-    fn default() -> Self {
-        AllocatorCreateFlags::NONE
-    }
-}
+pub struct Allocation(ffi::VmaAllocation);
 
 impl Allocator {
     /// Constructor a new `Allocator` using the provided options.
@@ -273,7 +187,7 @@ impl Allocator {
     /// Frees memory previously allocated using `Allocator::allocate_memory`,
     /// `Allocator::allocate_memory_for_buffer`, or `Allocator::allocate_memory_for_image`.
     pub unsafe fn free_memory(&self, allocation: Allocation) {
-        ffi::vmaFreeMemory(self.internal, allocation);
+        ffi::vmaFreeMemory(self.internal, allocation.0);
     }
 
     /// Frees memory and destroys multiple allocations.
@@ -307,9 +221,9 @@ impl Allocator {
     ///
     /// If you just want to check if allocation is not lost, `Allocator::touch_allocation` will work faster.
     pub unsafe fn get_allocation_info(&self, allocation: Allocation) -> VkResult<AllocationInfo> {
-        let mut allocation_info: AllocationInfo = mem::zeroed();
-        ffi::vmaGetAllocationInfo(self.internal, allocation, &mut allocation_info.internal);
-        Ok(allocation_info)
+        let mut allocation_info: ffi::VmaAllocationInfo = mem::zeroed();
+        ffi::vmaGetAllocationInfo(self.internal, allocation.0, &mut allocation_info);
+        Ok(allocation_info.into())
     }
 
     /// Sets user data in given allocation to new value.
@@ -329,7 +243,7 @@ impl Allocator {
         allocation: Allocation,
         user_data: *mut ::std::os::raw::c_void,
     ) {
-        ffi::vmaSetAllocationUserData(self.internal, allocation, user_data);
+        ffi::vmaSetAllocationUserData(self.internal, allocation.0, user_data);
     }
 
     /// Maps memory represented by given allocation and returns pointer to it.
@@ -368,14 +282,14 @@ impl Allocator {
     /// `AllocationCreateFlags::CAN_BECOME_LOST` flag. Such allocations cannot be mapped.
     pub unsafe fn map_memory(&self, allocation: Allocation) -> VkResult<*mut u8> {
         let mut mapped_data: *mut ::std::os::raw::c_void = ::std::ptr::null_mut();
-        ffi::vmaMapMemory(self.internal, allocation, &mut mapped_data).result()?;
+        ffi::vmaMapMemory(self.internal, allocation.0, &mut mapped_data).result()?;
 
         Ok(mapped_data as *mut u8)
     }
 
     /// Unmaps memory represented by given allocation, mapped previously using `Allocator::map_memory`.
     pub unsafe fn unmap_memory(&self, allocation: Allocation) {
-        ffi::vmaUnmapMemory(self.internal, allocation);
+        ffi::vmaUnmapMemory(self.internal, allocation.0);
     }
 
     /// Flushes memory of given allocation.
@@ -395,7 +309,7 @@ impl Allocator {
     ) -> VkResult<()> {
         ffi::vmaFlushAllocation(
             self.internal,
-            allocation,
+            allocation.0,
             offset as vk::DeviceSize,
             size as vk::DeviceSize,
         )
@@ -419,7 +333,7 @@ impl Allocator {
     ) -> VkResult<()> {
         ffi::vmaInvalidateAllocation(
             self.internal,
-            allocation,
+            allocation.0,
             offset as vk::DeviceSize,
             size as vk::DeviceSize,
         )
@@ -464,7 +378,7 @@ impl Allocator {
         allocation: Allocation,
         buffer: ash::vk::Buffer,
     ) -> VkResult<()> {
-        ffi::vmaBindBufferMemory(self.internal, allocation, buffer).result()
+        ffi::vmaBindBufferMemory(self.internal, allocation.0, buffer).result()
     }
 
     /// Binds buffer to allocation with additional parameters.
@@ -487,7 +401,7 @@ impl Allocator {
     ) -> VkResult<()> {
         ffi::vmaBindBufferMemory2(
             self.internal,
-            allocation,
+            allocation.0,
             allocation_local_offset,
             buffer,
             next,
@@ -513,7 +427,7 @@ impl Allocator {
         allocation: Allocation,
         image: ash::vk::Image,
     ) -> VkResult<()> {
-        ffi::vmaBindImageMemory(self.internal, allocation, image).result()
+        ffi::vmaBindImageMemory(self.internal, allocation.0, image).result()
     }
 
     /// Binds image to allocation with additional parameters.
@@ -536,7 +450,7 @@ impl Allocator {
     ) -> VkResult<()> {
         ffi::vmaBindImageMemory2(
             self.internal,
-            allocation,
+            allocation.0,
             allocation_local_offset,
             image,
             next,
@@ -555,7 +469,7 @@ impl Allocator {
     ///
     /// It it safe to pass null as `buffer` and/or `allocation`.
     pub unsafe fn destroy_buffer(&self, buffer: ash::vk::Buffer, allocation: Allocation) {
-        ffi::vmaDestroyBuffer(self.internal, buffer, allocation);
+        ffi::vmaDestroyBuffer(self.internal, buffer, allocation.0);
     }
 
     /// Destroys Vulkan image and frees allocated memory.
@@ -569,7 +483,7 @@ impl Allocator {
     ///
     /// It it safe to pass null as `image` and/or `allocation`.
     pub unsafe fn destroy_image(&self, image: ash::vk::Image, allocation: Allocation) {
-        ffi::vmaDestroyImage(self.internal, image, allocation);
+        ffi::vmaDestroyImage(self.internal, image, allocation.0);
     }
     /// Flushes memory of given set of allocations."]
     ///

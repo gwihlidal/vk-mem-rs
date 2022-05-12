@@ -217,18 +217,18 @@ pub trait Alloc {
     ) -> VkResult<(Allocation, AllocationInfo)> {
         let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
         create_info.pool = self.pool().0;
-        let mut allocation: Allocation = std::mem::zeroed();
-        let mut allocation_info: AllocationInfo = std::mem::zeroed();
+        let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
+        let mut allocation_info: ffi::VmaAllocationInfo = std::mem::zeroed();
         ffi::vmaAllocateMemory(
             self.allocator().internal,
             memory_requirements,
             &create_info,
             &mut allocation,
-            &mut allocation_info.internal,
+            &mut allocation_info,
         )
         .result()?;
 
-        Ok((allocation, allocation_info))
+        Ok((Allocation(allocation), allocation_info.into()))
     }
 
     /// General purpose memory allocation for multiple allocation objects at once.
@@ -263,7 +263,7 @@ pub trait Alloc {
 
         let it = allocations.iter().zip(allocation_info.iter());
         let allocations: Vec<(Allocation, AllocationInfo)> = it
-            .map(|(alloc, info)| (*alloc, AllocationInfo { internal: *info }))
+            .map(|(alloc, info)| (Allocation(*alloc), info.into()))
             .collect();
 
         Ok(allocations)
@@ -279,18 +279,18 @@ pub trait Alloc {
     ) -> VkResult<(Allocation, AllocationInfo)> {
         let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
         create_info.pool = self.pool().0;
-        let mut allocation: Allocation = std::mem::zeroed();
-        let mut allocation_info: AllocationInfo = std::mem::zeroed();
+        let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
+        let mut allocation_info: ffi::VmaAllocationInfo = std::mem::zeroed();
         ffi::vmaAllocateMemoryForBuffer(
             self.allocator().internal,
             buffer,
             &create_info,
             &mut allocation,
-            &mut allocation_info.internal,
+            &mut allocation_info,
         )
         .result()?;
 
-        Ok((allocation, allocation_info))
+        Ok((Allocation(allocation), allocation_info.into()))
     }
 
     /// Image specialized memory allocation.
@@ -303,18 +303,18 @@ pub trait Alloc {
     ) -> VkResult<(Allocation, AllocationInfo)> {
         let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
         create_info.pool = self.pool().0;
-        let mut allocation: Allocation = std::mem::zeroed();
-        let mut allocation_info: AllocationInfo = std::mem::zeroed();
+        let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
+        let mut allocation_info: ffi::VmaAllocationInfo = std::mem::zeroed();
         ffi::vmaAllocateMemoryForImage(
             self.allocator().internal,
             image,
             &create_info,
             &mut allocation,
-            &mut allocation_info.internal,
+            &mut allocation_info,
         )
         .result()?;
 
-        Ok((allocation, allocation_info))
+        Ok((Allocation(allocation), allocation_info.into()))
     }
 
     /// This function automatically creates a buffer, allocates appropriate memory
@@ -338,19 +338,19 @@ pub trait Alloc {
         let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
         create_info.pool = self.pool().0;
         let mut buffer = vk::Buffer::null();
-        let mut allocation: Allocation = std::mem::zeroed();
-        let mut allocation_info: AllocationInfo = std::mem::zeroed();
+        let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
+        let mut allocation_info: ffi::VmaAllocationInfo = std::mem::zeroed();
         ffi::vmaCreateBuffer(
             self.allocator().internal,
             &*buffer_info,
             &create_info,
             &mut buffer,
             &mut allocation,
-            &mut allocation_info.internal,
+            &mut allocation_info,
         )
         .result()?;
 
-        Ok((buffer, allocation, allocation_info))
+        Ok((buffer, Allocation(allocation), allocation_info.into()))
     }
     /// brief Creates a buffer with additional minimum alignment.
     ///
@@ -366,8 +366,8 @@ pub trait Alloc {
         let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
         create_info.pool = self.pool().0;
         let mut buffer = vk::Buffer::null();
-        let mut allocation: Allocation = std::mem::zeroed();
-        let mut allocation_info: AllocationInfo = std::mem::zeroed();
+        let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
+        let mut allocation_info: ffi::VmaAllocationInfo = std::mem::zeroed();
         ffi::vmaCreateBufferWithAlignment(
             self.allocator().internal,
             &*buffer_info,
@@ -375,11 +375,11 @@ pub trait Alloc {
             min_alignment,
             &mut buffer,
             &mut allocation,
-            &mut allocation_info.internal,
+            &mut allocation_info,
         )
         .result()?;
 
-        Ok((buffer, allocation, allocation_info))
+        Ok((buffer, Allocation(allocation), allocation_info.into()))
     }
     /// This function automatically creates an image, allocates appropriate memory
     /// for it, and binds the image with the memory.
@@ -406,19 +406,19 @@ pub trait Alloc {
         let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
         create_info.pool = self.pool().0;
         let mut image = vk::Image::null();
-        let mut allocation: Allocation = std::mem::zeroed();
-        let mut allocation_info: AllocationInfo = std::mem::zeroed();
+        let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
+        let mut allocation_info: ffi::VmaAllocationInfo = std::mem::zeroed();
         ffi::vmaCreateImage(
             self.allocator().internal,
             &*image_info,
             &create_info,
             &mut image,
             &mut allocation,
-            &mut allocation_info.internal,
+            &mut allocation_info,
         )
         .result()?;
 
-        Ok((image, allocation, allocation_info))
+        Ok((image, Allocation(allocation), allocation_info.into()))
     }
 }
 
