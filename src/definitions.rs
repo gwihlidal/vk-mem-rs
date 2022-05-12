@@ -1,5 +1,5 @@
-use crate::ffi::VmaAllocationCreateInfo;
-use crate::{ffi, AllocatorPool};
+use crate::ffi;
+use ash::vk;
 use ash::vk::PhysicalDevice;
 use ash::{Device, Instance};
 use bitflags::bitflags;
@@ -337,8 +337,6 @@ bitflags! {
 bitflags! {
     /// Flags for configuring `AllocatorPool` construction.
     pub struct AllocatorPoolCreateFlags: u32 {
-        const NONE = 0;
-
         /// Use this flag if you always allocate only buffers and linear images or only optimal images
         /// out of this pool and so buffer-image granularity can be ignored.
         ///
@@ -522,35 +520,66 @@ impl<'a> PoolCreateInfo<'a> {
     }
 }
 
-pub struct AllocationCreateInfo<'a> {
-    pub(crate) inner: ffi::VmaAllocationCreateInfo,
-    marker: ::std::marker::PhantomData<&'a ()>,
+#[derive(Clone)]
+pub struct AllocationCreateInfo {
+    pub flags: AllocationCreateFlags,
+    /// Intended usage of memory.
+    ///
+    /// You can leave `MemoryUsage::Unknown` if you specify memory requirements in other way.
+    ///
+    /// If `pool` is not null, this member is ignored.
+    pub usage: MemoryUsage,
+    /// Flags that must be set in a Memory Type chosen for an allocation.
+    ///
+    /// Leave 0 if you specify memory requirements in other way.
+    ///
+    /// If `pool` is not null, this member is ignored.
+    pub required_flags: vk::MemoryPropertyFlags,
+    /// Flags that preferably should be set in a memory type chosen for an allocation."]
+    ///
+    /// Set to 0 if no additional flags are preferred.
+    /// If `pool` is not null, this member is ignored.
+    pub preferred_flags: vk::MemoryPropertyFlags,
+    /// Bitmask containing one bit set for every memory type acceptable for this allocation.
+    ///
+    /// Value 0 is equivalent to `UINT32_MAX` - it means any memory type is accepted if
+    /// it meets other requirements specified by this structure, with no further
+    /// restrictions on memory type index.
+    ///
+    /// If `pool` is not null, this member is ignored.
+    pub memory_type_bits: u32,
+    /// Custom general-purpose pointer that will be stored in `Allocation`,
+    /// can be read as VmaAllocationInfo::pUserData and changed using vmaSetAllocationUserData().
+    ///
+    /// If #VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT is used, it must be either
+    /// null or pointer to a null-terminated string. The string will be then copied to
+    /// internal buffer, so it doesn't need to be valid after allocation call.
+    pub user_data: usize,
+    /// A floating-point value between 0 and 1, indicating the priority of the allocation relative to other memory allocations.
+    ///
+    /// It is used only when #VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT flag was used during creation of the #VmaAllocator object
+    /// and this allocation ends up as dedicated or is explicitly forced as dedicated using #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT.
+    /// Otherwise, it has the priority of a memory block where it is placed and this variable is ignored.
+    pub priority: f32,
 }
 
-impl<'a> AllocationCreateInfo<'a> {
-    pub fn new() -> AllocationCreateInfo<'a> {
-        AllocationCreateInfo {
-            inner: VmaAllocationCreateInfo {
-                flags: 0,
-                usage: ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_UNKNOWN,
-                requiredFlags: Default::default(),
-                preferredFlags: Default::default(),
-                memoryTypeBits: 0,
-                pool: ptr::null_mut(),
-                pUserData: ptr::null_mut(),
-                priority: 0.0,
-            },
-            marker: ::std::marker::PhantomData,
+impl Default for AllocationCreateInfo {
+    fn default() -> Self {
+        Self {
+            flags: AllocationCreateFlags::empty(),
+            usage: MemoryUsage::Unknown,
+            required_flags: vk::MemoryPropertyFlags::empty(),
+            preferred_flags: vk::MemoryPropertyFlags::empty(),
+            memory_type_bits: 0,
+            user_data: 0,
+            priority: 0.0,
         }
     }
+}
 
-    pub fn flags(mut self, flags: AllocationCreateFlags) -> Self {
-        self.inner.flags = flags.bits();
-        self
-    }
-
-    pub fn usage(mut self, usage: MemoryUsage) -> Self {
-        self.inner.usage = match usage {
+impl From<&AllocationCreateInfo> for ffi::VmaAllocationCreateInfo {
+    fn from(info: &AllocationCreateInfo) -> Self {
+        let usage = match info.usage {
             MemoryUsage::Unknown => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_UNKNOWN,
             #[allow(deprecated)]
             MemoryUsage::GpuOnly => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
@@ -569,36 +598,15 @@ impl<'a> AllocationCreateInfo<'a> {
             }
             MemoryUsage::AutoPreferHost => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
         };
-        self
-    }
-
-    pub fn required_flags(mut self, flags: ash::vk::MemoryPropertyFlags) -> Self {
-        self.inner.requiredFlags = flags;
-        self
-    }
-
-    pub fn preferred_flags(mut self, flags: ash::vk::MemoryPropertyFlags) -> Self {
-        self.inner.preferredFlags = flags;
-        self
-    }
-
-    pub fn memory_type_bits(mut self, flags: u32) -> Self {
-        self.inner.memoryTypeBits = flags;
-        self
-    }
-
-    pub fn pool(mut self, pool: &AllocatorPool) -> Self {
-        self.inner.pool = pool.raw;
-        self
-    }
-
-    pub fn user_data(mut self, p_user_data: *mut ::std::os::raw::c_void) -> Self {
-        self.inner.pUserData = p_user_data;
-        self
-    }
-
-    pub fn priority(mut self, priority: f32) -> Self {
-        self.inner.priority = priority;
-        self
+        ffi::VmaAllocationCreateInfo {
+            flags: info.flags.bits(),
+            usage,
+            requiredFlags: info.required_flags,
+            preferredFlags: info.preferred_flags,
+            memoryTypeBits: info.memory_type_bits,
+            pool: std::ptr::null_mut(),
+            pUserData: info.user_data as _,
+            priority: info.priority,
+        }
     }
 }

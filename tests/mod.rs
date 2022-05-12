@@ -3,6 +3,7 @@ extern crate vk_mem;
 
 use ash::{extensions::ext::DebugUtils, vk};
 use std::{os::raw::c_void, sync::Arc};
+use vk_mem::Alloc;
 
 fn extension_names() -> Vec<*const i8> {
     vec![DebugUtils::name().as_ptr()]
@@ -160,7 +161,10 @@ fn create_allocator() {
 fn create_gpu_buffer() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info = vk_mem::AllocationCreateInfo::new().usage(vk_mem::MemoryUsage::Auto);
+    let allocation_info = vk_mem::AllocationCreateInfo {
+        usage: vk_mem::MemoryUsage::Auto,
+        ..Default::default()
+    };
 
     unsafe {
         let (buffer, allocation, allocation_info) = allocator
@@ -184,12 +188,13 @@ fn create_gpu_buffer() {
 fn create_cpu_buffer_preferred() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info = vk_mem::AllocationCreateInfo::new()
-        .required_flags(ash::vk::MemoryPropertyFlags::HOST_VISIBLE)
-        .preferred_flags(
-            ash::vk::MemoryPropertyFlags::HOST_COHERENT | ash::vk::MemoryPropertyFlags::HOST_CACHED,
-        )
-        .flags(vk_mem::AllocationCreateFlags::MAPPED);
+    let allocation_info = vk_mem::AllocationCreateInfo {
+        required_flags: ash::vk::MemoryPropertyFlags::HOST_VISIBLE,
+        preferred_flags: ash::vk::MemoryPropertyFlags::HOST_COHERENT
+            | ash::vk::MemoryPropertyFlags::HOST_CACHED,
+        flags: vk_mem::AllocationCreateFlags::MAPPED,
+        ..Default::default()
+    };
     unsafe {
         let (buffer, allocation, allocation_info) = allocator
             .create_buffer(
@@ -219,12 +224,14 @@ fn create_gpu_buffer_pool() {
         .usage(ash::vk::BufferUsageFlags::UNIFORM_BUFFER | ash::vk::BufferUsageFlags::TRANSFER_DST)
         .build();
 
-    let mut allocation_info = vk_mem::AllocationCreateInfo::new()
-        .required_flags(ash::vk::MemoryPropertyFlags::HOST_VISIBLE)
-        .preferred_flags(
-            ash::vk::MemoryPropertyFlags::HOST_COHERENT | ash::vk::MemoryPropertyFlags::HOST_CACHED,
-        )
-        .flags(vk_mem::AllocationCreateFlags::MAPPED);
+    let allocation_info = vk_mem::AllocationCreateInfo {
+        required_flags: ash::vk::MemoryPropertyFlags::HOST_VISIBLE,
+        preferred_flags: ash::vk::MemoryPropertyFlags::HOST_COHERENT
+            | ash::vk::MemoryPropertyFlags::HOST_CACHED,
+        flags: vk_mem::AllocationCreateFlags::MAPPED,
+
+        ..Default::default()
+    };
     unsafe {
         let memory_type_index = allocator
             .find_memory_type_index_for_buffer_info(&buffer_info, &allocation_info)
@@ -237,11 +244,9 @@ fn create_gpu_buffer_pool() {
             .max_block_count(2);
 
         let pool = allocator.create_pool(&pool_info).unwrap();
-        allocation_info = allocation_info.pool(&pool);
 
-        let (buffer, allocation, allocation_info) = allocator
-            .create_buffer(&buffer_info, &allocation_info)
-            .unwrap();
+        let (buffer, allocation, allocation_info) =
+            pool.create_buffer(&buffer_info, &allocation_info).unwrap();
         assert_ne!(allocation_info.get_mapped_data(), std::ptr::null_mut());
         allocator.destroy_buffer(buffer, allocation);
     }
@@ -251,7 +256,10 @@ fn create_gpu_buffer_pool() {
 fn test_gpu_stats() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info = vk_mem::AllocationCreateInfo::new().usage(vk_mem::MemoryUsage::Auto);
+    let allocation_info = vk_mem::AllocationCreateInfo {
+        usage: vk_mem::MemoryUsage::Auto,
+        ..Default::default()
+    };
 
     unsafe {
         let stats_1 = allocator.calculate_statistics().unwrap();
