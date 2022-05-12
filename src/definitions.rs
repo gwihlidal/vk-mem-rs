@@ -217,15 +217,10 @@ bitflags! {
 bitflags! {
     /// Flags for configuring `Allocation` construction.
     pub struct AllocationCreateFlags: u32 {
-        /// Default configuration for allocation.
-        const NONE = 0x0000_0000;
-
         /// Set this flag if the allocation should have its own memory block.
         ///
         /// Use it for special, big resources, like fullscreen images used as attachments.
-        ///
-        /// You should not use this flag if `AllocationCreateInfo::pool` is not `None`.
-        const DEDICATED_MEMORY = 0x0000_0001;
+        const DEDICATED_MEMORY = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT as u32;
 
         /// Set this flag to only try to allocate from existing `ash::vk::DeviceMemory` blocks and never create new such block.
         ///
@@ -233,9 +228,7 @@ bitflags! {
         /// fails with `ash::vk::Result::ERROR_OUT_OF_DEVICE_MEMORY` error.
         ///
         /// You should not use `AllocationCreateFlags::DEDICATED_MEMORY` and `AllocationCreateFlags::NEVER_ALLOCATE` at the same time. It makes no sense.
-        ///
-        /// If `AllocationCreateInfo::pool` is not `None`, this flag is implied and ignored.
-        const NEVER_ALLOCATE = 0x0000_0002;
+        const NEVER_ALLOCATE = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_NEVER_ALLOCATE_BIT as u32;
 
         /// Set this flag to use a memory that will be persistently mapped and retrieve pointer to it.
         ///
@@ -248,64 +241,96 @@ bitflags! {
         /// support it (e.g. Intel GPU).
         ///
         /// You should not use this flag together with `AllocationCreateFlags::CAN_BECOME_LOST`.
-        const MAPPED = 0x0000_0004;
-
-        /// Allocation created with this flag can become lost as a result of another
-        /// allocation with `AllocationCreateFlags::CAN_MAKE_OTHER_LOST` flag, so you must check it before use.
-        ///
-        /// To check if allocation is not lost, call `Allocator::get_allocation_info` and check if
-        /// `AllocationInfo::device_memory` is not null.
-        ///
-        /// You should not use this flag together with `AllocationCreateFlags::MAPPED`.
-        const CAN_BECOME_LOST = 0x0000_0008;
-
-        /// While creating allocation using this flag, other allocations that were
-        /// created with flag `AllocationCreateFlags::CAN_BECOME_LOST` can become lost.
-        const CAN_MAKE_OTHER_LOST = 0x0000_0010;
+        const MAPPED = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_MAPPED_BIT as u32;
 
         /// Set this flag to treat `AllocationCreateInfo::user_data` as pointer to a
         /// null-terminated string. Instead of copying pointer value, a local copy of the
         /// string is made and stored in allocation's user data. The string is automatically
         /// freed together with the allocation. It is also used in `Allocator::build_stats_string`.
-        const USER_DATA_COPY_STRING = 0x0000_0020;
+        #[deprecated(since = "0.3", note = "Consider using vmaSetAllocationName() instead.")]
+        const USER_DATA_COPY_STRING = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT as u32;
 
         /// Allocation will be created from upper stack in a double stack pool.
         ///
         /// This flag is only allowed for custom pools created with `AllocatorPoolCreateFlags::LINEAR_ALGORITHM` flag.
-        const UPPER_ADDRESS = 0x0000_0040;
+        const UPPER_ADDRESS = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_UPPER_ADDRESS_BIT as u32;
 
         /// Create both buffer/image and allocation, but don't bind them together.
         /// It is useful when you want to bind yourself to do some more advanced binding, e.g. using some extensions.
         /// The flag is meaningful only with functions that bind by default, such as `Allocator::create_buffer`
         /// or `Allocator::create_image`. Otherwise it is ignored.
-        const CREATE_DONT_BIND = 0x0000_0080;
-
-        /// Allocation strategy that chooses smallest possible free range for the
-        /// allocation.
-        const STRATEGY_BEST_FIT = 0x0001_0000;
-
-        /// Allocation strategy that chooses biggest possible free range for the
-        /// allocation.
-        const STRATEGY_WORST_FIT = 0x0002_0000;
-
-        /// Allocation strategy that chooses first suitable free range for the
-        /// allocation.
         ///
-        /// "First" doesn't necessarily means the one with smallest offset in memory,
-        /// but rather the one that is easiest and fastest to find.
-        const STRATEGY_FIRST_FIT = 0x0004_0000;
+        /// If you want to make sure the new buffer/image is not tied to the new memory allocation
+        /// through `VkMemoryDedicatedAllocateInfoKHR` structure in case the allocation ends up in its own memory block,
+        /// use also flag #VMA_ALLOCATION_CREATE_CAN_ALIAS_BIT.
+        const DONT_BIND = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_DONT_BIND_BIT as u32;
 
-        /// Allocation strategy that tries to minimize memory usage.
-        const STRATEGY_MIN_MEMORY = 0x0001_0000;
+        /// Create allocation only if additional device memory required for it, if any, won't exceed
+        /// memory budget. Otherwise return `VK_ERROR_OUT_OF_DEVICE_MEMORY`.
+        const WITHIN_BUDGET = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT as u32;
 
-        /// Allocation strategy that tries to minimize allocation time.
-        const STRATEGY_MIN_TIME = 0x0004_0000;
+        /// Set this flag if the allocated memory will have aliasing resources.
+        ///
+        /// Usage of this flag prevents supplying `VkMemoryDedicatedAllocateInfoKHR` when #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT is specified.
+        /// Otherwise created dedicated memory will not be suitable for aliasing resources, resulting in Vulkan Validation Layer errors.
+        const CAN_ALIAS = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_CAN_ALIAS_BIT as u32;
 
-        /// Allocation strategy that tries to minimize memory fragmentation.
-        const STRATEGY_MIN_FRAGMENTATION = 0x0002_0000;
+        /// Requests possibility to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT).
+        ///
+        /// - If you use #VMA_MEMORY_USAGE_AUTO or other `VMA_MEMORY_USAGE_AUTO*` value,
+        /// you must use this flag to be able to map the allocation. Otherwise, mapping is incorrect.
+        /// - If you use other value of #VmaMemoryUsage, this flag is ignored and mapping is always possible in memory types that are `HOST_VISIBLE`.
+        /// This includes allocations created in custom_memory_pools.
+        ///
+        /// Declares that mapped memory will only be written sequentially, e.g. using `memcpy()` or a loop writing number-by-number,
+        /// never read or accessed randomly, so a memory type can be selected that is uncached and write-combined.
+        ///
+        /// Violating this declaration may work correctly, but will likely be very slow.
+        /// Watch out for implicit reads introduced by doing e.g. `pMappedData[i] += x;`
+        /// Better prepare your data in a local variable and `memcpy()` it to the mapped pointer all at once.
+        const HOST_ACCESS_SEQUENTIAL_WRITE = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT as u32;
 
-        /// A bit mask to extract only `*_STRATEGY` bits from entire set of flags.
-        const STRATEGY_MASK = 0x0001_0000 | 0x0002_0000 | 0x0004_0000;
+        /// Requests possibility to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT).
+        ///
+        /// - If you use #VMA_MEMORY_USAGE_AUTO or other `VMA_MEMORY_USAGE_AUTO*` value,
+        /// you must use this flag to be able to map the allocation. Otherwise, mapping is incorrect.
+        /// - If you use other value of #VmaMemoryUsage, this flag is ignored and mapping is always possible in memory types that are `HOST_VISIBLE`.
+        /// This includes allocations created in custom_memory_pools.
+        ///
+        /// Declares that mapped memory can be read, written, and accessed in random order,
+        /// so a `HOST_CACHED` memory type is required.
+        const HOST_ACCESS_RANDOM = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT as u32;
+
+        /// Together with #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+        /// it says that despite request for host access, a not-`HOST_VISIBLE` memory type can be selected
+        /// if it may improve performance.
+        ///
+        /// By using this flag, you declare that you will check if the allocation ended up in a `HOST_VISIBLE` memory type
+        /// (e.g. using vmaGetAllocationMemoryProperties()) and if not, you will create some "staging" buffer and
+        /// issue an explicit transfer to write/read your data.
+        /// To prepare for this possibility, don't forget to add appropriate flags like
+        /// `VK_BUFFER_USAGE_TRANSFER_DST_BIT`, `VK_BUFFER_USAGE_TRANSFER_SRC_BIT` to the parameters of created buffer or image.
+        const HOST_ACCESS_ALLOW_TRANSFER_INSTEAD = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT as u32;
+
+        /// Allocation strategy that chooses smallest possible free range for the allocation
+        /// to minimize memory usage and fragmentation, possibly at the expense of allocation time.
+        const STRATEGY_MIN_MEMORY = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT as u32;
+
+        /// Alias to `STRATEGY_MIN_MEMORY`.
+        const STRATEGY_BEST_FIT = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT as u32;
+
+        /// Allocation strategy that chooses first suitable free range for the allocation -
+        /// not necessarily in terms of the smallest offset but the one that is easiest and fastest to find
+        /// to minimize allocation time, possibly at the expense of allocation quality.
+        const STRATEGY_MIN_TIME = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT as u32;
+
+        /// Alias to `STRATEGY_MIN_TIME`.
+        const STRATEGY_FIRST_FIT = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT as u32;
+
+        /// Allocation strategy that chooses always the lowest offset in available space.
+        /// This is not the most efficient strategy but achieves highly packed data.
+        /// Used internally by defragmentation, not recomended in typical usage.
+        const STRATEGY_MIN_OFFSET = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_STRATEGY_MIN_OFFSET_BIT as u32;
     }
 }
 

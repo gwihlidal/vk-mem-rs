@@ -160,7 +160,7 @@ fn create_allocator() {
 fn create_gpu_buffer() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info = vk_mem::AllocationCreateInfo::new().usage(vk_mem::MemoryUsage::GpuOnly);
+    let allocation_info = vk_mem::AllocationCreateInfo::new().usage(vk_mem::MemoryUsage::Auto);
 
     unsafe {
         let (buffer, allocation, allocation_info) = allocator
@@ -251,7 +251,7 @@ fn create_gpu_buffer_pool() {
 fn test_gpu_stats() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info = vk_mem::AllocationCreateInfo::new().usage(vk_mem::MemoryUsage::GpuOnly);
+    let allocation_info = vk_mem::AllocationCreateInfo::new().usage(vk_mem::MemoryUsage::Auto);
 
     unsafe {
         let stats_1 = allocator.calculate_statistics().unwrap();
