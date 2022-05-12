@@ -319,6 +319,35 @@ pub trait Alloc {
 
         Ok((buffer, allocation, allocation_info))
     }
+    /// brief Creates a buffer with additional minimum alignment.
+    /// 
+    /// Similar to vmaCreateBuffer() but provides additional parameter `minAlignment` which allows to specify custom,
+    /// minimum alignment to be used when placing the buffer inside a larger memory block, which may be needed e.g.
+    /// for interop with OpenGL.
+    unsafe fn create_buffer_with_alignment(
+        &self,
+        buffer_info: &ash::vk::BufferCreateInfo,
+        create_info: &AllocationCreateInfo,
+        min_alignment: vk::DeviceSize,
+    ) -> VkResult<(ash::vk::Buffer, Allocation, AllocationInfo)> {
+        let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
+        create_info.pool = self.pool().0;
+        let mut buffer = vk::Buffer::null();
+        let mut allocation: Allocation = std::mem::zeroed();
+        let mut allocation_info: AllocationInfo = std::mem::zeroed();
+        ffi::vmaCreateBufferWithAlignment(
+            self.allocator().internal,
+            &*buffer_info,
+            &create_info,
+            min_alignment,
+            &mut buffer,
+            &mut allocation,
+            &mut allocation_info.internal,
+        )
+        .result()?;
+
+        Ok((buffer, allocation, allocation_info))
+    }
     /// This function automatically creates an image, allocates appropriate memory
     /// for it, and binds the image with the memory.
     ///

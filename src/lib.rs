@@ -2,7 +2,7 @@
 
 mod definitions;
 mod defragmentation;
-pub mod ffi;
+mod ffi;
 mod pool;
 pub use definitions::*;
 pub use defragmentation::*;
