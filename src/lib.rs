@@ -39,6 +39,7 @@ unsafe impl Sync for Allocator {}
 ///
 /// Some kinds allocations can be in lost state.
 pub struct Allocation(ffi::VmaAllocation);
+unsafe impl Send for Allocation{}
 
 impl Allocator {
     /// Constructor a new `Allocator` using the provided options.

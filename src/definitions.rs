@@ -3,7 +3,6 @@ use ash::vk;
 use ash::vk::PhysicalDevice;
 use ash::{Device, Instance};
 use bitflags::bitflags;
-use std::ffi::CStr;
 use std::ptr;
 
 /// Intended usage of memory.
@@ -614,7 +613,7 @@ impl From<&AllocationCreateInfo> for ffi::VmaAllocationCreateInfo {
 
 /// Parameters of `Allocation` objects, that can be retrieved using `Allocator::get_allocation_info`.
 #[derive(Debug, Clone)]
-pub struct AllocationInfo<'a> {
+pub struct AllocationInfo {
     /// Memory type index that this allocation was allocated from. It never changes.
     pub memory_type: u32,
     /// Handle to Vulkan memory object.
@@ -652,16 +651,9 @@ pub struct AllocationInfo<'a> {
     ///
     /// It can change after call to vmaSetAllocationUserData() for this allocation.
     pub user_data: usize,
-    /// Custom allocation name that was set with vmaSetAllocationName().
-    ///
-    /// It can change after call to vmaSetAllocationName() for this allocation.
-    ///
-    /// Another way to set custom name is to pass it in VmaAllocationCreateInfo::pUserData with
-    /// additional flag #VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT set [DEPRECATED].
-    pub name: Option<&'a CStr>,
 }
 
-impl<'a> From<&ffi::VmaAllocationInfo> for AllocationInfo<'a> {
+impl From<&ffi::VmaAllocationInfo> for AllocationInfo {
     fn from(info: &ffi::VmaAllocationInfo) -> Self {
         Self {
             memory_type: info.memoryType,
@@ -670,17 +662,10 @@ impl<'a> From<&ffi::VmaAllocationInfo> for AllocationInfo<'a> {
             size: info.size,
             mapped_data: info.pMappedData,
             user_data: info.pUserData as _,
-            name: unsafe {
-                if info.pName.is_null() {
-                    None
-                } else {
-                    Some(CStr::from_ptr(info.pName))
-                }
-            },
         }
     }
 }
-impl<'a> From<ffi::VmaAllocationInfo> for AllocationInfo<'a> {
+impl From<ffi::VmaAllocationInfo> for AllocationInfo {
     fn from(info: ffi::VmaAllocationInfo) -> Self {
         (&info).into()
     }
