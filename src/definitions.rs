@@ -412,7 +412,7 @@ impl<'a> AllocatorCreateInfo<'a> {
         self
     }
 
-    pub fn flags(mut self, flags: AllocationCreateFlags) -> Self {
+    pub fn flags(mut self, flags: AllocatorCreateFlags) -> Self {
         self.inner.flags = flags.bits;
         self
     }
@@ -575,6 +575,7 @@ impl Default for AllocationCreateInfo {
             usage: MemoryUsage::Unknown,
             required_flags: vk::MemoryPropertyFlags::empty(),
             preferred_flags: vk::MemoryPropertyFlags::empty(),
+            not_preferred_flags: vk::MemoryPropertyFlags::empty(),
             memory_type_bits: 0,
             user_data: 0,
             priority: 0.0,
@@ -608,6 +609,7 @@ impl From<&AllocationCreateInfo> for ffi::VmaAllocationCreateInfo {
             usage,
             requiredFlags: info.required_flags,
             preferredFlags: info.preferred_flags,
+            notPreferredFlags: info.not_preferred_flags,
             memoryTypeBits: info.memory_type_bits,
             pool: std::ptr::null_mut(),
             pUserData: info.user_data as _,
