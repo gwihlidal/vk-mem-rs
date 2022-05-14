@@ -540,6 +540,11 @@ pub struct AllocationCreateInfo {
     /// Set to 0 if no additional flags are preferred.
     /// If `pool` is not null, this member is ignored.
     pub preferred_flags: vk::MemoryPropertyFlags,
+    /// Flags that preferably should be not set in a memory type chosen for an allocation."]
+    ///
+    /// Set to 0 if no additional flags are undesired.
+    /// If `pool` is not null, this member is ignored.
+    pub not_preferred_flags: vk::MemoryPropertyFlags,
     /// Bitmask containing one bit set for every memory type acceptable for this allocation.
     ///
     /// Value 0 is equivalent to `UINT32_MAX` - it means any memory type is accepted if
