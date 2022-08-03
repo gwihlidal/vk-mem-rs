@@ -1,8 +1,9 @@
 use crate::ffi;
 use ash::vk;
 use ash::vk::PhysicalDevice;
-use ash::{Device, Instance};
 use bitflags::bitflags;
+use std::marker::PhantomData;
+use std::ops::Deref;
 use std::ptr;
 
 /// Intended usage of memory.
@@ -374,20 +375,21 @@ bitflags! {
     }
 }
 
-pub struct AllocatorCreateInfo<'a> {
+pub struct AllocatorCreateInfo<'a, I, D> {
     pub(crate) inner: ffi::VmaAllocatorCreateInfo,
     pub(crate) physical_device: PhysicalDevice,
-    pub(crate) device: &'a Device,
-    pub(crate) instance: &'a Instance,
+    pub(crate) instance: I,
+    pub(crate) device: D,
+    pub(crate) _phantom_data: PhantomData<&'a u8>,
 }
 
-impl<'a> AllocatorCreateInfo<'a> {
-    pub fn new(
-        instance: &'a ash::Instance,
-        device: &'a ash::Device,
-        physical_device: ash::vk::PhysicalDevice,
-    ) -> AllocatorCreateInfo<'a> {
-        AllocatorCreateInfo {
+impl<'a, I, D> AllocatorCreateInfo<'a, I, D>
+where
+    I: Deref<Target = ash::Instance>,
+    D: Deref<Target = ash::Device>,
+{
+    pub fn new(instance: I, device: D, physical_device: ash::vk::PhysicalDevice) -> Self {
+        Self {
             inner: ffi::VmaAllocatorCreateInfo {
                 flags: 0,
                 physicalDevice: physical_device,
@@ -404,6 +406,7 @@ impl<'a> AllocatorCreateInfo<'a> {
             physical_device,
             device,
             instance,
+            _phantom_data: Default::default(),
         }
     }
 
