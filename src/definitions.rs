@@ -5,6 +5,7 @@ use bitflags::bitflags;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::ptr;
+use std::rc::Rc;
 
 /// Intended usage of memory.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -378,8 +379,8 @@ bitflags! {
 pub struct AllocatorCreateInfo<'a, I, D> {
     pub(crate) inner: ffi::VmaAllocatorCreateInfo,
     pub(crate) physical_device: PhysicalDevice,
-    pub(crate) instance: I,
-    pub(crate) device: D,
+    pub(crate) instance: Rc<I>,
+    pub(crate) device: Rc<D>,
     pub(crate) _phantom_data: PhantomData<&'a u8>,
 }
 
@@ -388,7 +389,7 @@ where
     I: Deref<Target = ash::Instance>,
     D: Deref<Target = ash::Device>,
 {
-    pub fn new(instance: I, device: D, physical_device: ash::vk::PhysicalDevice) -> Self {
+    pub fn new(instance: Rc<I>, device: Rc<D>, physical_device: ash::vk::PhysicalDevice) -> Self {
         Self {
             inner: ffi::VmaAllocatorCreateInfo {
                 flags: 0,
