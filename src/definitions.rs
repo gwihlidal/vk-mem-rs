@@ -1,9 +1,11 @@
-use crate::ffi::VmaAllocationCreateInfo;
-use crate::{ffi, AllocatorPool};
+use crate::ffi;
+use ash::vk;
 use ash::vk::PhysicalDevice;
-use ash::{Device, Instance};
 use bitflags::bitflags;
+use std::marker::PhantomData;
+use std::ops::Deref;
 use std::ptr;
+use std::rc::Rc;
 
 /// Intended usage of memory.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -27,6 +29,7 @@ pub enum MemoryUsage {
     /// Allocation may still end up in `ash::vk::MemoryPropertyFlags::HOST_VISIBLE` memory on some implementations.
     /// In such case, you are free to map it.
     /// You can use `AllocationCreateFlags::MAPPED` with this usage type.
+    #[deprecated(since = "0.3")]
     GpuOnly,
 
     /// Memory will be mappable on host.
@@ -37,6 +40,7 @@ pub enum MemoryUsage {
     /// It is roughly equivalent of `D3D12_HEAP_TYPE_UPLOAD`.
     ///
     /// Usage: Staging copy of resources used as transfer source.
+    #[deprecated(since = "0.3")]
     CpuOnly,
 
     /// Memory that is both mappable on host (guarantees to be `ash::vk::MemoryPropertyFlags::HOST_VISIBLE`) and preferably fast to access by GPU.
@@ -44,6 +48,7 @@ pub enum MemoryUsage {
     ///
     /// Usage: Resources written frequently by host (dynamic), read by device. E.g. textures, vertex buffers,
     /// uniform buffers updated every frame or every draw call.
+    #[deprecated(since = "0.3")]
     CpuToGpu,
 
     /// Memory mappable on host (guarantees to be `ash::vk::MemoryPropertFlags::HOST_VISIBLE`) and cached.
@@ -53,7 +58,12 @@ pub enum MemoryUsage {
     ///
     /// - Resources written by device, read by host - results of some computations, e.g. screen capture, average scene luminance for HDR tone mapping.
     /// - Any resources read or accessed randomly on host, e.g. CPU-side copy of vertex buffer used as source of transfer, but also used for collision detection.
+    #[deprecated(since = "0.3")]
     GpuToCpu,
+
+    /// Prefers not `VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT`.
+    #[deprecated(since = "0.3")]
+    CpuCopy,
 
     /// Lazily allocated GPU memory having (guarantees to be `ash::vk::MemoryPropertFlags::LAZILY_ALLOCATED`).
     /// Exists mostly on mobile platforms. Using it on desktop PC or other GPUs with no such memory type present will fail the allocation.
@@ -61,7 +71,42 @@ pub enum MemoryUsage {
     /// Usage:
     ///
     /// -  Memory for transient attachment images (color attachments, depth attachments etc.), created with `VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT`.
+    /// Allocations with this usage are always created as dedicated - it implies #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT.
     GpuLazy,
+
+    /// Selects best memory type automatically.
+    /// This flag is recommended for most common use cases.
+    ///
+    /// When using this flag, if you want to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT),
+    /// you must pass one of the flags: #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
+    /// in VmaAllocationCreateInfo::flags.
+    ///
+    /// It can be used only with functions that let the library know `VkBufferCreateInfo` or `VkImageCreateInfo`, e.g.
+    /// vmaCreateBuffer(), vmaCreateImage(), vmaFindMemoryTypeIndexForBufferInfo(), vmaFindMemoryTypeIndexForImageInfo()
+    /// and not with generic memory allocation functions.
+    Auto,
+
+    /// Selects best memory type automatically with preference for GPU (device) memory.
+    ///
+    /// When using this flag, if you want to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT),
+    /// you must pass one of the flags: #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
+    /// in VmaAllocationCreateInfo::flags.
+    ///
+    /// It can be used only with functions that let the library know `VkBufferCreateInfo` or `VkImageCreateInfo`, e.g.
+    /// vmaCreateBuffer(), vmaCreateImage(), vmaFindMemoryTypeIndexForBufferInfo(), vmaFindMemoryTypeIndexForImageInfo()
+    /// and not with generic memory allocation functions.
+    AutoPreferDevice,
+
+    /// Selects best memory type automatically with preference for CPU (host) memory.
+    ///
+    /// When using this flag, if you want to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT),
+    /// you must pass one of the flags: #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
+    /// in VmaAllocationCreateInfo::flags.
+    ///
+    /// It can be used only with functions that let the library know `VkBufferCreateInfo` or `VkImageCreateInfo`, e.g.
+    /// vmaCreateBuffer(), vmaCreateImage(), vmaFindMemoryTypeIndexForBufferInfo(), vmaFindMemoryTypeIndexForImageInfo()
+    /// and not with generic memory allocation functions.
+    AutoPreferHost,
 }
 
 bitflags! {
@@ -74,7 +119,7 @@ bitflags! {
         /// so you must guarantee they are used from only one thread at a time or synchronized
         /// externally by you. Using this flag may increase performance because internal
         /// mutexes are not used.
-        const EXTERNALLY_SYNCHRONIZED = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BIT;
+        const EXTERNALLY_SYNCHRONIZED = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_EXTERNALLY_SYNCHRONIZED_BIT as u32;
 
         /// Enables usage of `VK_KHR_dedicated_allocation` extension.
         ///
@@ -94,7 +139,7 @@ bitflags! {
         /// When this flag is set, you can experience following warnings reported by Vulkan
         /// validation layer. You can ignore them.
         /// `> vkBindBufferMemory(): Binding memory to buffer 0x2d but vkGetBufferMemoryRequirements() has not been called on that buffer.`
-        const KHR_DEDICATED_ALLOCATION = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT;
+        const KHR_DEDICATED_ALLOCATION = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT as u32;
 
         /// Enables usage of VK_KHR_bind_memory2 extension.
         ///
@@ -108,7 +153,7 @@ bitflags! {
         /// The extension provides functions `vkBindBufferMemory2KHR` and `vkBindImageMemory2KHR`,
         /// which allow to pass a chain of `pNext` structures while binding.
         /// This flag is required if you use `pNext` parameter in vmaBindBufferMemory2() or vmaBindImageMemory2().
-        const KHR_BIND_MEMORY2 = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT;
+        const KHR_BIND_MEMORY2 = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT as u32;
 
         /// Enables usage of VK_EXT_memory_budget extension.
         ///
@@ -119,7 +164,7 @@ bitflags! {
         ///
         /// The extension provides query for current memory usage and budget, which will probably
         /// be more accurate than an estimation used by the library otherwise.
-        const EXT_MEMORY_BUDGET = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+        const EXT_MEMORY_BUDGET = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT as u32;
 
         /// Enables usage of VK_AMD_device_coherent_memory extension.
         ///
@@ -136,7 +181,7 @@ bitflags! {
         /// When the extension is not enabled, such memory types are still enumerated, but their usage is illegal.
         /// To protect from this error, if you don't create the allocator with this flag, it will refuse to allocate any memory or create a custom pool in such memory type,
         /// returning `VK_ERROR_FEATURE_NOT_PRESENT`.
-        const AMD_DEVICE_COHERENT_MEMORY = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_AMD_DEVICE_COHERENT_MEMORY_BIT;
+        const AMD_DEVICE_COHERENT_MEMORY = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_AMD_DEVICE_COHERENT_MEMORY_BIT as u32;
 
         /// You may set this flag only if you:
         ///
@@ -150,7 +195,7 @@ bitflags! {
         /// allocated memory blocks wherever it might be needed.
         ///
         /// For more information, see documentation chapter \ref enabling_buffer_device_address.
-        const BUFFER_DEVICE_ADDRESS = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+        const BUFFER_DEVICE_ADDRESS = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT as u32;
 
         /// Enables usage of VK_EXT_memory_priority extension in the library.
         ///
@@ -166,7 +211,7 @@ bitflags! {
         /// It is automatically passed to every call to `vkAllocateMemory` done by the library using structure `VkMemoryPriorityAllocateInfoEXT`.
         /// The value to be used for default priority is 0.5.
         /// For more details, see the documentation of the VK_EXT_memory_priority extension.
-        const EXT_MEMORY_PRIORITY = ffi::VmaAllocatorCreateFlagBits_VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT;
+        const EXT_MEMORY_PRIORITY = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT as u32;
 
     }
 }
@@ -174,15 +219,10 @@ bitflags! {
 bitflags! {
     /// Flags for configuring `Allocation` construction.
     pub struct AllocationCreateFlags: u32 {
-        /// Default configuration for allocation.
-        const NONE = 0x0000_0000;
-
         /// Set this flag if the allocation should have its own memory block.
         ///
         /// Use it for special, big resources, like fullscreen images used as attachments.
-        ///
-        /// You should not use this flag if `AllocationCreateInfo::pool` is not `None`.
-        const DEDICATED_MEMORY = 0x0000_0001;
+        const DEDICATED_MEMORY = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT as u32;
 
         /// Set this flag to only try to allocate from existing `ash::vk::DeviceMemory` blocks and never create new such block.
         ///
@@ -190,9 +230,7 @@ bitflags! {
         /// fails with `ash::vk::Result::ERROR_OUT_OF_DEVICE_MEMORY` error.
         ///
         /// You should not use `AllocationCreateFlags::DEDICATED_MEMORY` and `AllocationCreateFlags::NEVER_ALLOCATE` at the same time. It makes no sense.
-        ///
-        /// If `AllocationCreateInfo::pool` is not `None`, this flag is implied and ignored.
-        const NEVER_ALLOCATE = 0x0000_0002;
+        const NEVER_ALLOCATE = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_NEVER_ALLOCATE_BIT as u32;
 
         /// Set this flag to use a memory that will be persistently mapped and retrieve pointer to it.
         ///
@@ -205,72 +243,102 @@ bitflags! {
         /// support it (e.g. Intel GPU).
         ///
         /// You should not use this flag together with `AllocationCreateFlags::CAN_BECOME_LOST`.
-        const MAPPED = 0x0000_0004;
-
-        /// Allocation created with this flag can become lost as a result of another
-        /// allocation with `AllocationCreateFlags::CAN_MAKE_OTHER_LOST` flag, so you must check it before use.
-        ///
-        /// To check if allocation is not lost, call `Allocator::get_allocation_info` and check if
-        /// `AllocationInfo::device_memory` is not null.
-        ///
-        /// You should not use this flag together with `AllocationCreateFlags::MAPPED`.
-        const CAN_BECOME_LOST = 0x0000_0008;
-
-        /// While creating allocation using this flag, other allocations that were
-        /// created with flag `AllocationCreateFlags::CAN_BECOME_LOST` can become lost.
-        const CAN_MAKE_OTHER_LOST = 0x0000_0010;
+        const MAPPED = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_MAPPED_BIT as u32;
 
         /// Set this flag to treat `AllocationCreateInfo::user_data` as pointer to a
         /// null-terminated string. Instead of copying pointer value, a local copy of the
         /// string is made and stored in allocation's user data. The string is automatically
         /// freed together with the allocation. It is also used in `Allocator::build_stats_string`.
-        const USER_DATA_COPY_STRING = 0x0000_0020;
+        #[deprecated(since = "0.3", note = "Consider using vmaSetAllocationName() instead.")]
+        const USER_DATA_COPY_STRING = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT as u32;
 
         /// Allocation will be created from upper stack in a double stack pool.
         ///
         /// This flag is only allowed for custom pools created with `AllocatorPoolCreateFlags::LINEAR_ALGORITHM` flag.
-        const UPPER_ADDRESS = 0x0000_0040;
+        const UPPER_ADDRESS = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_UPPER_ADDRESS_BIT as u32;
 
         /// Create both buffer/image and allocation, but don't bind them together.
         /// It is useful when you want to bind yourself to do some more advanced binding, e.g. using some extensions.
         /// The flag is meaningful only with functions that bind by default, such as `Allocator::create_buffer`
         /// or `Allocator::create_image`. Otherwise it is ignored.
-        const CREATE_DONT_BIND = 0x0000_0080;
-
-        /// Allocation strategy that chooses smallest possible free range for the
-        /// allocation.
-        const STRATEGY_BEST_FIT = 0x0001_0000;
-
-        /// Allocation strategy that chooses biggest possible free range for the
-        /// allocation.
-        const STRATEGY_WORST_FIT = 0x0002_0000;
-
-        /// Allocation strategy that chooses first suitable free range for the
-        /// allocation.
         ///
-        /// "First" doesn't necessarily means the one with smallest offset in memory,
-        /// but rather the one that is easiest and fastest to find.
-        const STRATEGY_FIRST_FIT = 0x0004_0000;
+        /// If you want to make sure the new buffer/image is not tied to the new memory allocation
+        /// through `VkMemoryDedicatedAllocateInfoKHR` structure in case the allocation ends up in its own memory block,
+        /// use also flag #VMA_ALLOCATION_CREATE_CAN_ALIAS_BIT.
+        const DONT_BIND = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_DONT_BIND_BIT as u32;
 
-        /// Allocation strategy that tries to minimize memory usage.
-        const STRATEGY_MIN_MEMORY = 0x0001_0000;
+        /// Create allocation only if additional device memory required for it, if any, won't exceed
+        /// memory budget. Otherwise return `VK_ERROR_OUT_OF_DEVICE_MEMORY`.
+        const WITHIN_BUDGET = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT as u32;
 
-        /// Allocation strategy that tries to minimize allocation time.
-        const STRATEGY_MIN_TIME = 0x0004_0000;
+        /// Set this flag if the allocated memory will have aliasing resources.
+        ///
+        /// Usage of this flag prevents supplying `VkMemoryDedicatedAllocateInfoKHR` when #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT is specified.
+        /// Otherwise created dedicated memory will not be suitable for aliasing resources, resulting in Vulkan Validation Layer errors.
+        const CAN_ALIAS = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_CAN_ALIAS_BIT as u32;
 
-        /// Allocation strategy that tries to minimize memory fragmentation.
-        const STRATEGY_MIN_FRAGMENTATION = 0x0002_0000;
+        /// Requests possibility to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT).
+        ///
+        /// - If you use #VMA_MEMORY_USAGE_AUTO or other `VMA_MEMORY_USAGE_AUTO*` value,
+        /// you must use this flag to be able to map the allocation. Otherwise, mapping is incorrect.
+        /// - If you use other value of #VmaMemoryUsage, this flag is ignored and mapping is always possible in memory types that are `HOST_VISIBLE`.
+        /// This includes allocations created in custom_memory_pools.
+        ///
+        /// Declares that mapped memory will only be written sequentially, e.g. using `memcpy()` or a loop writing number-by-number,
+        /// never read or accessed randomly, so a memory type can be selected that is uncached and write-combined.
+        ///
+        /// Violating this declaration may work correctly, but will likely be very slow.
+        /// Watch out for implicit reads introduced by doing e.g. `pMappedData[i] += x;`
+        /// Better prepare your data in a local variable and `memcpy()` it to the mapped pointer all at once.
+        const HOST_ACCESS_SEQUENTIAL_WRITE = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT as u32;
 
-        /// A bit mask to extract only `*_STRATEGY` bits from entire set of flags.
-        const STRATEGY_MASK = 0x0001_0000 | 0x0002_0000 | 0x0004_0000;
+        /// Requests possibility to map the allocation (using vmaMapMemory() or #VMA_ALLOCATION_CREATE_MAPPED_BIT).
+        ///
+        /// - If you use #VMA_MEMORY_USAGE_AUTO or other `VMA_MEMORY_USAGE_AUTO*` value,
+        /// you must use this flag to be able to map the allocation. Otherwise, mapping is incorrect.
+        /// - If you use other value of #VmaMemoryUsage, this flag is ignored and mapping is always possible in memory types that are `HOST_VISIBLE`.
+        /// This includes allocations created in custom_memory_pools.
+        ///
+        /// Declares that mapped memory can be read, written, and accessed in random order,
+        /// so a `HOST_CACHED` memory type is required.
+        const HOST_ACCESS_RANDOM = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT as u32;
+
+        /// Together with #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+        /// it says that despite request for host access, a not-`HOST_VISIBLE` memory type can be selected
+        /// if it may improve performance.
+        ///
+        /// By using this flag, you declare that you will check if the allocation ended up in a `HOST_VISIBLE` memory type
+        /// (e.g. using vmaGetAllocationMemoryProperties()) and if not, you will create some "staging" buffer and
+        /// issue an explicit transfer to write/read your data.
+        /// To prepare for this possibility, don't forget to add appropriate flags like
+        /// `VK_BUFFER_USAGE_TRANSFER_DST_BIT`, `VK_BUFFER_USAGE_TRANSFER_SRC_BIT` to the parameters of created buffer or image.
+        const HOST_ACCESS_ALLOW_TRANSFER_INSTEAD = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT as u32;
+
+        /// Allocation strategy that chooses smallest possible free range for the allocation
+        /// to minimize memory usage and fragmentation, possibly at the expense of allocation time.
+        const STRATEGY_MIN_MEMORY = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT as u32;
+
+        /// Alias to `STRATEGY_MIN_MEMORY`.
+        const STRATEGY_BEST_FIT = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT as u32;
+
+        /// Allocation strategy that chooses first suitable free range for the allocation -
+        /// not necessarily in terms of the smallest offset but the one that is easiest and fastest to find
+        /// to minimize allocation time, possibly at the expense of allocation quality.
+        const STRATEGY_MIN_TIME = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT as u32;
+
+        /// Alias to `STRATEGY_MIN_TIME`.
+        const STRATEGY_FIRST_FIT = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT as u32;
+
+        /// Allocation strategy that chooses always the lowest offset in available space.
+        /// This is not the most efficient strategy but achieves highly packed data.
+        /// Used internally by defragmentation, not recomended in typical usage.
+        const STRATEGY_MIN_OFFSET = ffi::VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_STRATEGY_MIN_OFFSET_BIT as u32;
     }
 }
 
 bitflags! {
     /// Flags for configuring `AllocatorPool` construction.
     pub struct AllocatorPoolCreateFlags: u32 {
-        const NONE = 0;
-
         /// Use this flag if you always allocate only buffers and linear images or only optimal images
         /// out of this pool and so buffer-image granularity can be ignored.
         ///
@@ -288,7 +356,7 @@ bitflags! {
         /// buffers and linear images or only optimal images out of this pool, use this flag
         /// to make allocator disregard buffer-image granularity and so make allocations
         /// faster and more optimal.
-        const IGNORE_BUFFER_IMAGE_GRANULARITY = ffi::VmaPoolCreateFlagBits_VMA_POOL_CREATE_IGNORE_BUFFER_IMAGE_GRANULARITY_BIT;
+        const IGNORE_BUFFER_IMAGE_GRANULARITY = ffi::VmaPoolCreateFlagBits::VMA_POOL_CREATE_IGNORE_BUFFER_IMAGE_GRANULARITY_BIT as u32;
 
         /// Enables alternative, linear allocation algorithm in this pool.
         ///
@@ -301,50 +369,31 @@ bitflags! {
         /// ring buffer, and double stack.
         ///
         /// When using this flag, you must specify PoolCreateInfo::max_block_count == 1 (or 0 for default).
-        const LINEAR_ALGORITHM = ffi::VmaPoolCreateFlagBits_VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT;
-
-        /// Enables alternative, buddy allocation algorithm in this pool.
-        ///
-        /// It operates on a tree of blocks, each having size that is a power of two and
-        /// a half of its parent's size. Comparing to default algorithm, this one provides
-        /// faster allocation and deallocation and decreased external fragmentation,
-        /// at the expense of more memory wasted (internal fragmentation).
-        const BUDDY_ALGORITHM = ffi::VmaPoolCreateFlagBits_VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT;
-
-        /// \brief Enables alternative, Two-Level Segregated Fit (TLSF) allocation algorithm in this pool.
-        ///
-        /// This algorithm is based on 2-level lists dividing address space into smaller
-        /// chunks. The first level is aligned to power of two which serves as buckets for requested
-        /// memory to fall into, and the second level is lineary subdivided into lists of free memory.
-        /// This algorithm aims to achieve bounded response time even in the worst case scenario.
-        /// Allocation time can be sometimes slightly longer than compared to other algorithms
-        /// but in return the application can avoid stalls in case of fragmentation, giving
-        /// predictable results, suitable for real-time use cases.
-        const TLSF_ALGORITHM_BIT = ffi::VmaPoolCreateFlagBits_VMA_POOL_CREATE_TLSF_ALGORITHM_BIT;
+        const LINEAR_ALGORITHM = ffi::VmaPoolCreateFlagBits::VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT as u32;
 
         /// Bit mask to extract only `*_ALGORITHM` bits from entire set of flags.
-        const ALGORITHM_MASK = ffi::VmaPoolCreateFlagBits_VMA_POOL_CREATE_ALGORITHM_MASK;
+        const ALGORITHM_MASK = ffi::VmaPoolCreateFlagBits::VMA_POOL_CREATE_ALGORITHM_MASK as u32;
     }
 }
 
-pub struct AllocatorCreateInfo<'a> {
+pub struct AllocatorCreateInfo<'a, I, D> {
     pub(crate) inner: ffi::VmaAllocatorCreateInfo,
-    pub(crate) physical_device: &'a PhysicalDevice,
-    pub(crate) device: &'a Device,
-    pub(crate) instance: &'a Instance,
-    pub(crate) marker: ::std::marker::PhantomData<&'a ()>,
+    pub(crate) physical_device: PhysicalDevice,
+    pub(crate) instance: Rc<I>,
+    pub(crate) device: Rc<D>,
+    pub(crate) _phantom_data: PhantomData<&'a u8>,
 }
 
-impl<'a> AllocatorCreateInfo<'a> {
-    pub fn new(
-        instance: &'a ash::Instance,
-        device: &'a ash::Device,
-        physical_device: &'a ash::vk::PhysicalDevice,
-    ) -> AllocatorCreateInfo<'a> {
-        AllocatorCreateInfo {
+impl<'a, I, D> AllocatorCreateInfo<'a, I, D>
+where
+    I: Deref<Target = ash::Instance>,
+    D: Deref<Target = ash::Device>,
+{
+    pub fn new(instance: Rc<I>, device: Rc<D>, physical_device: ash::vk::PhysicalDevice) -> Self {
+        Self {
             inner: ffi::VmaAllocatorCreateInfo {
                 flags: 0,
-                physicalDevice: *physical_device,
+                physicalDevice: physical_device,
                 instance: instance.handle(),
                 device: device.handle(),
                 preferredLargeHeapBlockSize: 0,
@@ -358,7 +407,7 @@ impl<'a> AllocatorCreateInfo<'a> {
             physical_device,
             device,
             instance,
-            marker: ::std::marker::PhantomData,
+            _phantom_data: Default::default(),
         }
     }
 
@@ -367,7 +416,7 @@ impl<'a> AllocatorCreateInfo<'a> {
         self
     }
 
-    pub fn flags(mut self, flags: AllocationCreateFlags) -> Self {
+    pub fn flags(mut self, flags: AllocatorCreateFlags) -> Self {
         self.inner.flags = flags.bits;
         self
     }
@@ -376,7 +425,7 @@ impl<'a> AllocatorCreateInfo<'a> {
         unsafe {
             debug_assert!(
                 self.instance
-                    .get_physical_device_memory_properties(*self.physical_device)
+                    .get_physical_device_memory_properties(self.physical_device)
                     .memory_heap_count
                     == device_sizes.len() as u32
             );
@@ -402,7 +451,7 @@ impl<'a> AllocatorCreateInfo<'a> {
         unsafe {
             debug_assert!(
                 self.instance
-                    .get_physical_device_memory_properties(*self.physical_device)
+                    .get_physical_device_memory_properties(self.physical_device)
                     .memory_type_count
                     == external_memory_handles.len() as u32
             );
@@ -475,72 +524,160 @@ impl<'a> PoolCreateInfo<'a> {
     }
 }
 
-pub struct AllocationCreateInfo<'a> {
-    pub(crate) inner: ffi::VmaAllocationCreateInfo,
-    marker: ::std::marker::PhantomData<&'a ()>,
+#[derive(Clone)]
+pub struct AllocationCreateInfo {
+    pub flags: AllocationCreateFlags,
+    /// Intended usage of memory.
+    ///
+    /// You can leave `MemoryUsage::Unknown` if you specify memory requirements in other way.
+    ///
+    /// If `pool` is not null, this member is ignored.
+    pub usage: MemoryUsage,
+    /// Flags that must be set in a Memory Type chosen for an allocation.
+    ///
+    /// Leave 0 if you specify memory requirements in other way.
+    ///
+    /// If `pool` is not null, this member is ignored.
+    pub required_flags: vk::MemoryPropertyFlags,
+    /// Flags that preferably should be set in a memory type chosen for an allocation."]
+    ///
+    /// Set to 0 if no additional flags are preferred.
+    /// If `pool` is not null, this member is ignored.
+    pub preferred_flags: vk::MemoryPropertyFlags,
+    /// Flags that preferably should be not set in a memory type chosen for an allocation."]
+    ///
+    /// Set to 0 if no additional flags are undesired.
+    /// If `pool` is not null, this member is ignored.
+    pub not_preferred_flags: vk::MemoryPropertyFlags,
+    /// Bitmask containing one bit set for every memory type acceptable for this allocation.
+    ///
+    /// Value 0 is equivalent to `UINT32_MAX` - it means any memory type is accepted if
+    /// it meets other requirements specified by this structure, with no further
+    /// restrictions on memory type index.
+    ///
+    /// If `pool` is not null, this member is ignored.
+    pub memory_type_bits: u32,
+    /// Custom general-purpose pointer that will be stored in `Allocation`,
+    /// can be read as VmaAllocationInfo::pUserData and changed using vmaSetAllocationUserData().
+    ///
+    /// If #VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT is used, it must be either
+    /// null or pointer to a null-terminated string. The string will be then copied to
+    /// internal buffer, so it doesn't need to be valid after allocation call.
+    pub user_data: usize,
+    /// A floating-point value between 0 and 1, indicating the priority of the allocation relative to other memory allocations.
+    ///
+    /// It is used only when #VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT flag was used during creation of the #VmaAllocator object
+    /// and this allocation ends up as dedicated or is explicitly forced as dedicated using #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT.
+    /// Otherwise, it has the priority of a memory block where it is placed and this variable is ignored.
+    pub priority: f32,
 }
 
-impl<'a> AllocationCreateInfo<'a> {
-    pub fn new() -> AllocationCreateInfo<'a> {
-        AllocationCreateInfo {
-            inner: VmaAllocationCreateInfo {
-                flags: 0,
-                usage: 0,
-                requiredFlags: Default::default(),
-                preferredFlags: Default::default(),
-                memoryTypeBits: 0,
-                pool: ptr::null_mut(),
-                pUserData: ptr::null_mut(),
-                priority: 0.0,
-            },
-            marker: ::std::marker::PhantomData,
+impl Default for AllocationCreateInfo {
+    fn default() -> Self {
+        Self {
+            flags: AllocationCreateFlags::empty(),
+            usage: MemoryUsage::Unknown,
+            required_flags: vk::MemoryPropertyFlags::empty(),
+            preferred_flags: vk::MemoryPropertyFlags::empty(),
+            not_preferred_flags: vk::MemoryPropertyFlags::empty(),
+            memory_type_bits: 0,
+            user_data: 0,
+            priority: 0.0,
         }
     }
+}
 
-    pub fn flags(mut self, flags: AllocationCreateFlags) -> Self {
-        self.inner.flags = flags.bits();
-        self
-    }
-
-    pub fn usage(mut self, usage: MemoryUsage) -> Self {
-        self.inner.usage = match usage {
-            MemoryUsage::Unknown => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_UNKNOWN,
-            MemoryUsage::GpuOnly => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_ONLY,
-            MemoryUsage::CpuOnly => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_CPU_ONLY,
-            MemoryUsage::CpuToGpu => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_CPU_TO_GPU,
-            MemoryUsage::GpuToCpu => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_TO_CPU,
-            MemoryUsage::GpuLazy => ffi::VmaMemoryUsage_VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED,
+impl From<&AllocationCreateInfo> for ffi::VmaAllocationCreateInfo {
+    fn from(info: &AllocationCreateInfo) -> Self {
+        let usage = match info.usage {
+            MemoryUsage::Unknown => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_UNKNOWN,
+            #[allow(deprecated)]
+            MemoryUsage::GpuOnly => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
+            #[allow(deprecated)]
+            MemoryUsage::CpuOnly => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_ONLY,
+            #[allow(deprecated)]
+            MemoryUsage::CpuToGpu => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU,
+            #[allow(deprecated)]
+            MemoryUsage::GpuToCpu => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_TO_CPU,
+            #[allow(deprecated)]
+            MemoryUsage::CpuCopy => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_COPY,
+            MemoryUsage::GpuLazy => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED,
+            MemoryUsage::Auto => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO,
+            MemoryUsage::AutoPreferDevice => {
+                ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+            }
+            MemoryUsage::AutoPreferHost => ffi::VmaMemoryUsage::VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
         };
-        self
+        ffi::VmaAllocationCreateInfo {
+            flags: info.flags.bits(),
+            usage,
+            requiredFlags: info.required_flags,
+            preferredFlags: info.preferred_flags,
+            notPreferredFlags: info.not_preferred_flags,
+            memoryTypeBits: info.memory_type_bits,
+            pool: std::ptr::null_mut(),
+            pUserData: info.user_data as _,
+            priority: info.priority,
+        }
     }
+}
 
-    pub fn required_flags(mut self, flags: ash::vk::MemoryPropertyFlags) -> Self {
-        self.inner.requiredFlags = flags;
-        self
+/// Parameters of `Allocation` objects, that can be retrieved using `Allocator::get_allocation_info`.
+#[derive(Debug, Clone)]
+pub struct AllocationInfo {
+    /// Memory type index that this allocation was allocated from. It never changes.
+    pub memory_type: u32,
+    /// Handle to Vulkan memory object.
+    ///
+    /// Same memory object can be shared by multiple allocations.
+    ///
+    /// It can change after the allocation is moved during \\ref defragmentation.
+    pub device_memory: vk::DeviceMemory,
+    /// Offset in `VkDeviceMemory` object to the beginning of this allocation, in bytes. `(deviceMemory, offset)` pair is unique to this allocation.
+    ///
+    /// You usually don't need to use this offset. If you create a buffer or an image together with the allocation using e.g. function
+    /// vmaCreateBuffer(), vmaCreateImage(), functions that operate on these resources refer to the beginning of the buffer or image,
+    /// not entire device memory block. Functions like vmaMapMemory(), vmaBindBufferMemory() also refer to the beginning of the allocation
+    /// and apply this offset automatically.
+    ///
+    /// It can change after the allocation is moved during \\ref defragmentation.
+    pub offset: vk::DeviceSize,
+    /// Size of this allocation, in bytes. It never changes.
+    ///
+    /// Allocation size returned in this variable may be greater than the size
+    /// requested for the resource e.g. as `VkBufferCreateInfo::size`. Whole size of the
+    /// allocation is accessible for operations on memory e.g. using a pointer after
+    /// mapping with vmaMapMemory(), but operations on the resource e.g. using
+    /// `vkCmdCopyBuffer` must be limited to the size of the resource.
+    pub size: vk::DeviceSize,
+    /// Pointer to the beginning of this allocation as mapped data.
+    ///
+    /// If the allocation hasn't been mapped using vmaMapMemory() and hasn't been
+    /// created with #VMA_ALLOCATION_CREATE_MAPPED_BIT flag, this value is null.
+    ///
+    /// It can change after call to vmaMapMemory(), vmaUnmapMemory().
+    /// It can also change after the allocation is moved during defragmentation.
+    pub mapped_data: *mut ::std::os::raw::c_void,
+    /// Custom general-purpose pointer that was passed as VmaAllocationCreateInfo::pUserData or set using vmaSetAllocationUserData().
+    ///
+    /// It can change after call to vmaSetAllocationUserData() for this allocation.
+    pub user_data: usize,
+}
+
+impl From<&ffi::VmaAllocationInfo> for AllocationInfo {
+    fn from(info: &ffi::VmaAllocationInfo) -> Self {
+        Self {
+            memory_type: info.memoryType,
+            device_memory: info.deviceMemory,
+            offset: info.offset,
+            size: info.size,
+            mapped_data: info.pMappedData,
+            user_data: info.pUserData as _,
+        }
     }
-
-    pub fn preferred_flags(mut self, flags: ash::vk::MemoryPropertyFlags) -> Self {
-        self.inner.preferredFlags = flags;
-        self
-    }
-
-    pub fn memory_type_bits(mut self, flags: u32) -> Self {
-        self.inner.memoryTypeBits = flags;
-        self
-    }
-
-    pub fn pool(mut self, pool: AllocatorPool) -> Self {
-        self.inner.pool = pool;
-        self
-    }
-
-    pub fn user_data(mut self, p_user_data: *mut ::std::os::raw::c_void) -> Self {
-        self.inner.pUserData = p_user_data;
-        self
-    }
-
-    pub fn priority(mut self, priority: f32) -> Self {
-        self.inner.priority = priority;
-        self
+}
+impl From<ffi::VmaAllocationInfo> for AllocationInfo {
+    fn from(info: ffi::VmaAllocationInfo) -> Self {
+        (&info).into()
     }
 }

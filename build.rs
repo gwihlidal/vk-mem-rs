@@ -8,7 +8,7 @@ fn main() {
     let mut build = cc::Build::new();
 
     build.include("vendor/VulkanMemoryAllocator/include");
-    build.include("vendor/Vulkan-Headers/include/vulkan");
+    build.include("vendor/Vulkan-Headers/include");
     build.include("wrapper");
 
     // Disable VMA_ASSERT when rust assertions are disabled
@@ -102,54 +102,10 @@ fn main() {
             .cpp(true);
     }
 
-    build.compile("vma_cpp");
+    build.compile("vma");
 
-    link_vulkan();
-    generate_bindings("gen/bindings.rs");
+    generate_bindings("src/ffi.rs");
 }
-
-#[cfg(feature = "link_vulkan")]
-fn link_vulkan() {
-    use std::path::PathBuf;
-    let target = env::var("TARGET").unwrap();
-    if target.contains("windows") {
-        if let Ok(vulkan_sdk) = env::var("VULKAN_SDK") {
-            let mut vulkan_sdk_path = PathBuf::from(vulkan_sdk);
-
-            if target.contains("x86_64") {
-                vulkan_sdk_path.push("Lib");
-            } else {
-                vulkan_sdk_path.push("Lib32");
-            }
-
-            println!(
-                "cargo:rustc-link-search=native={}",
-                vulkan_sdk_path.to_str().unwrap()
-            );
-        }
-
-        println!("cargo:rustc-link-lib=dylib=vulkan-1");
-    } else {
-        if target.contains("apple") {
-            if let Ok(vulkan_sdk) = env::var("VULKAN_SDK") {
-                let mut vulkan_sdk_path = PathBuf::from(vulkan_sdk);
-                vulkan_sdk_path.push("macOS/lib");
-                println!(
-                    "cargo:rustc-link-search=native={}",
-                    vulkan_sdk_path.to_str().unwrap()
-                );
-            } else {
-                let lib_path = "wrapper/macOS/lib";
-                println!("cargo:rustc-link-search=native={}", lib_path);
-            }
-
-            println!("cargo:rustc-link-lib=dylib=vulkan");
-        }
-    }
-}
-
-#[cfg(not(feature = "link_vulkan"))]
-fn link_vulkan() {}
 
 #[cfg(feature = "generate_bindings")]
 fn generate_bindings(output_file: &str) {
@@ -166,9 +122,13 @@ fn generate_bindings(output_file: &str) {
         .parse_callbacks(Box::new(FixAshTypes))
         .blocklist_type("Vk.*")
         .blocklist_type("PFN_vk.*")
+        .raw_line("#![allow(non_camel_case_types)]")
+        .raw_line("#![allow(non_snake_case)]")
+        .raw_line("#![allow(dead_code)]")
         .raw_line("use ash::vk::*;")
         .trust_clang_mangling(false)
         .layout_tests(false)
+        .rustified_enum("Vma.*")
         .generate()
         .expect("Unable to generate bindings!");
 
