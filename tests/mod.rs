@@ -97,26 +97,24 @@ impl TestHarness {
                 .expect("Physical device error")
         };
 
-        let (physical_device, queue_family_index) = unsafe {
-            physical_devices
+        let physical_device = unsafe {
+            *physical_devices
                 .iter()
-                .map(|physical_device| {
-                    instance
-                        .get_physical_device_queue_family_properties(*physical_device)
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(index, _)| Some((*physical_device, index)))
-                        .nth(0)
+                .filter(|physical_device| {
+                    let version = instance
+                        .get_physical_device_properties(**physical_device)
+                        .api_version;
+                    ash::vk::api_version_major(version) == 1
+                        && ash::vk::api_version_minor(version) == 3
                 })
-                .filter_map(|v| v)
-                .nth(0)
+                .next()
                 .expect("Couldn't find suitable device.")
         };
 
         let priorities = [1.0];
 
         let queue_info = [ash::vk::DeviceQueueCreateInfo::builder()
-            .queue_family_index(queue_family_index as u32)
+            .queue_family_index(0)
             .queue_priorities(&priorities)
             .build()];
 
