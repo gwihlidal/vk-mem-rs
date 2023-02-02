@@ -223,10 +223,12 @@ impl Allocator {
     /// you can avoid calling it too often.
     ///
     /// If you just want to check if allocation is not lost, `Allocator::touch_allocation` will work faster.
-    pub unsafe fn get_allocation_info(&self, allocation: &Allocation) -> VkResult<AllocationInfo> {
-        let mut allocation_info: ffi::VmaAllocationInfo = mem::zeroed();
-        ffi::vmaGetAllocationInfo(self.internal, allocation.0, &mut allocation_info);
-        Ok(allocation_info.into())
+    pub fn get_allocation_info(&self, allocation: &Allocation) -> AllocationInfo {
+        unsafe {
+            let mut allocation_info: ffi::VmaAllocationInfo = mem::zeroed();
+            ffi::vmaGetAllocationInfo(self.internal, allocation.0, &mut allocation_info);
+            allocation_info.into()
+        }
     }
 
     /// Sets user data in given allocation to new value.
@@ -475,7 +477,7 @@ impl Allocator {
     /// ```
     ///
     /// It it safe to pass null as `buffer` and/or `allocation`.
-    pub unsafe fn destroy_buffer(&self, buffer: ash::vk::Buffer, allocation: Allocation) {
+    pub unsafe fn destroy_buffer(&self, buffer: ash::vk::Buffer, allocation: &mut Allocation) {
         ffi::vmaDestroyBuffer(self.internal, buffer, allocation.0);
     }
 
