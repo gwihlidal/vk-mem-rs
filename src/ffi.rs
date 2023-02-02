@@ -301,7 +301,7 @@ pub enum VmaAllocationCreateFlagBits {
     VMA_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT = 131072,
     #[doc = " Allocation strategy that chooses always the lowest offset in available space."]
     #[doc = "This is not the most efficient strategy but achieves highly packed data."]
-    #[doc = "Used internally by defragmentation, not recomended in typical usage."]
+    #[doc = "Used internally by defragmentation, not recommended in typical usage."]
     VMA_ALLOCATION_CREATE_STRATEGY_MIN_OFFSET_BIT = 262144,
     #[doc = " A bit mask to extract only `STRATEGY` bits from entire set of flags."]
     VMA_ALLOCATION_CREATE_STRATEGY_MASK = 458752,
@@ -741,11 +741,6 @@ pub struct VmaAllocationCreateInfo {
     #[doc = "Set to 0 if no additional flags are preferred. \\n"]
     #[doc = "If `pool` is not null, this member is ignored."]
     pub preferredFlags: MemoryPropertyFlags,
-    #[doc = " \\brief Flags that preferably should not be set in a memory type chosen for an allocation."]
-    #[doc = ""]
-    #[doc = "Set to 0 if no flags are undesired. \\n"]
-    #[doc = "If `pool` is not null, this member is ignored."]
-    pub notPreferredFlags: MemoryPropertyFlags,
     #[doc = " \\brief Bitmask containing one bit set for every memory type acceptable for this allocation."]
     #[doc = ""]
     #[doc = "Value 0 is equivalent to `UINT32_MAX` - it means any memory type is accepted if"]
@@ -1318,7 +1313,7 @@ extern "C" {
 extern "C" {
     #[doc = " \\brief Returns current information about specified allocation."]
     #[doc = ""]
-    #[doc = "Current paramteres of given allocation are returned in `pAllocationInfo`."]
+    #[doc = "Current parameters of given allocation are returned in `pAllocationInfo`."]
     #[doc = ""]
     #[doc = "Although this function doesn't lock any mutex, so it should be quite efficient,"]
     #[doc = "you should avoid calling it too often."]
@@ -1577,7 +1572,7 @@ extern "C" {
     #[doc = ""]
     #[doc = "\\param allocator Allocator object."]
     #[doc = "\\param context Context object that has been created by vmaBeginDefragmentation()."]
-    #[doc = "\\param[out] pPassInfo Computed informations for current pass."]
+    #[doc = "\\param[out] pPassInfo Computed information for current pass."]
     #[doc = "\\returns"]
     #[doc = "- `VK_SUCCESS` if no more moves are possible. Then you can omit call to vmaEndDefragmentationPass() and simply end whole defragmentation."]
     #[doc = "- `VK_INCOMPLETE` if there are pending moves returned in `pPassInfo`. You need to perform them, call vmaEndDefragmentationPass(),"]
@@ -1593,7 +1588,7 @@ extern "C" {
     #[doc = ""]
     #[doc = "\\param allocator Allocator object."]
     #[doc = "\\param context Context object that has been created by vmaBeginDefragmentation()."]
-    #[doc = "\\param pPassInfo Computed informations for current pass filled by vmaBeginDefragmentationPass() and possibly modified by you."]
+    #[doc = "\\param pPassInfo Computed information for current pass filled by vmaBeginDefragmentationPass() and possibly modified by you."]
     #[doc = ""]
     #[doc = "Returns `VK_SUCCESS` if no more moves are possible or `VK_INCOMPLETE` if more defragmentations are possible."]
     #[doc = ""]
@@ -1768,9 +1763,41 @@ extern "C" {
     #[doc = "If the function succeeded, you must destroy the buffer when you"]
     #[doc = "no longer need it using `vkDestroyBuffer()`. If you want to also destroy the corresponding"]
     #[doc = "allocation you can use convenience function vmaDestroyBuffer()."]
+    #[doc = ""]
+    #[doc = "\\note There is a new version of this function augmented with parameter `allocationLocalOffset` - see vmaCreateAliasingBuffer2()."]
     pub fn vmaCreateAliasingBuffer(
         allocator: VmaAllocator,
         allocation: VmaAllocation,
+        pBufferCreateInfo: *const BufferCreateInfo,
+        pBuffer: *mut Buffer,
+    ) -> Result;
+}
+extern "C" {
+    #[doc = " \\brief Creates a new `VkBuffer`, binds already created memory for it."]
+    #[doc = ""]
+    #[doc = "\\param allocator"]
+    #[doc = "\\param allocation Allocation that provides memory to be used for binding new buffer to it."]
+    #[doc = "\\param allocationLocalOffset Additional offset to be added while binding, relative to the beginning of the allocation. Normally it should be 0."]
+    #[doc = "\\param pBufferCreateInfo"]
+    #[doc = "\\param[out] pBuffer Buffer that was created."]
+    #[doc = ""]
+    #[doc = "This function automatically:"]
+    #[doc = ""]
+    #[doc = "-# Creates buffer."]
+    #[doc = "-# Binds the buffer with the supplied memory."]
+    #[doc = ""]
+    #[doc = "If any of these operations fail, buffer is not created,"]
+    #[doc = "returned value is negative error code and `*pBuffer` is null."]
+    #[doc = ""]
+    #[doc = "If the function succeeded, you must destroy the buffer when you"]
+    #[doc = "no longer need it using `vkDestroyBuffer()`. If you want to also destroy the corresponding"]
+    #[doc = "allocation you can use convenience function vmaDestroyBuffer()."]
+    #[doc = ""]
+    #[doc = "\\note This is a new version of the function augmented with parameter `allocationLocalOffset`."]
+    pub fn vmaCreateAliasingBuffer2(
+        allocator: VmaAllocator,
+        allocation: VmaAllocation,
+        allocationLocalOffset: DeviceSize,
         pBufferCreateInfo: *const BufferCreateInfo,
         pBuffer: *mut Buffer,
     ) -> Result;
@@ -1785,7 +1812,7 @@ extern "C" {
     #[doc = "vmaFreeMemory(allocator, allocation);"]
     #[doc = "\\endcode"]
     #[doc = ""]
-    #[doc = "It it safe to pass null as buffer and/or allocation."]
+    #[doc = "It is safe to pass null as buffer and/or allocation."]
     pub fn vmaDestroyBuffer(allocator: VmaAllocator, buffer: Buffer, allocation: VmaAllocation);
 }
 extern "C" {
@@ -1800,10 +1827,20 @@ extern "C" {
     ) -> Result;
 }
 extern "C" {
-    #[doc = " Function similar to vmaCreateAliasingBuffer()."]
+    #[doc = " Function similar to vmaCreateAliasingBuffer() but for images."]
     pub fn vmaCreateAliasingImage(
         allocator: VmaAllocator,
         allocation: VmaAllocation,
+        pImageCreateInfo: *const ImageCreateInfo,
+        pImage: *mut Image,
+    ) -> Result;
+}
+extern "C" {
+    #[doc = " Function similar to vmaCreateAliasingBuffer2() but for images."]
+    pub fn vmaCreateAliasingImage2(
+        allocator: VmaAllocator,
+        allocation: VmaAllocation,
+        allocationLocalOffset: DeviceSize,
         pImageCreateInfo: *const ImageCreateInfo,
         pImage: *mut Image,
     ) -> Result;
@@ -1818,7 +1855,7 @@ extern "C" {
     #[doc = "vmaFreeMemory(allocator, allocation);"]
     #[doc = "\\endcode"]
     #[doc = ""]
-    #[doc = "It it safe to pass null as image and/or allocation."]
+    #[doc = "It is safe to pass null as image and/or allocation."]
     pub fn vmaDestroyImage(allocator: VmaAllocator, image: Image, allocation: VmaAllocation);
 }
 extern "C" {
