@@ -531,7 +531,7 @@ pub struct VmaVulkanFunctions {
     pub vkCmdCopyBuffer: PFN_vkCmdCopyBuffer,
     #[doc = " Fetch \"vkGetBufferMemoryRequirements2\" on Vulkan >= 1.1, fetch \"vkGetBufferMemoryRequirements2KHR\" when using VK_KHR_dedicated_allocation extension."]
     pub vkGetBufferMemoryRequirements2KHR: PFN_vkGetBufferMemoryRequirements2,
-    #[doc = " Fetch \"vkGetImageMemoryRequirements2\" on Vulkan >= 1.1, fetch \"vkGetImageMemoryRequirements2KHR\" when using VK_KHR_dedicated_allocation extension."]
+    #[doc = " Fetch \"vkGetImageMemoryRequirements 2\" on Vulkan >= 1.1, fetch \"vkGetImageMemoryRequirements2KHR\" when using VK_KHR_dedicated_allocation extension."]
     pub vkGetImageMemoryRequirements2KHR: PFN_vkGetImageMemoryRequirements2,
     #[doc = " Fetch \"vkBindBufferMemory2\" on Vulkan >= 1.1, fetch \"vkBindBufferMemory2KHR\" when using VK_KHR_bind_memory2 extension."]
     pub vkBindBufferMemory2KHR: PFN_vkBindBufferMemory2,
@@ -741,11 +741,6 @@ pub struct VmaAllocationCreateInfo {
     #[doc = "Set to 0 if no additional flags are preferred. \\n"]
     #[doc = "If `pool` is not null, this member is ignored."]
     pub preferredFlags: MemoryPropertyFlags,
-    #[doc = " \\brief Flags that preferably should not be set in a memory type chosen for an allocation."]
-    #[doc = ""]
-    #[doc = "Set to 0 if no flags are undesired. \\n"]
-    #[doc = "If `pool` is not null, this member is ignored."]
-    pub notPreferredFlags: MemoryPropertyFlags,
     #[doc = " \\brief Bitmask containing one bit set for every memory type acceptable for this allocation."]
     #[doc = ""]
     #[doc = "Value 0 is equivalent to `UINT32_MAX` - it means any memory type is accepted if"]
