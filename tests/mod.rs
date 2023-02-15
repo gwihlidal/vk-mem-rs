@@ -293,3 +293,90 @@ fn test_gpu_stats() {
         assert_eq!(stats_3.total.statistics.allocationBytes, 0);
     }
 }
+
+#[test]
+fn create_virtual_block() {
+    let create_info = vk_mem::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
+    let _virtual_block = vk_mem::VirtualBlock::new(create_info)
+        .expect("Couldn't create VirtualBlock");
+}
+
+#[test]
+fn virtual_allocate_and_free() {
+    let create_info = vk_mem::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
+    let virtual_block = vk_mem::VirtualBlock::new(create_info)
+        .expect("Couldn't create VirtualBlock");
+
+    let allocation_info = vk_mem::VirtualAllocationCreateInfo {
+        size: 8 * 1024 * 1024,
+        alignment: 0,
+        user_data: 0,
+        flags: vk_mem::VirtualAllocationCreateFlags::empty(),
+    };
+
+    // Fully allocate the VirtualBlock and then free both allocations
+    unsafe {
+        let (virtual_alloc_0, offset_0) = virtual_block.allocate(allocation_info).unwrap();
+        let (virtual_alloc_1, offset_1) = virtual_block.allocate(allocation_info).unwrap();
+        assert_ne!(offset_0, offset_1);
+        virtual_block.free(virtual_alloc_0);
+        virtual_block.free(virtual_alloc_1);
+    }
+
+    // Fully allocate it again and then clear it
+    unsafe {
+        let (_virtual_alloc_0, offset_0) = virtual_block.allocate(allocation_info).unwrap();
+        let (_virtual_alloc_1, offset_1) = virtual_block.allocate(allocation_info).unwrap();
+        assert_ne!(offset_0, offset_1);
+        virtual_block.clear();
+    }
+
+    // VMA should trigger an assert when the VirtualBlock is dropped, if any
+    // allocations have not been freed, or the block not cleared instead
+}
+
+#[test]
+fn virtual_allocation_user_data() {
+    let create_info = vk_mem::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
+    let virtual_block = vk_mem::VirtualBlock::new(create_info)
+        .expect("Couldn't create VirtualBlock");
+
+    let user_data = Box::new(vec![12, 34, 56, 78, 90]);
+    let allocation_info = vk_mem::VirtualAllocationCreateInfo {
+        size: 8 * 1024 * 1024,
+        alignment: 0,
+        user_data: user_data.as_ptr() as usize,
+        flags: vk_mem::VirtualAllocationCreateFlags::empty(),
+    };
+
+    unsafe {
+        let (virtual_alloc_0, _) = virtual_block.allocate(allocation_info).unwrap();
+        let queried_info = virtual_block.get_allocation_info(&virtual_alloc_0)
+            .expect("Couldn't get VirtualAllocationInfo from VirtualBlock");
+        let queried_user_data = std::slice::from_raw_parts(queried_info.user_data as *const i32, 5);
+        assert_eq!(queried_user_data, &*user_data);
+        virtual_block.free(virtual_alloc_0);
+    }
+}
+
+#[test]
+fn virtual_block_out_of_space() {
+    let create_info = vk_mem::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
+    let virtual_block = vk_mem::VirtualBlock::new(create_info)
+        .expect("Couldn't create VirtualBlock");
+
+    let allocation_info = vk_mem::VirtualAllocationCreateInfo {
+        size: 16 * 1024 * 1024 + 1,
+        alignment: 0,
+        user_data: 0,
+        flags: vk_mem::VirtualAllocationCreateFlags::empty(),
+    };
+
+    unsafe {
+        match virtual_block.allocate(allocation_info) {
+            Ok(_) => panic!("Created VirtualAllocation larger than VirtualBlock"),
+            Err(ash::vk::Result::ERROR_OUT_OF_DEVICE_MEMORY) => {},
+            Err(_) => panic!("Unexpected VirtualBlock error"),
+        }
+    }
+}
