@@ -491,7 +491,7 @@ impl Allocator {
     /// ```
     ///
     /// It it safe to pass null as `image` and/or `allocation`.
-    pub unsafe fn destroy_image(&self, image: ash::vk::Image, allocation: Allocation) {
+    pub unsafe fn destroy_image(&self, image: ash::vk::Image, allocation: &mut Allocation) {
         ffi::vmaDestroyImage(self.internal, image, allocation.0);
     }
     /// Flushes memory of given set of allocations."]
