@@ -1,11 +1,11 @@
 [package]
-name = "vk-mem"
+name = "vma"
 version = "0.3.0"
 authors = ["Graham Wihlidal <graham@wihlidal.ca>"]
 description = "Rust ffi bindings and idiomatic wrapper for AMD Vulkan Memory Allocator (VMA)"
-homepage = "https://github.com/gwihlidal/vk-mem-rs"
-repository = "https://github.com/gwihlidal/vk-mem-rs"
-documentation = "https://docs.rs/vk-mem"
+homepage = "https://github.com/dust-engine/vk-mem-rs"
+repository = "https://github.com/dust-engine/vk-mem-rs"
+documentation = "https://docs.rs/vma"
 readme = "README.md"
 keywords = ["vulkan", "vk", "ash", "memory", "allocator"]
 categories = ["api-bindings", "rendering", "rendering::engine", "rendering::graphics-api", ]
@@ -22,10 +22,10 @@ include = [
     "vendor/Vulkan-Headers/include/vulkan.h",
     "wrapper/vma_lib.cpp",
 ]
-edition = "2018"
+edition = "2021"
 
 [badges]
-travis-ci = { repository = "gwihlidal/vk-mem-rs" }
+travis-ci = { repository = "dust-engine/vk-mem-rs" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]

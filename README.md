@@ -1,17 +1,19 @@
 vk-mem
 ========
 
-[![vk-mem on travis-ci.com](https://travis-ci.com/gwihlidal/vk-mem-rs.svg?branch=master)](https://travis-ci.com/gwihlidal/vk-mem-rs)
-[![Latest version](https://img.shields.io/crates/v/vk-mem.svg)](https://crates.io/crates/vk-mem)
-[![Documentation](https://docs.rs/vk-mem/badge.svg)](https://docs.rs/vk-mem)
-[![Lines of Code](https://tokei.rs/b1/github/gwihlidal/vk-mem-rs)](https://github.com/gwihlidal/vk-mem-rs)
+[![vk-mem on travis-ci.com](https://travis-ci.com/dust-engine/vk-mem-rs.svg?branch=master)](https://travis-ci.com/dust-engine/vk-mem-rs)
+[![Latest version](https://img.shields.io/crates/v/vma.svg)](https://crates.io/crates/vma)
+[![Documentation](https://docs.rs/vma/badge.svg)](https://docs.rs/vma)
+[![Lines of Code](https://tokei.rs/b1/github/dust-engine/vk-mem-rs)](https://github.com/dust-engine/vk-mem-rs)
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![APACHE2](https://img.shields.io/badge/license-APACHE2-blue.svg)
 
+This is a fork of [vk-mem-rs](https://github.com/gwihlidal/vk-mem-rs), originally created by [@gwihlidal](https://github.com/gwihlidal). It is published on crates.io under the crate name `vma`.
+
 This crate provides an FFI layer and idiomatic rust wrappers for the excellent AMD Vulkan Memory Allocator (VMA) C/C++ library.
 
-- [Documentation](https://docs.rs/vk-mem)
-- [Release Notes](https://github.com/gwihlidal/vk-mem-rs/releases)
+- [Documentation](https://docs.rs/vma)
+- [Release Notes](https://github.com/dust-engine/vk-mem-rs/releases)
 - [VMA GitHub](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator)
 - [VMA Documentation](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/)
 - [GPU Open Announce](https://gpuopen.com/gaming-product/vulkan-memory-allocator/)
@@ -137,13 +139,13 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-vk-mem = "0.3.0"
+vma = "0.4.0"
 ```
 
 and add this to your crate root:
 
 ```rust
-extern crate vk_mem;
+extern crate vma;
 ```
 
 ## Compiling using MinGW W64
@@ -187,10 +189,10 @@ Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in this crate by you, as defined in the Apache-2.0 license, shall
 be dual licensed as above, without any additional terms or conditions.
 
-Contributions are always welcome; please look at the [issue tracker](https://github.com/gwihlidal/vk-mem-rs/issues) to see what known improvements are documented.
+Contributions are always welcome; please look at the [issue tracker](https://github.com/dust-engine/vk-mem-rs/issues) to see what known improvements are documented.
 
 ## Code of Conduct
 
-Contribution to the vk-mem crate is organized under the terms of the
-Contributor Covenant, the maintainer of vk-mem, @gwihlidal, promises to
+Contribution to the vma crate is organized under the terms of the
+Contributor Covenant, the maintainer of vk-mem, @Neo-Zhixing, promises to
 intervene to uphold that code of conduct.
