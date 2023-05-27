@@ -189,7 +189,7 @@ impl Allocator {
 
     /// Frees memory previously allocated using `Allocator::allocate_memory`,
     /// `Allocator::allocate_memory_for_buffer`, or `Allocator::allocate_memory_for_image`.
-    pub unsafe fn free_memory(&self, allocation: Allocation) {
+    pub unsafe fn free_memory(&self, allocation: &mut Allocation) {
         ffi::vmaFreeMemory(self.internal, allocation.0);
     }
 
@@ -202,7 +202,7 @@ impl Allocator {
     /// It may be internally optimized to be more efficient than calling 'Allocator::free_memory` `allocations.len()` times.
     ///
     /// Allocations in 'allocations' slice can come from any memory pools and types.
-    pub unsafe fn free_memory_pages(&self, allocations: &[Allocation]) {
+    pub unsafe fn free_memory_pages(&self, allocations: &mut [Allocation]) {
         ffi::vmaFreeMemoryPages(
             self.internal,
             allocations.len(),

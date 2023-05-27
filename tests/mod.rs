@@ -165,7 +165,7 @@ fn create_gpu_buffer() {
     };
 
     unsafe {
-        let (buffer, allocation) = allocator
+        let (buffer, mut allocation) = allocator
             .create_buffer(
                 &ash::vk::BufferCreateInfo::builder()
                     .size(16 * 1024)
@@ -179,7 +179,7 @@ fn create_gpu_buffer() {
             .unwrap();
         let allocation_info = allocator.get_allocation_info(&allocation);
         assert_eq!(allocation_info.mapped_data, std::ptr::null_mut());
-        allocator.destroy_buffer(buffer, allocation);
+        allocator.destroy_buffer(buffer, &mut allocation);
     }
 }
 
@@ -195,7 +195,7 @@ fn create_cpu_buffer_preferred() {
         ..Default::default()
     };
     unsafe {
-        let (buffer, allocation) = allocator
+        let (buffer, mut allocation) = allocator
             .create_buffer(
                 &ash::vk::BufferCreateInfo::builder()
                     .size(16 * 1024)
@@ -209,7 +209,7 @@ fn create_cpu_buffer_preferred() {
             .unwrap();
         let allocation_info = allocator.get_allocation_info(&allocation);
         assert_ne!(allocation_info.mapped_data, std::ptr::null_mut());
-        allocator.destroy_buffer(buffer, allocation);
+        allocator.destroy_buffer(buffer, &mut allocation);
     }
 }
 
@@ -245,10 +245,10 @@ fn create_gpu_buffer_pool() {
 
         let pool = allocator.create_pool(&pool_info).unwrap();
 
-        let (buffer, allocation) = pool.create_buffer(&buffer_info, &allocation_info).unwrap();
+        let (buffer, mut allocation) = pool.create_buffer(&buffer_info, &allocation_info).unwrap();
         let allocation_info = allocator.get_allocation_info(&allocation);
         assert_ne!(allocation_info.mapped_data, std::ptr::null_mut());
-        allocator.destroy_buffer(buffer, allocation);
+        allocator.destroy_buffer(buffer, &mut allocation);
     }
 }
 
@@ -267,7 +267,7 @@ fn test_gpu_stats() {
         assert_eq!(stats_1.total.statistics.allocationCount, 0);
         assert_eq!(stats_1.total.statistics.allocationBytes, 0);
 
-        let (buffer, allocation) = allocator
+        let (buffer, mut allocation) = allocator
             .create_buffer(
                 &ash::vk::BufferCreateInfo::builder()
                     .size(16 * 1024)
@@ -285,7 +285,7 @@ fn test_gpu_stats() {
         assert_eq!(stats_2.total.statistics.allocationCount, 1);
         assert_eq!(stats_2.total.statistics.allocationBytes, 16 * 1024);
 
-        allocator.destroy_buffer(buffer, allocation);
+        allocator.destroy_buffer(buffer, &mut allocation);
 
         let stats_3 = allocator.calculate_statistics().unwrap();
         assert_eq!(stats_3.total.statistics.blockCount, 1);
