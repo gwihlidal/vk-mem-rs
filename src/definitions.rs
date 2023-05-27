@@ -4,6 +4,7 @@ use ash::vk::PhysicalDevice;
 use ash::{Device, Instance};
 use bitflags::bitflags;
 use std::ptr;
+use std::marker::PhantomData;
 
 /// Intended usage of memory.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -459,7 +460,7 @@ impl<'a> AllocatorCreateInfo<'a> {
 
 pub struct PoolCreateInfo<'a> {
     pub(crate) inner: ffi::VmaPoolCreateInfo,
-    marker: ::std::marker::PhantomData<&'a ()>,
+    marker: PhantomData<&'a ()>,
 }
 
 impl<'a> PoolCreateInfo<'a> {
@@ -475,7 +476,7 @@ impl<'a> PoolCreateInfo<'a> {
                 minAllocationAlignment: 0,
                 pMemoryAllocateNext: ptr::null_mut(),
             },
-            marker: ::std::marker::PhantomData,
+            marker: PhantomData,
         }
     }
 
