@@ -13,14 +13,17 @@ license = "MIT/Apache-2.0"
 build = "build.rs"
 include = [
     "src/*.rs",
-    "gen/bindings.rs",
     "build.rs",
     "Cargo.toml",
     "vendor/VulkanMemoryAllocator/include/vk_mem_alloc.h",
-    "vendor/Vulkan-Headers/include/vk_platform.h",
-    "vendor/Vulkan-Headers/include/vulkan_core.h",
-    "vendor/Vulkan-Headers/include/vulkan.h",
-    "wrapper/vma_lib.cpp",
+    "vendor/Vulkan-Headers/include/vulkan/vk_platform.h",
+    "vendor/Vulkan-Headers/include/vulkan/vulkan_core.h",
+    "vendor/Vulkan-Headers/include/vk_video/vulkan_video_codec_h265std.h",
+    "vendor/Vulkan-Headers/include/vk_video/vulkan_video_codec_h265std_decode.h",
+    "vendor/Vulkan-Headers/include/vk_video/vulkan_video_codec_h264std.h",
+    "vendor/Vulkan-Headers/include/vk_video/vulkan_video_codec_h264std_decode.h",
+    "vendor/Vulkan-Headers/include/vulkan/vulkan.h",
+    "wrapper.cpp",
 ]
 edition = "2021"
 
