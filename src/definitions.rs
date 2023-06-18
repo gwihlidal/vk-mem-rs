@@ -3,8 +3,8 @@ use ash::vk;
 use ash::vk::PhysicalDevice;
 use ash::{Device, Instance};
 use bitflags::bitflags;
-use std::ptr;
 use std::marker::PhantomData;
+use std::ptr;
 
 /// Intended usage of memory.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -672,8 +672,6 @@ impl From<ffi::VmaAllocationInfo> for AllocationInfo {
     }
 }
 
-
-
 bitflags! {
     /// Flags for configuring `VirtualBlock` construction
     pub struct VirtualBlockCreateFlags: u32 {
@@ -773,6 +771,11 @@ impl<'a> VirtualBlockCreateInfo<'a> {
         self.inner.size = size;
         self
     }
+
+    pub fn flag(mut self, flag: VirtualAllocationCreateFlags) -> Self {
+        self.inner.flags = flag.bits;
+        self
+    }
 }
 
 impl From<&ffi::VmaVirtualAllocationInfo> for VirtualAllocationInfo {
@@ -806,4 +809,3 @@ impl From<VirtualAllocationCreateInfo> for ffi::VmaVirtualAllocationCreateInfo {
         (&info).into()
     }
 }
-

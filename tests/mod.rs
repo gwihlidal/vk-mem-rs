@@ -296,16 +296,16 @@ fn test_gpu_stats() {
 
 #[test]
 fn create_virtual_block() {
-    let create_info = vma::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
-    let _virtual_block = vma::VirtualBlock::new(create_info)
-        .expect("Couldn't create VirtualBlock");
+    let create_info = vma::VirtualBlockCreateInfo::new()
+        .size(16 * 1024 * 1024)
+        .flag(vma::VirtualAllocationCreateFlags::VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MASK); // 16MB block
+    let _virtual_block = vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 }
 
 #[test]
 fn virtual_allocate_and_free() {
     let create_info = vma::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
-    let virtual_block = vma::VirtualBlock::new(create_info)
-        .expect("Couldn't create VirtualBlock");
+    let virtual_block = vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 
     let allocation_info = vma::VirtualAllocationCreateInfo {
         size: 8 * 1024 * 1024,
@@ -338,8 +338,7 @@ fn virtual_allocate_and_free() {
 #[test]
 fn virtual_allocation_user_data() {
     let create_info = vma::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
-    let virtual_block = vma::VirtualBlock::new(create_info)
-        .expect("Couldn't create VirtualBlock");
+    let virtual_block = vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 
     let user_data = Box::new(vec![12, 34, 56, 78, 90]);
     let allocation_info = vma::VirtualAllocationCreateInfo {
@@ -351,7 +350,8 @@ fn virtual_allocation_user_data() {
 
     unsafe {
         let (virtual_alloc_0, _) = virtual_block.allocate(allocation_info).unwrap();
-        let queried_info = virtual_block.get_allocation_info(&virtual_alloc_0)
+        let queried_info = virtual_block
+            .get_allocation_info(&virtual_alloc_0)
             .expect("Couldn't get VirtualAllocationInfo from VirtualBlock");
         let queried_user_data = std::slice::from_raw_parts(queried_info.user_data as *const i32, 5);
         assert_eq!(queried_user_data, &*user_data);
@@ -362,8 +362,7 @@ fn virtual_allocation_user_data() {
 #[test]
 fn virtual_block_out_of_space() {
     let create_info = vma::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
-    let virtual_block = vma::VirtualBlock::new(create_info)
-        .expect("Couldn't create VirtualBlock");
+    let virtual_block = vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 
     let allocation_info = vma::VirtualAllocationCreateInfo {
         size: 16 * 1024 * 1024 + 1,
@@ -375,7 +374,7 @@ fn virtual_block_out_of_space() {
     unsafe {
         match virtual_block.allocate(allocation_info) {
             Ok(_) => panic!("Created VirtualAllocation larger than VirtualBlock"),
-            Err(ash::vk::Result::ERROR_OUT_OF_DEVICE_MEMORY) => {},
+            Err(ash::vk::Result::ERROR_OUT_OF_DEVICE_MEMORY) => {}
             Err(_) => panic!("Unexpected VirtualBlock error"),
         }
     }
