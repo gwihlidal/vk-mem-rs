@@ -772,7 +772,7 @@ impl<'a> VirtualBlockCreateInfo<'a> {
         self
     }
 
-    pub fn flag(mut self, flag: VirtualAllocationCreateFlags) -> Self {
+    pub fn flags(mut self, flag: VirtualBlockCreateFlags) -> Self {
         self.inner.flags = flag.bits;
         self
     }

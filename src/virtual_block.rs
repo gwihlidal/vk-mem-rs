@@ -53,7 +53,7 @@ impl VirtualBlock {
     /// Frees virtual allocation inside given VirtualBlock.
     ///
     /// It is correct to call this function with `allocation == VK_NULL_HANDLE` - it does nothing.
-    pub unsafe fn free(&self, allocation: VirtualAllocation) {
+    pub unsafe fn free(&self, allocation: &mut VirtualAllocation) {
         ffi::vmaVirtualFree(self.internal, allocation.0);
     }
 
