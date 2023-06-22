@@ -5,7 +5,6 @@ use bitflags::bitflags;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::ptr;
-use std::rc::Rc;
 
 /// Intended usage of memory.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -379,8 +378,8 @@ bitflags! {
 pub struct AllocatorCreateInfo<'a, I, D> {
     pub(crate) inner: ffi::VmaAllocatorCreateInfo,
     pub(crate) physical_device: PhysicalDevice,
-    pub(crate) instance: Rc<I>,
-    pub(crate) device: Rc<D>,
+    pub(crate) instance: I,
+    pub(crate) device: D,
     pub(crate) _phantom_data: PhantomData<&'a u8>,
 }
 
@@ -389,7 +388,7 @@ where
     I: Deref<Target = ash::Instance>,
     D: Deref<Target = ash::Device>,
 {
-    pub fn new(instance: Rc<I>, device: Rc<D>, physical_device: ash::vk::PhysicalDevice) -> Self {
+    pub fn new(instance: I, device: D, physical_device: ash::vk::PhysicalDevice) -> Self {
         Self {
             inner: ffi::VmaAllocatorCreateInfo {
                 flags: 0,
@@ -544,11 +543,6 @@ pub struct AllocationCreateInfo {
     /// Set to 0 if no additional flags are preferred.
     /// If `pool` is not null, this member is ignored.
     pub preferred_flags: vk::MemoryPropertyFlags,
-    /// Flags that preferably should be not set in a memory type chosen for an allocation."]
-    ///
-    /// Set to 0 if no additional flags are undesired.
-    /// If `pool` is not null, this member is ignored.
-    pub not_preferred_flags: vk::MemoryPropertyFlags,
     /// Bitmask containing one bit set for every memory type acceptable for this allocation.
     ///
     /// Value 0 is equivalent to `UINT32_MAX` - it means any memory type is accepted if
@@ -579,7 +573,6 @@ impl Default for AllocationCreateInfo {
             usage: MemoryUsage::Unknown,
             required_flags: vk::MemoryPropertyFlags::empty(),
             preferred_flags: vk::MemoryPropertyFlags::empty(),
-            not_preferred_flags: vk::MemoryPropertyFlags::empty(),
             memory_type_bits: 0,
             user_data: 0,
             priority: 0.0,
@@ -613,7 +606,6 @@ impl From<&AllocationCreateInfo> for ffi::VmaAllocationCreateInfo {
             usage,
             requiredFlags: info.required_flags,
             preferredFlags: info.preferred_flags,
-            notPreferredFlags: info.not_preferred_flags,
             memoryTypeBits: info.memory_type_bits,
             pool: std::ptr::null_mut(),
             pUserData: info.user_data as _,
@@ -681,3 +673,139 @@ impl From<ffi::VmaAllocationInfo> for AllocationInfo {
         (&info).into()
     }
 }
+
+
+
+bitflags! {
+    /// Flags for configuring `VirtualBlock` construction
+    pub struct VirtualBlockCreateFlags: u32 {
+        /// Enables alternative, linear allocation algorithm in this pool.
+        ///
+        /// Specify this flag to enable linear allocation algorithm, which always creates
+        /// new allocations after last one and doesn't reuse space from allocations freed in
+        /// between. It trades memory consumption for simplified algorithm and data
+        /// structure, which has better performance and uses less memory for metadata.
+        ///
+        /// By using this flag, you can achieve behavior of free-at-once, stack,
+        /// ring buffer, and double stack.
+        const VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT = ffi::VmaVirtualBlockCreateFlagBits::VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT as u32;
+    }
+}
+
+bitflags! {
+    /// Flags for configuring `VirtualBlock` construction
+    pub struct VirtualAllocationCreateFlags: u32 {
+        /// Allocation will be created from upper stack in a double stack pool.
+        ///
+        /// This flag is only allowed for virtual blocks created with #VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT flag.
+        const VMA_VIRTUAL_ALLOCATION_CREATE_UPPER_ADDRESS_BIT = ffi::VmaVirtualAllocationCreateFlagBits::VMA_VIRTUAL_ALLOCATION_CREATE_UPPER_ADDRESS_BIT as u32;
+        /// Allocation strategy that tries to minimize memory usage.
+        const VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT = ffi::VmaVirtualAllocationCreateFlagBits::VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT as u32;
+        /// Allocation strategy that tries to minimize allocation time.
+        const VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT = ffi::VmaVirtualAllocationCreateFlagBits::VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT as u32;
+        /// Allocation strategy that chooses always the lowest offset in available space.
+        /// This is not the most efficient strategy but achieves highly packed data.
+        const VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MIN_OFFSET_BIT = ffi::VmaVirtualAllocationCreateFlagBits::VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MIN_OFFSET_BIT as u32;
+        /// A bit mask to extract only `STRATEGY` bits from entire set of flags.
+        ///
+        /// These strategy flags are binary compatible with equivalent flags in #VmaAllocationCreateFlagBits.
+        const VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MASK = ffi::VmaVirtualAllocationCreateFlagBits::VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MASK as u32;
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct VirtualAllocationCreateInfo {
+    /// Size of the allocation.
+    ///
+    /// Cannot be zero.
+    pub size: u64,
+    /// Required alignment of the allocation. Optional.
+    ///
+    /// Must be power of two. Special value 0 has the same meaning as 1 - means no special alignment is required, so allocation can start at any offset.
+    pub alignment: u64,
+    /// Custom pointer to be associated with the allocation. Optional.
+    ///
+    /// It can be any value and can be used for user-defined purposes. It can be fetched or changed later.
+    pub user_data: usize,
+    /// Flags to configure allocation behavior for this allocation
+    pub flags: VirtualAllocationCreateFlags,
+}
+
+/// Parameters of created VirtualBlock, to be passed to VirtualBlock::new()
+pub struct VirtualBlockCreateInfo<'a> {
+    pub(crate) inner: ffi::VmaVirtualBlockCreateInfo,
+    pub(crate) _phantom_data: PhantomData<&'a u8>,
+}
+
+/// Parameters of `VirtualAllocation` objects, that can be retrieved using `VirtualBlock::get_allocation_info`.
+#[derive(Debug, Clone, Copy)]
+pub struct VirtualAllocationInfo {
+    /// Offset of the allocation.
+    ///
+    /// Offset at which the allocation was made.
+    pub offset: vk::DeviceSize,
+    /// Size of the allocation.
+    ///
+    /// Same value as passed in VirtualAllocationCreateInfo::size.
+    pub size: vk::DeviceSize,
+    /// Custom pointer associated with the allocation
+    ///
+    /// It can change after call to vmaSetAllocationUserData() for this allocation.
+    pub user_data: usize,
+}
+
+impl<'a> VirtualBlockCreateInfo<'a> {
+    pub fn new() -> Self {
+        Self {
+            inner: ffi::VmaVirtualBlockCreateInfo {
+                flags: 0,
+                size: 0,
+                pAllocationCallbacks: ptr::null(),
+            },
+            _phantom_data: Default::default(),
+        }
+    }
+
+    pub fn allocation_callback(mut self, allocation: &'a ash::vk::AllocationCallbacks) -> Self {
+        self.inner.pAllocationCallbacks = allocation as *const _;
+        self
+    }
+
+    pub fn size(mut self, size: u64) -> Self {
+        self.inner.size = size;
+        self
+    }
+}
+
+impl From<&ffi::VmaVirtualAllocationInfo> for VirtualAllocationInfo {
+    fn from(info: &ffi::VmaVirtualAllocationInfo) -> Self {
+        Self {
+            offset: info.offset,
+            size: info.size,
+            user_data: info.pUserData as _,
+        }
+    }
+}
+impl From<ffi::VmaVirtualAllocationInfo> for VirtualAllocationInfo {
+    fn from(info: ffi::VmaVirtualAllocationInfo) -> Self {
+        (&info).into()
+    }
+}
+
+impl From<&VirtualAllocationCreateInfo> for ffi::VmaVirtualAllocationCreateInfo {
+    fn from(info: &VirtualAllocationCreateInfo) -> Self {
+        ffi::VmaVirtualAllocationCreateInfo {
+            size: info.size,
+            alignment: info.alignment,
+            flags: info.flags.bits(),
+            pUserData: info.user_data as _,
+        }
+    }
+}
+
+impl From<VirtualAllocationCreateInfo> for ffi::VmaVirtualAllocationCreateInfo {
+    fn from(info: VirtualAllocationCreateInfo) -> Self {
+        (&info).into()
+    }
+}
+
