@@ -298,14 +298,15 @@ fn test_gpu_stats() {
 fn create_virtual_block() {
     let create_info = vma::VirtualBlockCreateInfo::new()
         .size(16 * 1024 * 1024)
-        .flag(vma::VirtualAllocationCreateFlags::VMA_VIRTUAL_ALLOCATION_CREATE_STRATEGY_MASK); // 16MB block
+        .flags(vma::VirtualBlockCreateFlags::VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT); // 16MB block
     let _virtual_block = vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 }
 
 #[test]
 fn virtual_allocate_and_free() {
     let create_info = vma::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
-    let virtual_block = vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
+    let mut virtual_block =
+        vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 
     let allocation_info = vma::VirtualAllocationCreateInfo {
         size: 8 * 1024 * 1024,
@@ -316,11 +317,11 @@ fn virtual_allocate_and_free() {
 
     // Fully allocate the VirtualBlock and then free both allocations
     unsafe {
-        let (virtual_alloc_0, offset_0) = virtual_block.allocate(allocation_info).unwrap();
-        let (virtual_alloc_1, offset_1) = virtual_block.allocate(allocation_info).unwrap();
+        let (mut virtual_alloc_0, offset_0) = virtual_block.allocate(allocation_info).unwrap();
+        let (mut virtual_alloc_1, offset_1) = virtual_block.allocate(allocation_info).unwrap();
         assert_ne!(offset_0, offset_1);
-        virtual_block.free(virtual_alloc_0);
-        virtual_block.free(virtual_alloc_1);
+        virtual_block.free(&mut virtual_alloc_0);
+        virtual_block.free(&mut virtual_alloc_1);
     }
 
     // Fully allocate it again and then clear it
@@ -338,7 +339,8 @@ fn virtual_allocate_and_free() {
 #[test]
 fn virtual_allocation_user_data() {
     let create_info = vma::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
-    let virtual_block = vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
+    let mut virtual_block =
+        vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 
     let user_data = Box::new(vec![12, 34, 56, 78, 90]);
     let allocation_info = vma::VirtualAllocationCreateInfo {
@@ -349,20 +351,21 @@ fn virtual_allocation_user_data() {
     };
 
     unsafe {
-        let (virtual_alloc_0, _) = virtual_block.allocate(allocation_info).unwrap();
+        let (mut virtual_alloc_0, _) = virtual_block.allocate(allocation_info).unwrap();
         let queried_info = virtual_block
             .get_allocation_info(&virtual_alloc_0)
             .expect("Couldn't get VirtualAllocationInfo from VirtualBlock");
         let queried_user_data = std::slice::from_raw_parts(queried_info.user_data as *const i32, 5);
         assert_eq!(queried_user_data, &*user_data);
-        virtual_block.free(virtual_alloc_0);
+        virtual_block.free(&mut virtual_alloc_0);
     }
 }
 
 #[test]
 fn virtual_block_out_of_space() {
     let create_info = vma::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
-    let virtual_block = vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
+    let mut virtual_block =
+        vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 
     let allocation_info = vma::VirtualAllocationCreateInfo {
         size: 16 * 1024 * 1024 + 1,
