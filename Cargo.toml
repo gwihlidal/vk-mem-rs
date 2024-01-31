@@ -1,7 +1,7 @@
 [package]
 name = "vk-mem"
 version = "0.3.0"
-authors = ["Graham Wihlidal <graham@wihlidal.ca>"]
+authors = ["Graham Wihlidal <graham@wihlidal.ca>", "Zhixing Zhang <me@neoto.xin>"]
 description = "Rust ffi bindings and idiomatic wrapper for AMD Vulkan Memory Allocator (VMA)"
 homepage = "https://github.com/gwihlidal/vk-mem-rs"
 repository = "https://github.com/gwihlidal/vk-mem-rs"
@@ -16,13 +16,7 @@ include = [
     "build.rs",
     "Cargo.toml",
     "vendor/VulkanMemoryAllocator/include/vk_mem_alloc.h",
-    "vendor/Vulkan-Headers/include/vulkan/vk_platform.h",
-    "vendor/Vulkan-Headers/include/vulkan/vulkan_core.h",
-    "vendor/Vulkan-Headers/include/vk_video/vulkan_video_codec_h265std.h",
-    "vendor/Vulkan-Headers/include/vk_video/vulkan_video_codec_h265std_decode.h",
-    "vendor/Vulkan-Headers/include/vk_video/vulkan_video_codec_h264std.h",
-    "vendor/Vulkan-Headers/include/vk_video/vulkan_video_codec_h264std_decode.h",
-    "vendor/Vulkan-Headers/include/vulkan/vulkan.h",
+    "vendor/Vulkan-Headers/include",
     "wrapper.cpp",
 ]
 edition = "2021"

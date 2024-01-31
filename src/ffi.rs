@@ -5,11 +5,7 @@
 #![allow(dead_code)]
 use ash::vk::*;
 
-pub type __uint8_t = ::std::os::raw::c_uchar;
-pub type __int32_t = ::std::os::raw::c_int;
-pub type __uint32_t = ::std::os::raw::c_uint;
-pub type __uint64_t = ::std::os::raw::c_ulong;
-#[repr(u32)]
+#[repr(i32)]
 #[doc = " Flags for created #VmaAllocator."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaAllocatorCreateFlagBits {
@@ -111,25 +107,20 @@ pub enum VmaAllocatorCreateFlagBits {
     #[doc = "The value to be used for default priority is 0.5."]
     #[doc = "For more details, see the documentation of the VK_EXT_memory_priority extension."]
     VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT = 64,
-    #[doc = "Enables usage of VK_EXT_memory_priority extension in the library."]
+    #[doc = "Enables usage of VK_KHR_maintenance4 extension in the library."]
     #[doc = ""]
     #[doc = "You may set this flag only if you found available and enabled this device extension,"]
-    #[doc = "along with `VkPhysicalDeviceMemoryPriorityFeaturesEXT::memoryPriority == VK_TRUE`,"]
     #[doc = "while creating Vulkan device passed as VmaAllocatorCreateInfo::device."]
+    VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE4_BIT = 128,
+    #[doc = "Enables usage of VK_KHR_maintenance4 extension in the library."]
     #[doc = ""]
-    #[doc = "When this flag is used, VmaAllocationCreateInfo::priority and VmaPoolCreateInfo::priority"]
-    #[doc = "are used to set priorities of allocated Vulkan memory. Without it, these variables are ignored."]
-    #[doc = ""]
-    #[doc = "A priority must be a floating-point value between 0 and 1, indicating the priority of the allocation relative to other memory allocations."]
-    #[doc = "Larger values are higher priority. The granularity of the priorities is implementation-dependent."]
-    #[doc = "It is automatically passed to every call to `vkAllocateMemory` done by the library using structure `VkMemoryPriorityAllocateInfoEXT`."]
-    #[doc = "The value to be used for default priority is 0.5."]
-    #[doc = "For more details, see the documentation of the VK_EXT_memory_priority extension."]
+    #[doc = "You may set this flag only if you found available and enabled this device extension,"]
+    #[doc = "while creating Vulkan device passed as VmaAllocatorCreateInfo::device."]
     VMA_ALLOCATOR_CREATE_FLAG_BITS_MAX_ENUM = 2147483647,
 }
 #[doc = " See #VmaAllocatorCreateFlagBits."]
 pub type VmaAllocatorCreateFlags = Flags;
-#[repr(u32)]
+#[repr(i32)]
 #[doc = " \\brief Intended usage of the allocated memory."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaMemoryUsage {
@@ -208,13 +199,16 @@ impl VmaAllocationCreateFlagBits {
     pub const VMA_ALLOCATION_CREATE_STRATEGY_FIRST_FIT_BIT: VmaAllocationCreateFlagBits =
         VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT;
 }
-#[repr(u32)]
+#[repr(i32)]
 #[doc = " Flags to be passed as VmaAllocationCreateInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaAllocationCreateFlagBits {
     #[doc = " \\brief Set this flag if the allocation should have its own memory block."]
     #[doc = ""]
     #[doc = "Use it for special, big resources, like fullscreen images used as attachments."]
+    #[doc = ""]
+    #[doc = "If you use this flag while creating a buffer or an image, `VkMemoryDedicatedAllocateInfo`"]
+    #[doc = "structure is applied if possible."]
     VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT = 1,
     #[doc = " \\brief Set this flag to only try to allocate from existing `VkDeviceMemory` blocks and never create new such block."]
     #[doc = ""]
@@ -284,7 +278,7 @@ pub enum VmaAllocationCreateFlagBits {
     #[doc = "This includes allocations created in \\ref custom_memory_pools."]
     #[doc = ""]
     #[doc = "Declares that mapped memory can be read, written, and accessed in random order,"]
-    #[doc = "so a `HOST_CACHED` memory type is required."]
+    #[doc = "so a `HOST_CACHED` memory type is preferred."]
     VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT = 2048,
     #[doc = "Together with #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,"]
     #[doc = "it says that despite request for host access, a not-`HOST_VISIBLE` memory type can be selected"]
@@ -318,7 +312,7 @@ impl VmaPoolCreateFlagBits {
     pub const VMA_POOL_CREATE_ALGORITHM_MASK: VmaPoolCreateFlagBits =
         VmaPoolCreateFlagBits::VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT;
 }
-#[repr(u32)]
+#[repr(i32)]
 #[doc = " Flags to be passed as VmaPoolCreateInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaPoolCreateFlagBits {
@@ -355,7 +349,7 @@ pub enum VmaPoolCreateFlagBits {
 }
 #[doc = " Flags to be passed as VmaPoolCreateInfo::flags. See #VmaPoolCreateFlagBits."]
 pub type VmaPoolCreateFlags = Flags;
-#[repr(u32)]
+#[repr(i32)]
 #[doc = " Flags to be passed as VmaDefragmentationInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaDefragmentationFlagBits {
@@ -374,7 +368,7 @@ pub enum VmaDefragmentationFlagBits {
 }
 #[doc = " See #VmaDefragmentationFlagBits."]
 pub type VmaDefragmentationFlags = Flags;
-#[repr(u32)]
+#[repr(i32)]
 #[doc = " Operation performed on single defragmentation move. See structure #VmaDefragmentationMove."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaDefragmentationMoveOperation {
@@ -389,7 +383,7 @@ impl VmaVirtualBlockCreateFlagBits {
     pub const VMA_VIRTUAL_BLOCK_CREATE_ALGORITHM_MASK: VmaVirtualBlockCreateFlagBits =
         VmaVirtualBlockCreateFlagBits::VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT;
 }
-#[repr(u32)]
+#[repr(i32)]
 #[doc = " Flags to be passed as VmaVirtualBlockCreateInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaVirtualBlockCreateFlagBits {
@@ -409,7 +403,7 @@ pub enum VmaVirtualBlockCreateFlagBits {
 }
 #[doc = " Flags to be passed as VmaVirtualBlockCreateInfo::flags. See #VmaVirtualBlockCreateFlagBits."]
 pub type VmaVirtualBlockCreateFlags = Flags;
-#[repr(u32)]
+#[repr(i32)]
 #[doc = " Flags to be passed as VmaVirtualAllocationCreateInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaVirtualAllocationCreateFlagBits {
@@ -599,13 +593,15 @@ pub struct VmaAllocatorCreateInfo {
     #[doc = ""]
     #[doc = "Starting from version 3.0.0 this member is no longer optional, it must be set!"]
     pub instance: Instance,
-    #[doc = " \\brief Optional. The highest version of Vulkan that the application is designed to use."]
+    #[doc = " \\brief Optional. Vulkan version that the application uses."]
     #[doc = ""]
     #[doc = "It must be a value in the format as created by macro `VK_MAKE_VERSION` or a constant like: `VK_API_VERSION_1_1`, `VK_API_VERSION_1_0`."]
     #[doc = "The patch version number specified is ignored. Only the major and minor versions are considered."]
-    #[doc = "It must be less or equal (preferably equal) to value as passed to `vkCreateInstance` as `VkApplicationInfo::apiVersion`."]
     #[doc = "Only versions 1.0, 1.1, 1.2, 1.3 are supported by the current implementation."]
     #[doc = "Leaving it initialized to zero is equivalent to `VK_API_VERSION_1_0`."]
+    #[doc = "It must match the Vulkan version used by the application and supported on the selected physical device,"]
+    #[doc = "so it must be no higher than `VkApplicationInfo::apiVersion` passed to `vkCreateInstance`"]
+    #[doc = "and no higher than `VkPhysicalDeviceProperties::apiVersion` found on the physical device used."]
     pub vulkanApiVersion: u32,
     #[doc = " \\brief Either null or a pointer to an array of external memory handle types for each Vulkan memory type."]
     #[doc = ""]
@@ -818,7 +814,9 @@ pub struct VmaPoolCreateInfo {
     #[doc = "can be attached automatically by this library when using other, more convenient of its features."]
     pub pMemoryAllocateNext: *mut ::std::os::raw::c_void,
 }
-#[doc = " Parameters of #VmaAllocation objects, that can be retrieved using function vmaGetAllocationInfo()."]
+#[doc = "Parameters of #VmaAllocation objects, that can be retrieved using function vmaGetAllocationInfo()."]
+#[doc = ""]
+#[doc = "There is also an extended version of this structure that carries additional parameters: #VmaAllocationInfo2."]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct VmaAllocationInfo {
@@ -871,6 +869,29 @@ pub struct VmaAllocationInfo {
     #[doc = "additional flag #VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT set [DEPRECATED]."]
     pub pName: *const ::std::os::raw::c_char,
 }
+#[doc = " Extended parameters of a #VmaAllocation object that can be retrieved using function vmaGetAllocationInfo2()."]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct VmaAllocationInfo2 {
+    #[doc = " \\brief Basic parameters of the allocation."]
+    #[doc = ""]
+    #[doc = "If you need only these, you can use function vmaGetAllocationInfo() and structure #VmaAllocationInfo instead."]
+    pub allocationInfo: VmaAllocationInfo,
+    #[doc = " \\brief Size of the `VkDeviceMemory` block that the allocation belongs to."]
+    #[doc = ""]
+    #[doc = "In case of an allocation with dedicated memory, it will be equal to `allocationInfo.size`."]
+    pub blockSize: DeviceSize,
+    #[doc = " \\brief `VK_TRUE` if the allocation has dedicated memory, `VK_FALSE` if it was placed as part of a larger memory block."]
+    #[doc = ""]
+    #[doc = "When `VK_TRUE`, it also means `VkMemoryDedicatedAllocateInfo` was used when creating the allocation"]
+    #[doc = "(if VK_KHR_dedicated_allocation extension or Vulkan version >= 1.1 is enabled)."]
+    pub dedicatedMemory: Bool32,
+}
+#[doc = " Callback function called during vmaBeginDefragmentation() to check custom criterion about ending current defragmentation pass."]
+#[doc = ""]
+#[doc = "Should return true if the defragmentation needs to stop current pass."]
+pub type PFN_vmaCheckDefragmentationBreakFunction =
+    ::std::option::Option<unsafe extern "C" fn(pUserData: *mut ::std::os::raw::c_void) -> Bool32>;
 #[doc = " \\brief Parameters for defragmentation."]
 #[doc = ""]
 #[doc = "To be used with function vmaBeginDefragmentation()."]
@@ -890,6 +911,12 @@ pub struct VmaDefragmentationInfo {
     #[doc = ""]
     #[doc = "`0` means no limit."]
     pub maxAllocationsPerPass: u32,
+    #[doc = " \\brief Optional custom callback for stopping vmaBeginDefragmentation()."]
+    #[doc = ""]
+    #[doc = "Have to return true for breaking current defragmentation pass."]
+    pub pfnBreakCallback: PFN_vmaCheckDefragmentationBreakFunction,
+    #[doc = " \\brief Optional data to pass to custom callback for stopping pass of defragmentation."]
+    pub pBreakCallbackUserData: *mut ::std::os::raw::c_void,
 }
 #[doc = " Single move of an allocation to be done for defragmentation."]
 #[repr(C)]
@@ -1324,10 +1351,26 @@ extern "C" {
     #[doc = "You can retrieve same VmaAllocationInfo structure while creating your resource, from function"]
     #[doc = "vmaCreateBuffer(), vmaCreateImage(). You can remember it if you are sure parameters don't change"]
     #[doc = "(e.g. due to defragmentation)."]
+    #[doc = ""]
+    #[doc = "There is also a new function vmaGetAllocationInfo2() that offers extended information"]
+    #[doc = "about the allocation, returned using new structure #VmaAllocationInfo2."]
     pub fn vmaGetAllocationInfo(
         allocator: VmaAllocator,
         allocation: VmaAllocation,
         pAllocationInfo: *mut VmaAllocationInfo,
+    );
+}
+extern "C" {
+    #[doc = " \\brief Returns extended information about specified allocation."]
+    #[doc = ""]
+    #[doc = "Current parameters of given allocation are returned in `pAllocationInfo`."]
+    #[doc = "Extended parameters in structure #VmaAllocationInfo2 include memory block size"]
+    #[doc = "and a flag telling whether the allocation has dedicated memory."]
+    #[doc = "It can be useful e.g. for interop with OpenGL."]
+    pub fn vmaGetAllocationInfo2(
+        allocator: VmaAllocator,
+        allocation: VmaAllocation,
+        pAllocationInfo: *mut VmaAllocationInfo2,
     );
 }
 extern "C" {
@@ -1518,6 +1561,63 @@ extern "C" {
         allocations: *mut VmaAllocation,
         offsets: *const DeviceSize,
         sizes: *const DeviceSize,
+    ) -> Result;
+}
+extern "C" {
+    #[doc = " \\brief Maps the allocation temporarily if needed, copies data from specified host pointer to it, and flushes the memory from the host caches if needed."]
+    #[doc = ""]
+    #[doc = "\\param allocator"]
+    #[doc = "\\param pSrcHostPointer Pointer to the host data that become source of the copy."]
+    #[doc = "\\param dstAllocation   Handle to the allocation that becomes destination of the copy."]
+    #[doc = "\\param dstAllocationLocalOffset  Offset within `dstAllocation` where to write copied data, in bytes."]
+    #[doc = "\\param size            Number of bytes to copy."]
+    #[doc = ""]
+    #[doc = "This is a convenience function that allows to copy data from a host pointer to an allocation easily."]
+    #[doc = "Same behavior can be achieved by calling vmaMapMemory(), `memcpy()`, vmaUnmapMemory(), vmaFlushAllocation()."]
+    #[doc = ""]
+    #[doc = "This function can be called only for allocations created in a memory type that has `VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT` flag."]
+    #[doc = "It can be ensured e.g. by using #VMA_MEMORY_USAGE_AUTO and #VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or"]
+    #[doc = "#VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT."]
+    #[doc = "Otherwise, the function will fail and generate a Validation Layers error."]
+    #[doc = ""]
+    #[doc = "`dstAllocationLocalOffset` is relative to the contents of given `dstAllocation`."]
+    #[doc = "If you mean whole allocation, you should pass 0."]
+    #[doc = "Do not pass allocation's offset within device memory block this parameter!"]
+    pub fn vmaCopyMemoryToAllocation(
+        allocator: VmaAllocator,
+        pSrcHostPointer: *const ::std::os::raw::c_void,
+        dstAllocation: VmaAllocation,
+        dstAllocationLocalOffset: DeviceSize,
+        size: DeviceSize,
+    ) -> Result;
+}
+extern "C" {
+    #[doc = " \\brief Invalidates memory in the host caches if needed, maps the allocation temporarily if needed, and copies data from it to a specified host pointer."]
+    #[doc = ""]
+    #[doc = "\\param allocator"]
+    #[doc = "\\param srcAllocation   Handle to the allocation that becomes source of the copy."]
+    #[doc = "\\param srcAllocationLocalOffset  Offset within `srcAllocation` where to read copied data, in bytes."]
+    #[doc = "\\param pDstHostPointer Pointer to the host memory that become destination of the copy."]
+    #[doc = "\\param size            Number of bytes to copy."]
+    #[doc = ""]
+    #[doc = "This is a convenience function that allows to copy data from an allocation to a host pointer easily."]
+    #[doc = "Same behavior can be achieved by calling vmaInvalidateAllocation(), vmaMapMemory(), `memcpy()`, vmaUnmapMemory()."]
+    #[doc = ""]
+    #[doc = "This function should be called only for allocations created in a memory type that has `VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT`"]
+    #[doc = "and `VK_MEMORY_PROPERTY_HOST_CACHED_BIT` flag."]
+    #[doc = "It can be ensured e.g. by using #VMA_MEMORY_USAGE_AUTO and #VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT."]
+    #[doc = "Otherwise, the function may fail and generate a Validation Layers error."]
+    #[doc = "It may also work very slowly when reading from an uncached memory."]
+    #[doc = ""]
+    #[doc = "`srcAllocationLocalOffset` is relative to the contents of given `srcAllocation`."]
+    #[doc = "If you mean whole allocation, you should pass 0."]
+    #[doc = "Do not pass allocation's offset within device memory block as this parameter!"]
+    pub fn vmaCopyAllocationToMemory(
+        allocator: VmaAllocator,
+        srcAllocation: VmaAllocation,
+        srcAllocationLocalOffset: DeviceSize,
+        pDstHostPointer: *mut ::std::os::raw::c_void,
+        size: DeviceSize,
     ) -> Result;
 }
 extern "C" {
