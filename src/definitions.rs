@@ -3,7 +3,6 @@ use ash::vk;
 use ash::vk::PhysicalDevice;
 use bitflags::bitflags;
 use std::marker::PhantomData;
-use std::ops::Deref;
 use std::ptr;
 
 /// Intended usage of memory.
@@ -462,7 +461,7 @@ where
 
 pub struct PoolCreateInfo<'a> {
     pub(crate) inner: ffi::VmaPoolCreateInfo,
-    marker: ::std::marker::PhantomData<&'a ()>,
+    marker: PhantomData<&'a ()>,
 }
 
 impl<'a> PoolCreateInfo<'a> {
@@ -478,7 +477,7 @@ impl<'a> PoolCreateInfo<'a> {
                 minAllocationAlignment: 0,
                 pMemoryAllocateNext: ptr::null_mut(),
             },
-            marker: ::std::marker::PhantomData,
+            marker: PhantomData,
         }
     }
 
@@ -674,8 +673,6 @@ impl From<ffi::VmaAllocationInfo> for AllocationInfo {
     }
 }
 
-
-
 bitflags! {
     /// Flags for configuring `VirtualBlock` construction
     pub struct VirtualBlockCreateFlags: u32 {
@@ -775,6 +772,11 @@ impl<'a> VirtualBlockCreateInfo<'a> {
         self.inner.size = size;
         self
     }
+
+    pub fn flags(mut self, flag: VirtualBlockCreateFlags) -> Self {
+        self.inner.flags = flag.bits;
+        self
+    }
 }
 
 impl From<&ffi::VmaVirtualAllocationInfo> for VirtualAllocationInfo {
@@ -808,4 +810,3 @@ impl From<VirtualAllocationCreateInfo> for ffi::VmaVirtualAllocationCreateInfo {
         (&info).into()
     }
 }
-

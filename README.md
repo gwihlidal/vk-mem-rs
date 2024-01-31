@@ -192,5 +192,5 @@ Contributions are always welcome; please look at the [issue tracker](https://git
 ## Code of Conduct
 
 Contribution to the vk-mem crate is organized under the terms of the
-Contributor Covenant, the maintainer of vk-mem, @gwihlidal, promises to
+Contributor Covenant, the maintainer of vk-mem, @Neo-Zhixing, promises to
 intervene to uphold that code of conduct.

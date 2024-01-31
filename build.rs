@@ -9,7 +9,6 @@ fn main() {
 
     build.include("vendor/VulkanMemoryAllocator/include");
     build.include("vendor/Vulkan-Headers/include");
-    build.include("wrapper");
 
     // Disable VMA_ASSERT when rust assertions are disabled
     #[cfg(not(debug_assertions))]
@@ -39,11 +38,7 @@ fn main() {
     build.define("VMA_RECORDING_ENABLED", "1");
 
     // Add the files we build
-    let source_files = ["wrapper/vma_lib.cpp"];
-
-    for source_file in &source_files {
-        build.file(&source_file);
-    }
+    build.file("wrapper.cpp");
 
     let target = env::var("TARGET").unwrap();
     if target.contains("darwin") {
