@@ -13,7 +13,6 @@ pub use virtual_block::*;
 use ash::prelude::VkResult;
 use ash::vk;
 use std::mem;
-use std::ops::Deref;
 
 /// Main allocator object
 pub struct Allocator {
@@ -48,11 +47,7 @@ unsafe impl Sync for Allocation {}
 
 impl Allocator {
     /// Constructor a new `Allocator` using the provided options.
-    pub fn new<'a, I, D>(mut create_info: AllocatorCreateInfo<'a, I, D>) -> VkResult<Self>
-    where
-        I: Deref<Target = ash::Instance>,
-        D: Deref<Target = ash::Device>,
-    {
+    pub fn new(mut create_info: AllocatorCreateInfo) -> VkResult<Self> {
         unsafe extern "system" fn get_instance_proc_addr_stub(
             _instance: ash::vk::Instance,
             _p_name: *const ::std::os::raw::c_char,

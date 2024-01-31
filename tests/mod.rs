@@ -1,9 +1,9 @@
 extern crate ash;
-extern crate vma;
+extern crate vk_mem;
 
 use ash::{extensions::ext::DebugUtils, vk};
 use std::{os::raw::c_void, sync::Arc};
-use vma::Alloc;
+use vk_mem::Alloc;
 
 fn extension_names() -> Vec<*const i8> {
     vec![DebugUtils::name().as_ptr()]
@@ -137,10 +137,10 @@ impl TestHarness {
         }
     }
 
-    pub fn create_allocator(&self) -> vma::Allocator {
+    pub fn create_allocator(&self) -> vk_mem::Allocator {
         let create_info =
-            vma::AllocatorCreateInfo::new(&self.instance, &self.device, self.physical_device);
-        vma::Allocator::new(create_info).unwrap()
+            vk_mem::AllocatorCreateInfo::new(&self.instance, &self.device, self.physical_device);
+        vk_mem::Allocator::new(create_info).unwrap()
     }
 }
 
@@ -159,8 +159,8 @@ fn create_allocator() {
 fn create_gpu_buffer() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info = vma::AllocationCreateInfo {
-        usage: vma::MemoryUsage::Auto,
+    let allocation_info = vk_mem::AllocationCreateInfo {
+        usage: vk_mem::MemoryUsage::Auto,
         ..Default::default()
     };
 
@@ -187,11 +187,11 @@ fn create_gpu_buffer() {
 fn create_cpu_buffer_preferred() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info = vma::AllocationCreateInfo {
+    let allocation_info = vk_mem::AllocationCreateInfo {
         required_flags: ash::vk::MemoryPropertyFlags::HOST_VISIBLE,
         preferred_flags: ash::vk::MemoryPropertyFlags::HOST_COHERENT
             | ash::vk::MemoryPropertyFlags::HOST_CACHED,
-        flags: vma::AllocationCreateFlags::MAPPED,
+        flags: vk_mem::AllocationCreateFlags::MAPPED,
         ..Default::default()
     };
     unsafe {
@@ -224,11 +224,11 @@ fn create_gpu_buffer_pool() {
         .usage(ash::vk::BufferUsageFlags::UNIFORM_BUFFER | ash::vk::BufferUsageFlags::TRANSFER_DST)
         .build();
 
-    let allocation_info = vma::AllocationCreateInfo {
+    let allocation_info = vk_mem::AllocationCreateInfo {
         required_flags: ash::vk::MemoryPropertyFlags::HOST_VISIBLE,
         preferred_flags: ash::vk::MemoryPropertyFlags::HOST_COHERENT
             | ash::vk::MemoryPropertyFlags::HOST_CACHED,
-        flags: vma::AllocationCreateFlags::MAPPED,
+        flags: vk_mem::AllocationCreateFlags::MAPPED,
 
         ..Default::default()
     };
@@ -238,7 +238,7 @@ fn create_gpu_buffer_pool() {
             .unwrap();
 
         // Create a pool that can have at most 2 blocks, 128 MiB each.
-        let pool_info = vma::PoolCreateInfo::new()
+        let pool_info = vk_mem::PoolCreateInfo::new()
             .memory_type_index(memory_type_index)
             .block_size(128 * 1024 * 1024)
             .max_block_count(2);
@@ -256,8 +256,8 @@ fn create_gpu_buffer_pool() {
 fn test_gpu_stats() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
-    let allocation_info = vma::AllocationCreateInfo {
-        usage: vma::MemoryUsage::Auto,
+    let allocation_info = vk_mem::AllocationCreateInfo {
+        usage: vk_mem::MemoryUsage::Auto,
         ..Default::default()
     };
 
@@ -296,23 +296,23 @@ fn test_gpu_stats() {
 
 #[test]
 fn create_virtual_block() {
-    let create_info = vma::VirtualBlockCreateInfo::new()
+    let create_info = vk_mem::VirtualBlockCreateInfo::new()
         .size(16 * 1024 * 1024)
-        .flags(vma::VirtualBlockCreateFlags::VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT); // 16MB block
-    let _virtual_block = vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
+        .flags(vk_mem::VirtualBlockCreateFlags::VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT); // 16MB block
+    let _virtual_block = vk_mem::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 }
 
 #[test]
 fn virtual_allocate_and_free() {
-    let create_info = vma::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
+    let create_info = vk_mem::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
     let mut virtual_block =
-        vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
+        vk_mem::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 
-    let allocation_info = vma::VirtualAllocationCreateInfo {
+    let allocation_info = vk_mem::VirtualAllocationCreateInfo {
         size: 8 * 1024 * 1024,
         alignment: 0,
         user_data: 0,
-        flags: vma::VirtualAllocationCreateFlags::empty(),
+        flags: vk_mem::VirtualAllocationCreateFlags::empty(),
     };
 
     // Fully allocate the VirtualBlock and then free both allocations
@@ -338,16 +338,16 @@ fn virtual_allocate_and_free() {
 
 #[test]
 fn virtual_allocation_user_data() {
-    let create_info = vma::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
+    let create_info = vk_mem::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
     let mut virtual_block =
-        vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
+        vk_mem::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 
     let user_data = Box::new(vec![12, 34, 56, 78, 90]);
-    let allocation_info = vma::VirtualAllocationCreateInfo {
+    let allocation_info = vk_mem::VirtualAllocationCreateInfo {
         size: 8 * 1024 * 1024,
         alignment: 0,
         user_data: user_data.as_ptr() as usize,
-        flags: vma::VirtualAllocationCreateFlags::empty(),
+        flags: vk_mem::VirtualAllocationCreateFlags::empty(),
     };
 
     unsafe {
@@ -363,15 +363,15 @@ fn virtual_allocation_user_data() {
 
 #[test]
 fn virtual_block_out_of_space() {
-    let create_info = vma::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
+    let create_info = vk_mem::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
     let mut virtual_block =
-        vma::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
+        vk_mem::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 
-    let allocation_info = vma::VirtualAllocationCreateInfo {
+    let allocation_info = vk_mem::VirtualAllocationCreateInfo {
         size: 16 * 1024 * 1024 + 1,
         alignment: 0,
         user_data: 0,
-        flags: vma::VirtualAllocationCreateFlags::empty(),
+        flags: vk_mem::VirtualAllocationCreateFlags::empty(),
     };
 
     unsafe {
