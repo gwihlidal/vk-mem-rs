@@ -1,6 +1,6 @@
-use std::mem;
 use crate::ffi;
 use ash::prelude::VkResult;
+use std::mem;
 
 use crate::definitions::*;
 
@@ -11,13 +11,11 @@ pub struct VirtualBlock {
     internal: ffi::VmaVirtualBlock,
 }
 
-
 /// Represents single memory allocation done inside VirtualBlock.
 #[derive(Debug)]
 pub struct VirtualAllocation(ffi::VmaVirtualAllocation);
 unsafe impl Send for VirtualAllocation {}
 unsafe impl Sync for VirtualAllocation {}
-
 
 impl VirtualBlock {
     /// Creates new VirtualBlock object.
@@ -36,24 +34,22 @@ impl VirtualBlock {
     ///
     /// - `ash::vk::Result::ERROR_OUT_OF_DEVICE_MEMORY` - Allocation failed due to not enough free space in the virtual block.
     ///     (despite the function doesn't ever allocate actual GPU memory)
-    pub unsafe fn allocate(&self, allocation_info: VirtualAllocationCreateInfo) -> VkResult<(VirtualAllocation, u64)> {
+    pub unsafe fn allocate(
+        &mut self,
+        allocation_info: VirtualAllocationCreateInfo,
+    ) -> VkResult<(VirtualAllocation, u64)> {
         let create_info: ffi::VmaVirtualAllocationCreateInfo = allocation_info.into();
         let mut allocation: ffi::VmaVirtualAllocation = std::mem::zeroed();
         let mut offset = 0;
-        ffi::vmaVirtualAllocate(
-            self.internal,
-            &create_info,
-            &mut allocation,
-            &mut offset,
-        )
-        .result()?;
+        ffi::vmaVirtualAllocate(self.internal, &create_info, &mut allocation, &mut offset)
+            .result()?;
         Ok((VirtualAllocation(allocation), offset))
     }
 
     /// Frees virtual allocation inside given VirtualBlock.
     ///
     /// It is correct to call this function with `allocation == VK_NULL_HANDLE` - it does nothing.
-    pub unsafe fn free(&self, allocation: VirtualAllocation) {
+    pub unsafe fn free(&mut self, allocation: &mut VirtualAllocation) {
         ffi::vmaVirtualFree(self.internal, allocation.0);
     }
 
@@ -66,12 +62,15 @@ impl VirtualBlock {
     /// don't forget to free it as well.
     ///
     /// Any VirtualAllocations created previously in the VirtualBlock will no longer be valid!
-    pub unsafe fn clear(&self) {
+    pub unsafe fn clear(&mut self) {
         ffi::vmaClearVirtualBlock(self.internal);
     }
 
     /// Returns information about a specific virtual allocation within a virtual block, like its size and user_data pointer.
-    pub unsafe fn get_allocation_info(&self, allocation: &VirtualAllocation) -> VkResult<VirtualAllocationInfo> {
+    pub unsafe fn get_allocation_info(
+        &self,
+        allocation: &VirtualAllocation,
+    ) -> VkResult<VirtualAllocationInfo> {
         let mut allocation_info: ffi::VmaVirtualAllocationInfo = mem::zeroed();
         ffi::vmaGetVirtualAllocationInfo(self.internal, allocation.0, &mut allocation_info);
         Ok(allocation_info.into())

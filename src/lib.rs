@@ -197,7 +197,7 @@ impl Allocator {
 
     /// Frees memory previously allocated using `Allocator::allocate_memory`,
     /// `Allocator::allocate_memory_for_buffer`, or `Allocator::allocate_memory_for_image`.
-    pub unsafe fn free_memory(&self, allocation: Allocation) {
+    pub unsafe fn free_memory(&self, allocation: &mut Allocation) {
         ffi::vmaFreeMemory(self.internal, allocation.0);
     }
 
@@ -210,7 +210,7 @@ impl Allocator {
     /// It may be internally optimized to be more efficient than calling 'Allocator::free_memory` `allocations.len()` times.
     ///
     /// Allocations in 'allocations' slice can come from any memory pools and types.
-    pub unsafe fn free_memory_pages(&self, allocations: &[Allocation]) {
+    pub unsafe fn free_memory_pages(&self, allocations: &mut [Allocation]) {
         ffi::vmaFreeMemoryPages(
             self.internal,
             allocations.len(),
@@ -231,10 +231,12 @@ impl Allocator {
     /// you can avoid calling it too often.
     ///
     /// If you just want to check if allocation is not lost, `Allocator::touch_allocation` will work faster.
-    pub unsafe fn get_allocation_info(&self, allocation: &Allocation) -> VkResult<AllocationInfo> {
-        let mut allocation_info: ffi::VmaAllocationInfo = mem::zeroed();
-        ffi::vmaGetAllocationInfo(self.internal, allocation.0, &mut allocation_info);
-        Ok(allocation_info.into())
+    pub fn get_allocation_info(&self, allocation: &Allocation) -> AllocationInfo {
+        unsafe {
+            let mut allocation_info: ffi::VmaAllocationInfo = mem::zeroed();
+            ffi::vmaGetAllocationInfo(self.internal, allocation.0, &mut allocation_info);
+            allocation_info.into()
+        }
     }
 
     /// Sets user data in given allocation to new value.
@@ -483,7 +485,7 @@ impl Allocator {
     /// ```
     ///
     /// It it safe to pass null as `buffer` and/or `allocation`.
-    pub unsafe fn destroy_buffer(&self, buffer: ash::vk::Buffer, allocation: Allocation) {
+    pub unsafe fn destroy_buffer(&self, buffer: ash::vk::Buffer, allocation: &mut Allocation) {
         ffi::vmaDestroyBuffer(self.internal, buffer, allocation.0);
     }
 
@@ -497,7 +499,7 @@ impl Allocator {
     /// ```
     ///
     /// It it safe to pass null as `image` and/or `allocation`.
-    pub unsafe fn destroy_image(&self, image: ash::vk::Image, allocation: Allocation) {
+    pub unsafe fn destroy_image(&self, image: ash::vk::Image, allocation: &mut Allocation) {
         ffi::vmaDestroyImage(self.internal, image, allocation.0);
     }
     /// Flushes memory of given set of allocations."]
