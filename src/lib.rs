@@ -315,15 +315,7 @@ impl Allocator {
         offset: vk::DeviceSize,
         size: vk::DeviceSize,
     ) -> VkResult<()> {
-        unsafe {
-            ffi::vmaFlushAllocation(
-                self.internal,
-                allocation.0,
-                offset,
-                size,
-            )
-            .result()
-        }
+        unsafe { ffi::vmaFlushAllocation(self.internal, allocation.0, offset, size).result() }
     }
 
     /// Invalidates memory of given allocation.
@@ -341,15 +333,7 @@ impl Allocator {
         offset: vk::DeviceSize,
         size: vk::DeviceSize,
     ) -> VkResult<()> {
-        unsafe {
-            ffi::vmaInvalidateAllocation(
-                self.internal,
-                allocation.0,
-                offset,
-                size,
-            )
-            .result()
-        }
+        unsafe { ffi::vmaInvalidateAllocation(self.internal, allocation.0, offset, size).result() }
     }
 
     /// Checks magic number in margins around all allocations in given memory types (in both default and custom pools) in search for corruptions.
@@ -365,10 +349,7 @@ impl Allocator {
     /// - `vk::Result::ERROR_VALIDATION_FAILED_EXT` - corruption detection has been performed and found memory corruptions around one of the allocations.
     ///   `VMA_ASSERT` is also fired in that case.
     /// - Other value: Error returned by Vulkan, e.g. memory mapping failure.
-    pub unsafe fn check_corruption(
-        &self,
-        memory_types: vk::MemoryPropertyFlags,
-    ) -> VkResult<()> {
+    pub unsafe fn check_corruption(&self, memory_types: vk::MemoryPropertyFlags) -> VkResult<()> {
         ffi::vmaCheckCorruption(self.internal, memory_types.as_raw()).result()
     }
 

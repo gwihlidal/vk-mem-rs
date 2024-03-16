@@ -299,7 +299,8 @@ fn create_virtual_block() {
     let create_info = vk_mem::VirtualBlockCreateInfo::new()
         .size(16 * 1024 * 1024)
         .flags(vk_mem::VirtualBlockCreateFlags::VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT); // 16MB block
-    let _virtual_block = vk_mem::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
+    let _virtual_block =
+        vk_mem::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 }
 
 #[test]

@@ -27,7 +27,7 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 ash = { version = "0.37", default-features = false }
-bitflags = "1.2.1"
+bitflags = "2.4"
 
 [build-dependencies]
 cc = "1.0"
