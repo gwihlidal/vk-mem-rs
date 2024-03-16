@@ -212,6 +212,16 @@ bitflags! {
         /// For more details, see the documentation of the VK_EXT_memory_priority extension.
         const EXT_MEMORY_PRIORITY = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT as u32;
 
+        /// Enables usage of VK_KHR_maintenance4 extension in the library.
+        ///
+        /// You may set this flag only if you found available and enabled this device extension,
+        /// while creating Vulkan device passed as VmaAllocatorCreateInfo::device.
+        const KHR_MAINTENANCE4 = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE4_BIT as u32;
+        /// Enables usage of VK_KHR_maintenance5 extension in the library.
+        ///
+        /// You may set this flag only if you found available and enabled this device extension,
+        /// while creating Vulkan device passed as VmaAllocatorCreateInfo::device.
+        const KHR_MAINTENANCE5 = ffi::VmaAllocatorCreateFlagBits::VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE5_BIT as u32;
     }
 }
 

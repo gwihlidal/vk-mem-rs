@@ -5,7 +5,7 @@
 #![allow(dead_code)]
 use ash::vk::*;
 
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " Flags for created #VmaAllocator."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaAllocatorCreateFlagBits {
@@ -112,15 +112,20 @@ pub enum VmaAllocatorCreateFlagBits {
     #[doc = "You may set this flag only if you found available and enabled this device extension,"]
     #[doc = "while creating Vulkan device passed as VmaAllocatorCreateInfo::device."]
     VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE4_BIT = 128,
-    #[doc = "Enables usage of VK_KHR_maintenance4 extension in the library."]
+    #[doc = "Enables usage of VK_KHR_maintenance5 extension in the library."]
     #[doc = ""]
-    #[doc = "You may set this flag only if you found available and enabled this device extension,"]
+    #[doc = "You should set this flag if you found available and enabled this device extension,"]
+    #[doc = "while creating Vulkan device passed as VmaAllocatorCreateInfo::device."]
+    VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE5_BIT = 256,
+    #[doc = "Enables usage of VK_KHR_maintenance5 extension in the library."]
+    #[doc = ""]
+    #[doc = "You should set this flag if you found available and enabled this device extension,"]
     #[doc = "while creating Vulkan device passed as VmaAllocatorCreateInfo::device."]
     VMA_ALLOCATOR_CREATE_FLAG_BITS_MAX_ENUM = 2147483647,
 }
 #[doc = " See #VmaAllocatorCreateFlagBits."]
 pub type VmaAllocatorCreateFlags = Flags;
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " \\brief Intended usage of the allocated memory."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaMemoryUsage {
@@ -199,7 +204,7 @@ impl VmaAllocationCreateFlagBits {
     pub const VMA_ALLOCATION_CREATE_STRATEGY_FIRST_FIT_BIT: VmaAllocationCreateFlagBits =
         VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT;
 }
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " Flags to be passed as VmaAllocationCreateInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaAllocationCreateFlagBits {
@@ -312,7 +317,7 @@ impl VmaPoolCreateFlagBits {
     pub const VMA_POOL_CREATE_ALGORITHM_MASK: VmaPoolCreateFlagBits =
         VmaPoolCreateFlagBits::VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT;
 }
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " Flags to be passed as VmaPoolCreateInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaPoolCreateFlagBits {
@@ -349,7 +354,7 @@ pub enum VmaPoolCreateFlagBits {
 }
 #[doc = " Flags to be passed as VmaPoolCreateInfo::flags. See #VmaPoolCreateFlagBits."]
 pub type VmaPoolCreateFlags = Flags;
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " Flags to be passed as VmaDefragmentationInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaDefragmentationFlagBits {
@@ -368,7 +373,7 @@ pub enum VmaDefragmentationFlagBits {
 }
 #[doc = " See #VmaDefragmentationFlagBits."]
 pub type VmaDefragmentationFlags = Flags;
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " Operation performed on single defragmentation move. See structure #VmaDefragmentationMove."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaDefragmentationMoveOperation {
@@ -383,7 +388,7 @@ impl VmaVirtualBlockCreateFlagBits {
     pub const VMA_VIRTUAL_BLOCK_CREATE_ALGORITHM_MASK: VmaVirtualBlockCreateFlagBits =
         VmaVirtualBlockCreateFlagBits::VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT;
 }
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " Flags to be passed as VmaVirtualBlockCreateInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaVirtualBlockCreateFlagBits {
@@ -403,7 +408,7 @@ pub enum VmaVirtualBlockCreateFlagBits {
 }
 #[doc = " Flags to be passed as VmaVirtualBlockCreateInfo::flags. See #VmaVirtualBlockCreateFlagBits."]
 pub type VmaVirtualBlockCreateFlags = Flags;
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " Flags to be passed as VmaVirtualAllocationCreateInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaVirtualAllocationCreateFlagBits {
@@ -535,6 +540,7 @@ pub struct VmaVulkanFunctions {
     pub vkBindBufferMemory2KHR: PFN_vkBindBufferMemory2,
     #[doc = " Fetch \"vkBindImageMemory2\" on Vulkan >= 1.1, fetch \"vkBindImageMemory2KHR\" when using VK_KHR_bind_memory2 extension."]
     pub vkBindImageMemory2KHR: PFN_vkBindImageMemory2,
+    #[doc = " Fetch from \"vkGetPhysicalDeviceMemoryProperties2\" on Vulkan >= 1.1, but you can also fetch it from \"vkGetPhysicalDeviceMemoryProperties2KHR\" if you enabled extension VK_KHR_get_physical_device_properties2."]
     pub vkGetPhysicalDeviceMemoryProperties2KHR: PFN_vkGetPhysicalDeviceMemoryProperties2,
     #[doc = " Fetch from \"vkGetDeviceBufferMemoryRequirements\" on Vulkan >= 1.3, but you can also fetch it from \"vkGetDeviceBufferMemoryRequirementsKHR\" if you enabled extension VK_KHR_maintenance4."]
     pub vkGetDeviceBufferMemoryRequirements: PFN_vkGetDeviceBufferMemoryRequirements,
