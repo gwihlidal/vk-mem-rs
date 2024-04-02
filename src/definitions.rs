@@ -387,7 +387,7 @@ bitflags! {
 }
 
 pub struct AllocatorCreateInfo<'a> {
-    pub(crate) inner: ffi::VmaAllocatorCreateInfo,
+    pub(crate) inner: ffi::VmaAllocatorCreateInfo<'a>,
     pub(crate) physical_device: PhysicalDevice,
     pub(crate) device: &'a Device,
     pub(crate) instance: &'a Instance,
@@ -741,7 +741,7 @@ pub struct VirtualAllocationCreateInfo {
 
 /// Parameters of created VirtualBlock, to be passed to VirtualBlock::new()
 pub struct VirtualBlockCreateInfo<'a> {
-    pub(crate) inner: ffi::VmaVirtualBlockCreateInfo,
+    pub(crate) inner: ffi::VmaVirtualBlockCreateInfo<'a>,
     pub(crate) _phantom_data: PhantomData<&'a u8>,
 }
 
