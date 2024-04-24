@@ -26,7 +26,7 @@ travis-ci = { repository = "gwihlidal/vk-mem-rs" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-ash = { version = "0.37", default-features = false }
+ash = { version = "0.38", default-features = false }
 bitflags = "2.4"
 
 [build-dependencies]

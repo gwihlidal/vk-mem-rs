@@ -549,7 +549,7 @@ pub struct VmaVulkanFunctions {
 }
 #[doc = " Description of a Allocator to be created."]
 #[repr(C)]
-pub struct VmaAllocatorCreateInfo {
+pub struct VmaAllocatorCreateInfo<'a> {
     #[doc = " Flags for created allocator. Use #VmaAllocatorCreateFlagBits enum."]
     pub flags: VmaAllocatorCreateFlags,
     #[doc = " Vulkan physical device."]
@@ -563,7 +563,7 @@ pub struct VmaAllocatorCreateInfo {
     pub preferredLargeHeapBlockSize: DeviceSize,
     #[doc = " Custom CPU memory allocation callbacks. Optional."]
     #[doc = "** Optional, can be null. When specified, will also be used for all CPU-side memory allocations. */"]
-    pub pAllocationCallbacks: *const AllocationCallbacks,
+    pub pAllocationCallbacks: *const AllocationCallbacks<'a>,
     #[doc = " Informative callbacks for `vkAllocateMemory`, `vkFreeMemory`. Optional."]
     #[doc = "** Optional, can be null. */"]
     pub pDeviceMemoryCallbacks: *const VmaDeviceMemoryCallbacks,
@@ -986,7 +986,7 @@ pub struct VmaDefragmentationStats {
 }
 #[doc = " Parameters of created #VmaVirtualBlock object to be passed to vmaCreateVirtualBlock()."]
 #[repr(C)]
-pub struct VmaVirtualBlockCreateInfo {
+pub struct VmaVirtualBlockCreateInfo<'a> {
     #[doc = " \\brief Total size of the virtual block."]
     #[doc = ""]
     #[doc = "Sizes can be expressed in bytes or any units you want as long as you are consistent in using them."]
@@ -997,7 +997,7 @@ pub struct VmaVirtualBlockCreateInfo {
     #[doc = " \\brief Custom CPU memory allocation callbacks. Optional."]
     #[doc = ""]
     #[doc = "Optional, can be null. When specified, they will be used for all CPU-side memory allocations."]
-    pub pAllocationCallbacks: *const AllocationCallbacks,
+    pub pAllocationCallbacks: *const AllocationCallbacks<'a>,
 }
 #[doc = " Parameters of created virtual allocation to be passed to vmaVirtualAllocate()."]
 #[repr(C)]
