@@ -5,7 +5,7 @@
 #![allow(dead_code)]
 use ash::vk::*;
 
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " Flags for created #VmaAllocator."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaAllocatorCreateFlagBits {
@@ -32,7 +32,7 @@ pub enum VmaAllocatorCreateFlagBits {
 }
 #[doc = " See #VmaAllocatorCreateFlagBits."]
 pub type VmaAllocatorCreateFlags = Flags;
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " \\brief Intended usage of the allocated memory."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaMemoryUsage {
@@ -67,7 +67,7 @@ impl VmaAllocationCreateFlagBits {
     pub const VMA_ALLOCATION_CREATE_STRATEGY_FIRST_FIT_BIT: VmaAllocationCreateFlagBits =
         VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT;
 }
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " Flags to be passed as VmaAllocationCreateInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaAllocationCreateFlagBits {
@@ -110,7 +110,7 @@ impl VmaPoolCreateFlagBits {
     pub const VMA_POOL_CREATE_ALGORITHM_MASK: VmaPoolCreateFlagBits =
         VmaPoolCreateFlagBits::VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT;
 }
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " Flags to be passed as VmaPoolCreateInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaPoolCreateFlagBits {
@@ -123,7 +123,7 @@ pub enum VmaPoolCreateFlagBits {
 }
 #[doc = " Flags to be passed as VmaPoolCreateInfo::flags. See #VmaPoolCreateFlagBits."]
 pub type VmaPoolCreateFlags = Flags;
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " Flags to be passed as VmaDefragmentationInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaDefragmentationFlagBits {
@@ -139,7 +139,7 @@ pub enum VmaDefragmentationFlagBits {
 }
 #[doc = " See #VmaDefragmentationFlagBits."]
 pub type VmaDefragmentationFlags = Flags;
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " Operation performed on single defragmentation move. See structure #VmaDefragmentationMove."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaDefragmentationMoveOperation {
@@ -154,7 +154,7 @@ impl VmaVirtualBlockCreateFlagBits {
     pub const VMA_VIRTUAL_BLOCK_CREATE_ALGORITHM_MASK: VmaVirtualBlockCreateFlagBits =
         VmaVirtualBlockCreateFlagBits::VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT;
 }
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " Flags to be passed as VmaVirtualBlockCreateInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaVirtualBlockCreateFlagBits {
@@ -165,7 +165,7 @@ pub enum VmaVirtualBlockCreateFlagBits {
 }
 #[doc = " Flags to be passed as VmaVirtualBlockCreateInfo::flags. See #VmaVirtualBlockCreateFlagBits."]
 pub type VmaVirtualBlockCreateFlags = Flags;
-#[repr(i32)]
+#[repr(u32)]
 #[doc = " Flags to be passed as VmaVirtualAllocationCreateInfo::flags."]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum VmaVirtualAllocationCreateFlagBits {
