@@ -47,7 +47,7 @@ unsafe impl Sync for Allocation {}
 
 impl Allocator {
     /// Constructor a new `Allocator` using the provided options.
-    pub fn new(mut create_info: AllocatorCreateInfo) -> VkResult<Self> {
+    pub fn new(create_info: AllocatorCreateInfo) -> VkResult<Self> {
         unsafe extern "system" fn get_instance_proc_addr_stub(
             _instance: vk::Instance,
             _p_name: *const ::std::os::raw::c_char,
@@ -61,6 +61,37 @@ impl Allocator {
         ) -> vk::PFN_vkVoidFunction {
             panic!("VMA_DYNAMIC_VULKAN_FUNCTIONS is unsupported")
         }
+
+        let mut raw_create_info = ffi::VmaAllocatorCreateInfo {
+            flags: create_info.flags.bits(),
+            physicalDevice: create_info.physical_device,
+            device: create_info.device.handle(),
+            preferredLargeHeapBlockSize: create_info.preferred_large_heap_block_size,
+            pAllocationCallbacks: create_info
+                .allocation_callbacks
+                .map(|a| unsafe { std::mem::transmute(a) })
+                .unwrap_or(std::ptr::null()),
+            pDeviceMemoryCallbacks: create_info
+                .device_memory_callbacks
+                .map(|a| a as *const _)
+                .unwrap_or(std::ptr::null()),
+            pHeapSizeLimit: if create_info.heap_size_limits.is_empty() {
+                std::ptr::null()
+            } else {
+                create_info.heap_size_limits.as_ptr()
+            },
+            instance: create_info.instance.handle(),
+            vulkanApiVersion: create_info.vulkan_api_version,
+            pVulkanFunctions: std::ptr::null(),
+            pTypeExternalMemoryHandleTypes: if create_info
+                .type_external_memory_handle_types
+                .is_empty()
+            {
+                std::ptr::null()
+            } else {
+                create_info.type_external_memory_handle_types.as_ptr()
+            },
+        };
 
         #[cfg(feature = "loaded")]
         let routed_functions = ffi::VmaVulkanFunctions {
@@ -123,11 +154,11 @@ impl Allocator {
         };
         #[cfg(feature = "loaded")]
         {
-            create_info.inner.pVulkanFunctions = &routed_functions;
+            raw_create_info.pVulkanFunctions = &routed_functions;
         }
         unsafe {
             let mut internal: ffi::VmaAllocator = mem::zeroed();
-            ffi::vmaCreateAllocator(&create_info.inner as *const _, &mut internal).result()?;
+            ffi::vmaCreateAllocator(&raw_create_info, &mut internal).result()?;
 
             Ok(Allocator { internal })
         }

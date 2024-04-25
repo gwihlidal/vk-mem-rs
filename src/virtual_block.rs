@@ -22,7 +22,15 @@ impl VirtualBlock {
     pub fn new(create_info: VirtualBlockCreateInfo) -> VkResult<Self> {
         unsafe {
             let mut internal: ffi::VmaVirtualBlock = mem::zeroed();
-            ffi::vmaCreateVirtualBlock(&create_info.inner as *const _, &mut internal).result()?;
+            let raw_info = ffi::VmaVirtualBlockCreateInfo {
+                size: create_info.size,
+                flags: create_info.flags.bits(),
+                pAllocationCallbacks: create_info
+                    .allocation_callbacks
+                    .map(|a| std::mem::transmute(a))
+                    .unwrap_or(std::ptr::null()),
+            };
+            ffi::vmaCreateVirtualBlock(&raw_info, &mut internal).result()?;
 
             Ok(VirtualBlock { internal })
         }

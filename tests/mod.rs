@@ -230,10 +230,12 @@ fn create_gpu_buffer_pool() {
             .unwrap();
 
         // Create a pool that can have at most 2 blocks, 128 MiB each.
-        let pool_info = vk_mem::PoolCreateInfo::new()
-            .memory_type_index(memory_type_index)
-            .block_size(128 * 1024 * 1024)
-            .max_block_count(2);
+        let pool_info = vk_mem::PoolCreateInfo {
+            memory_type_index,
+            block_size: 128 * 1024 * 1024,
+            max_block_count: 2,
+            ..Default::default()
+        };
 
         let pool = allocator.create_pool(&pool_info).unwrap();
 
@@ -285,16 +287,22 @@ fn test_gpu_stats() {
 
 #[test]
 fn create_virtual_block() {
-    let create_info = vk_mem::VirtualBlockCreateInfo::new()
-        .size(16 * 1024 * 1024)
-        .flags(vk_mem::VirtualBlockCreateFlags::VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT); // 16MB block
+    let create_info = vk_mem::VirtualBlockCreateInfo {
+        size: 16 * 1024 * 1024,
+        flags: vk_mem::VirtualBlockCreateFlags::VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT,
+        allocation_callbacks: None,
+    }; // 16MB block
     let _virtual_block =
         vk_mem::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 }
 
 #[test]
 fn virtual_allocate_and_free() {
-    let create_info = vk_mem::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
+    let create_info = vk_mem::VirtualBlockCreateInfo {
+        size: 16 * 1024 * 1024,
+        flags: vk_mem::VirtualBlockCreateFlags::VMA_VIRTUAL_BLOCK_CREATE_LINEAR_ALGORITHM_BIT,
+        allocation_callbacks: None,
+    }; // 16MB block
     let mut virtual_block =
         vk_mem::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 
@@ -328,7 +336,10 @@ fn virtual_allocate_and_free() {
 
 #[test]
 fn virtual_allocation_user_data() {
-    let create_info = vk_mem::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
+    let create_info = vk_mem::VirtualBlockCreateInfo {
+        size: 16 * 1024 * 1024,
+        ..Default::default()
+    }; // 16MB block
     let mut virtual_block =
         vk_mem::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 
@@ -353,7 +364,10 @@ fn virtual_allocation_user_data() {
 
 #[test]
 fn virtual_block_out_of_space() {
-    let create_info = vk_mem::VirtualBlockCreateInfo::new().size(16 * 1024 * 1024); // 16MB block
+    let create_info = vk_mem::VirtualBlockCreateInfo {
+        size: 16 * 1024 * 1024,
+        ..Default::default()
+    }; // 16MB block
     let mut virtual_block =
         vk_mem::VirtualBlock::new(create_info).expect("Couldn't create VirtualBlock");
 

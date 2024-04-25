@@ -1,10 +1,9 @@
-use crate::ffi;
+use crate::ffi::{self};
 use ash::vk;
 use ash::vk::PhysicalDevice;
 use ash::{Device, Instance};
 use bitflags::bitflags;
 use std::marker::PhantomData;
-use std::ptr;
 
 /// Intended usage of memory.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -348,6 +347,7 @@ bitflags! {
 
 bitflags! {
     /// Flags for configuring `AllocatorPool` construction.
+    #[derive(Default, Clone, Copy)]
     pub struct AllocatorPoolCreateFlags: u32 {
         /// Use this flag if you always allocate only buffers and linear images or only optimal images
         /// out of this pool and so buffer-image granularity can be ignored.
@@ -387,10 +387,64 @@ bitflags! {
 }
 
 pub struct AllocatorCreateInfo<'a> {
-    pub(crate) inner: ffi::VmaAllocatorCreateInfo<'a>,
+    /// Vulkan physical device. It must be valid throughout whole lifetime of created allocator.
     pub(crate) physical_device: PhysicalDevice,
     pub(crate) device: &'a Device,
     pub(crate) instance: &'a Instance,
+
+    /// Flags for created allocator.
+    pub flags: AllocatorCreateFlags,
+
+    /// Preferred size of a single [`vk::DeviceMemory`] block to be allocated from large heaps > 1 GiB. Optional.
+    /// Set to 0 to use default, which is currently 256 MiB.
+    pub preferred_large_heap_block_size: vk::DeviceSize,
+
+    /// Custom CPU memory allocation callbacks. Optional.
+    /// When specified, will also be used for all CPU-side memory allocations.
+    pub allocation_callbacks: Option<&'a vk::AllocationCallbacks<'a>>,
+
+    /// Informative callbacks for [`vk::AllocateMemory`], [`vk::FreeMemory`]. Optional.
+    pub device_memory_callbacks: Option<&'a ffi::VmaDeviceMemoryCallbacks>,
+
+    /// An empty array, or an array of limits on maximum number of bytes that can be allocated out of particular Vulkan memory heap.
+    /// When it is not empty, it must be an array of [`vk::PhysicalDeviceMemoryProperties::memoryHeapCount`] elements, defining limit on
+    /// maximum number of bytes that can be allocated out of particular Vulkan memory
+    /// heap.
+    ///
+    /// Any of the elements may be equal to `VK_WHOLE_SIZE`, which means no limit on that
+    /// heap. This is also the default in case of `pHeapSizeLimit` = NULL.
+    ///
+    /// If there is a limit defined for a heap:
+    /// - If user tries to allocate more memory from that heap using this allocator,
+    ///   the allocation fails with `VK_ERROR_OUT_OF_DEVICE_MEMORY`.
+    /// - If the limit is smaller than heap size reported in `VkMemoryHeap::size`, the
+    ///   value of this limit will be reported instead when using vmaGetMemoryProperties().
+    ///
+    /// Warning! Using this feature may not be equivalent to installing a GPU with
+    /// smaller amount of memory, because graphics driver doesn't necessary fail new
+    /// allocations with [`VK_ERROR_OUT_OF_DEVICE_MEMORY`] result when memory capacity is
+    /// exceeded. It may return success and just silently migrate some device memory
+    /// blocks to system RAM. This driver behavior can also be controlled using
+    /// VK_AMD_memory_overallocation_behavior extension.
+    pub heap_size_limits: &'a [ash::vk::DeviceSize],
+    /// Optional. Vulkan version that the application uses.
+    /// It must be a value in the format as created by macro `VK_MAKE_VERSION` or a constant like:
+    /// `VK_API_VERSION_1_1`, `VK_API_VERSION_1_0`.
+    /// The patch version number specified is ignored. Only the major and minor versions are considered.
+    /// Only versions 1.0, 1.1, 1.2, 1.3 are supported by the current implementation.
+    /// Leaving it initialized to zero is equivalent to `VK_API_VERSION_1_0`.
+    /// It must match the Vulkan version used by the application and supported on the selected physical device,
+    /// so it must be no higher than `VkApplicationInfo::apiVersion` passed to `vkCreateInstance`
+    /// and no higher than `VkPhysicalDeviceProperties::apiVersion` found on the physical device used.
+    pub vulkan_api_version: u32,
+    /// Either an empty array or an array of external memory handle types for each Vulkan memory type.
+    /// If not empty, it must be a pointer to an array of `VkPhysicalDeviceMemoryProperties::memoryTypeCount`
+    /// elements, defining external memory handle types of particular Vulkan memory type,
+    /// to be passed using `VkExportMemoryAllocateInfoKHR`.
+    ///
+    /// Any of the elements may be equal to 0, which means not to use `VkExportMemoryAllocateInfoKHR` on this memory type.
+    /// This is also the default in case of `pTypeExternalMemoryHandleTypes` = NULL.
+    pub type_external_memory_handle_types: &'a [vk::ExternalMemoryHandleTypeFlagsKHR],
 }
 
 impl<'a> AllocatorCreateInfo<'a> {
@@ -400,135 +454,80 @@ impl<'a> AllocatorCreateInfo<'a> {
         physical_device: ash::vk::PhysicalDevice,
     ) -> AllocatorCreateInfo<'a> {
         AllocatorCreateInfo {
-            inner: ffi::VmaAllocatorCreateInfo {
-                flags: 0,
-                physicalDevice: physical_device,
-                instance: instance.handle(),
-                device: device.handle(),
-                preferredLargeHeapBlockSize: 0,
-                pAllocationCallbacks: ptr::null(),
-                pDeviceMemoryCallbacks: ptr::null(),
-                pHeapSizeLimit: ptr::null(),
-                pVulkanFunctions: ptr::null(),
-                vulkanApiVersion: 0,
-                pTypeExternalMemoryHandleTypes: ptr::null(),
-            },
             physical_device,
             device,
             instance,
+            flags: AllocatorCreateFlags::empty(),
+            preferred_large_heap_block_size: 0,
+            allocation_callbacks: None,
+            device_memory_callbacks: None,
+            heap_size_limits: &[],
+            vulkan_api_version: 0,
+            type_external_memory_handle_types: &[],
         }
-    }
-
-    pub fn preferred_large_heap_block_size(mut self, size: u64) -> Self {
-        self.inner.preferredLargeHeapBlockSize = size;
-        self
-    }
-
-    pub fn flags(mut self, flags: AllocatorCreateFlags) -> Self {
-        self.inner.flags = flags.bits();
-        self
-    }
-
-    pub fn heap_size_limit(mut self, device_sizes: &'a [ash::vk::DeviceSize]) -> Self {
-        unsafe {
-            debug_assert!(
-                self.instance
-                    .get_physical_device_memory_properties(self.physical_device)
-                    .memory_heap_count
-                    == device_sizes.len() as u32
-            );
-        }
-        self.inner.pHeapSizeLimit = device_sizes.as_ptr();
-        self
-    }
-
-    pub fn allocation_callback(mut self, allocation: &'a ash::vk::AllocationCallbacks) -> Self {
-        self.inner.pAllocationCallbacks = allocation as *const _;
-        self
-    }
-
-    pub fn vulkan_api_version(mut self, version: u32) -> Self {
-        self.inner.vulkanApiVersion = version;
-        self
-    }
-
-    pub fn external_memory_handles(
-        mut self,
-        external_memory_handles: &'a [ash::vk::ExternalMemoryHandleTypeFlagsKHR],
-    ) -> Self {
-        unsafe {
-            debug_assert!(
-                self.instance
-                    .get_physical_device_memory_properties(self.physical_device)
-                    .memory_type_count
-                    == external_memory_handles.len() as u32
-            );
-        }
-        self.inner.pTypeExternalMemoryHandleTypes = external_memory_handles.as_ptr();
-        self
     }
 }
 
+#[derive(Clone)]
 pub struct PoolCreateInfo<'a> {
-    pub(crate) inner: ffi::VmaPoolCreateInfo,
-    marker: PhantomData<&'a ()>,
+    ///  Vulkan memory type index to allocate this pool from.
+    pub memory_type_index: u32,
+    pub flags: AllocatorPoolCreateFlags,
+    /// Size of a single [`vk::DeviceMemory`] block to be allocated as part of this pool, in bytes. Optional.
+    /// Specify nonzero to set explicit, constant size of memory blocks used by this pool.
+    /// Leave 0 to use default and let the library manage block sizes automatically.
+    /// Sizes of particular blocks may vary.
+    /// In this case, the pool will also support dedicated allocations.
+    pub block_size: vk::DeviceSize,
+    /// Minimum number of blocks to be always allocated in this pool, even if they stay empty.
+    /// Set to 0 to have no preallocated blocks and allow the pool be completely empty.
+    pub min_block_count: usize,
+    /// Maximum number of blocks that can be allocated in this pool. Optional.
+    /// Set to 0 to use default, which is [`usize::MAX`], which means no limit.
+    /// Set to same value as VmaPoolCreateInfo::minBlockCount to have fixed amount of memory allocated
+    /// throughout whole lifetime of this pool.
+    pub max_block_count: usize,
+    /// A floating-point value between 0 and 1, indicating the priority of the allocations in this pool relative to other memory allocations.
+    /// It is used only when #VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT flag was used during creation of the #VmaAllocator object.
+    /// Otherwise, this variable is ignored.
+    pub priority: f32,
+    /// Additional minimum alignment to be used for all allocations created from this pool. Can be 0.
+    /// Leave 0 (default) not to impose any additional alignment. If not 0, it must be a power of two.
+    /// It can be useful in cases where alignment returned by Vulkan by functions like `vkGetBufferMemoryRequirements` is not enough,
+    /// e.g. when doing interop with OpenGL.
+    pub min_allocation_alignment: vk::DeviceSize,
+    /// Additional `pNext` chain to be attached to `VkMemoryAllocateInfo` used for every allocation made by this pool. Optional.
+    /// If not null, it must point to a `pNext` chain of structures that can be attached to `VkMemoryAllocateInfo`.
+    /// It can be useful for special needs such as adding `VkExportMemoryAllocateInfoKHR`.
+    /// Structures pointed by this member must remain alive and unchanged for the whole lifetime of the custom pool.
+    /// Please note that some structures, e.g. `VkMemoryPriorityAllocateInfoEXT`, `VkMemoryDedicatedAllocateInfoKHR`,
+    /// can be attached automatically by this library when using other, more convenient of its features.
+    pub memory_allocate_next: *const std::ffi::c_void,
+    pub _marker: PhantomData<&'a mut ()>,
 }
-
 impl<'a> PoolCreateInfo<'a> {
-    pub fn new() -> PoolCreateInfo<'a> {
-        PoolCreateInfo {
-            inner: ffi::VmaPoolCreateInfo {
-                memoryTypeIndex: 0,
-                flags: 0,
-                blockSize: 0,
-                minBlockCount: 0,
-                maxBlockCount: 0,
-                priority: 0.0,
-                minAllocationAlignment: 0,
-                pMemoryAllocateNext: ptr::null_mut(),
-            },
-            marker: PhantomData,
+    pub fn push_next<T: vk::ExtendsMemoryAllocateInfo>(&mut self, next: &'a mut T) {
+        let info = vk::MemoryAllocateInfo {
+            p_next: self.memory_allocate_next,
+            ..Default::default()
+        };
+        let info = info.push_next(next);
+        self.memory_allocate_next = info.p_next;
+    }
+}
+impl Default for PoolCreateInfo<'_> {
+    fn default() -> Self {
+        Self {
+            memory_type_index: 0,
+            flags: AllocatorPoolCreateFlags::empty(),
+            block_size: 0,
+            min_block_count: 0,
+            max_block_count: 0,
+            priority: 0.0,
+            min_allocation_alignment: 0,
+            memory_allocate_next: std::ptr::null_mut(),
+            _marker: PhantomData,
         }
-    }
-
-    pub fn memory_type_index(mut self, index: u32) -> Self {
-        self.inner.memoryTypeIndex = index;
-        self
-    }
-
-    pub fn flags(mut self, flags: AllocatorPoolCreateFlags) -> Self {
-        self.inner.flags = flags.bits();
-        self
-    }
-
-    pub fn block_size(mut self, block_size: u64) -> Self {
-        self.inner.blockSize = block_size;
-        self
-    }
-
-    pub fn min_block_count(mut self, min_block_count: usize) -> Self {
-        self.inner.minBlockCount = min_block_count;
-        self
-    }
-
-    pub fn max_block_count(mut self, max_block_count: usize) -> Self {
-        self.inner.maxBlockCount = max_block_count;
-        self
-    }
-
-    pub fn priority(mut self, priority: f32) -> Self {
-        self.inner.priority = priority;
-        self
-    }
-
-    pub fn min_allocation_alignment(mut self, alignment: u64) -> Self {
-        self.inner.minAllocationAlignment = alignment;
-        self
-    }
-
-    pub fn memory_allocate(mut self, next: &'a mut ash::vk::MemoryAllocateInfo) -> Self {
-        self.inner.pMemoryAllocateNext = next as *mut ash::vk::MemoryAllocateInfo as *mut _;
-        self
     }
 }
 
@@ -685,6 +684,7 @@ impl From<ffi::VmaAllocationInfo> for AllocationInfo {
 
 bitflags! {
     /// Flags for configuring `VirtualBlock` construction
+    #[derive(Default)]
     pub struct VirtualBlockCreateFlags: u32 {
         /// Enables alternative, linear allocation algorithm in this pool.
         ///
@@ -740,9 +740,18 @@ pub struct VirtualAllocationCreateInfo {
 }
 
 /// Parameters of created VirtualBlock, to be passed to VirtualBlock::new()
+#[derive(Default)]
 pub struct VirtualBlockCreateInfo<'a> {
-    pub(crate) inner: ffi::VmaVirtualBlockCreateInfo<'a>,
-    pub(crate) _phantom_data: PhantomData<&'a u8>,
+    /// Total size of the virtual block.
+    ///
+    /// Sizes can be expressed in bytes or any units you want as long as you are consistent in using them.
+    /// For example, if you allocate from some array of structures, 1 can mean single instance of entire structure.
+    pub size: vk::DeviceSize,
+
+    pub flags: VirtualBlockCreateFlags,
+    /// Custom CPU memory allocation callbacks. Optional.
+    /// When specified, they will be used for all CPU-side memory allocations.
+    pub allocation_callbacks: Option<&'a vk::AllocationCallbacks<'a>>,
 }
 
 /// Parameters of `VirtualAllocation` objects, that can be retrieved using `VirtualBlock::get_allocation_info`.
@@ -760,34 +769,6 @@ pub struct VirtualAllocationInfo {
     ///
     /// It can change after call to vmaSetAllocationUserData() for this allocation.
     pub user_data: usize,
-}
-
-impl<'a> VirtualBlockCreateInfo<'a> {
-    pub fn new() -> Self {
-        Self {
-            inner: ffi::VmaVirtualBlockCreateInfo {
-                flags: 0,
-                size: 0,
-                pAllocationCallbacks: ptr::null(),
-            },
-            _phantom_data: Default::default(),
-        }
-    }
-
-    pub fn allocation_callback(mut self, allocation: &'a ash::vk::AllocationCallbacks) -> Self {
-        self.inner.pAllocationCallbacks = allocation as *const _;
-        self
-    }
-
-    pub fn size(mut self, size: u64) -> Self {
-        self.inner.size = size;
-        self
-    }
-
-    pub fn flags(mut self, flag: VirtualBlockCreateFlags) -> Self {
-        self.inner.flags = flag.bits();
-        self
-    }
 }
 
 impl From<&ffi::VmaVirtualAllocationInfo> for VirtualAllocationInfo {

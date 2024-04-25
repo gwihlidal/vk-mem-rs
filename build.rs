@@ -108,7 +108,7 @@ fn generate_bindings(output_file: &str) {
         .clang_arg("-I./wrapper")
         .clang_arg("-I./vendor/Vulkan-Headers/include")
         .header("vendor/VulkanMemoryAllocator/include/vk_mem_alloc.h")
-        .rustfmt_bindings(true)
+        .formatter(bindgen::Formatter::Rustfmt)
         .size_t_is_usize(true)
         .blocklist_type("__darwin_.*")
         .allowlist_function("vma.*")
@@ -144,7 +144,12 @@ impl bindgen::callbacks::ParseCallbacks for FixAshTypes {
     fn item_name(&self, original_item_name: &str) -> Option<String> {
         if original_item_name.starts_with("Vk") {
             // Strip `Vk` prefix, will use `ash::vk::*` instead
-            Some(original_item_name.trim_start_matches("Vk").to_string())
+            let trimmed_name = original_item_name.trim_start_matches("Vk");
+            if ["AllocationCallbacks"].contains(&trimmed_name) {
+                Some(format!("{}<'static>", trimmed_name))
+            } else {
+                Some(trimmed_name.to_string())
+            }
         } else if original_item_name.starts_with("PFN_vk") && original_item_name.ends_with("KHR") {
             // VMA uses a few extensions like `PFN_vkGetBufferMemoryRequirements2KHR`,
             // ash keeps these as `PFN_vkGetBufferMemoryRequirements2`
@@ -155,8 +160,10 @@ impl bindgen::callbacks::ParseCallbacks for FixAshTypes {
     }
 
     // When ignoring `Vk` types, bindgen loses derives for some type. Quick workaround.
-    fn add_derives(&self, name: &str) -> Vec<String> {
-        if name.starts_with("VmaAllocationInfo") || name.starts_with("VmaDefragmentationStats") {
+    fn add_derives(&self, info: &bindgen::callbacks::DeriveInfo<'_>) -> Vec<String> {
+        if info.name.starts_with("VmaAllocationInfo")
+            || info.name.starts_with("VmaDefragmentationStats")
+        {
             vec!["Debug".into(), "Copy".into(), "Clone".into()]
         } else {
             vec![]
