@@ -46,8 +46,10 @@ unsafe impl Send for Allocation {}
 unsafe impl Sync for Allocation {}
 
 impl Allocator {
-    /// Constructor a new `Allocator` using the provided options.
-    pub fn new(create_info: AllocatorCreateInfo) -> VkResult<Self> {
+    /// Construct a new `Allocator` using the provided options.
+    /// Safety: [`AllocatorCreateInfo::instance`], [`AllocatorCreateInfo::device`] and
+    /// [`AllocatorCreateInfo::physical_device`] must be valid throughout the lifetime of the allocator.
+    pub unsafe fn new(create_info: AllocatorCreateInfo) -> VkResult<Self> {
         unsafe extern "system" fn get_instance_proc_addr_stub(
             _instance: vk::Instance,
             _p_name: *const ::std::os::raw::c_char,

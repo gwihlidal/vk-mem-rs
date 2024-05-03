@@ -389,7 +389,13 @@ bitflags! {
 pub struct AllocatorCreateInfo<'a> {
     /// Vulkan physical device. It must be valid throughout whole lifetime of created allocator.
     pub(crate) physical_device: PhysicalDevice,
+
+    /// Vulkan device.
+    /// It must be valid throughout the whole lifetime of created allocator.
     pub(crate) device: &'a Device,
+
+    /// Handle to Vulkan instance object.
+    /// Must be valid throughout the whole lifetime of created allocator.
     pub(crate) instance: &'a Instance,
 
     /// Flags for created allocator.
