@@ -47,7 +47,9 @@ unsafe impl Sync for Allocation {}
 
 impl Allocator {
     /// Construct a new `Allocator` using the provided options.
-    /// Safety: [`AllocatorCreateInfo::instance`], [`AllocatorCreateInfo::device`] and
+    ///
+    /// # Safety
+    /// [`AllocatorCreateInfo::instance`], [`AllocatorCreateInfo::device`] and
     /// [`AllocatorCreateInfo::physical_device`] must be valid throughout the lifetime of the allocator.
     pub unsafe fn new(create_info: AllocatorCreateInfo) -> VkResult<Self> {
         unsafe extern "system" fn get_instance_proc_addr_stub(
