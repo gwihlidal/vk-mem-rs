@@ -40,7 +40,7 @@ unsafe impl Sync for Allocator {}
 /// use `Allocator::get_allocation_info`.
 ///
 /// Some kinds allocations can be in lost state.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Allocation(ffi::VmaAllocation);
 unsafe impl Send for Allocation {}
 unsafe impl Sync for Allocation {}
