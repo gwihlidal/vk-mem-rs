@@ -50,14 +50,6 @@ impl Allocator {
     }
 }
 
-impl Drop for AllocatorPool {
-    fn drop(&mut self) {
-        unsafe {
-            ffi::vmaDestroyPool(self.allocator.internal, self.pool.0);
-        }
-    }
-}
-
 impl AllocatorPool {
     pub fn set_name(&self, name: Option<&CStr>) {
         if self.pool.0.is_null() {
@@ -116,6 +108,22 @@ impl AllocatorPool {
     /// - Other value: Error returned by Vulkan, e.g. memory mapping failure.
     pub fn check_corruption(&self) -> VkResult<()> {
         unsafe { ffi::vmaCheckPoolCorruption(self.allocator.internal, self.pool.0).result() }
+    }
+
+    pub fn destroy(&mut self) {
+        if self.pool.0.is_null() {
+            return;
+        }
+        unsafe {
+            ffi::vmaDestroyPool(self.allocator.internal, self.pool.0);
+            self.pool.0 = std::ptr::null_mut();
+        }
+    }
+}
+
+impl Drop for AllocatorPool {
+    fn drop(&mut self) {
+        self.destroy();
     }
 }
 

@@ -139,7 +139,9 @@ impl TestHarness {
     pub fn create_allocator(&self) -> vk_mem::Allocator {
         let create_info =
             vk_mem::AllocatorCreateInfo::new(&self.instance, &self.device, self.physical_device);
-        vk_mem::Allocator::new(create_info).unwrap()
+        unsafe {
+            vk_mem::Allocator::new(create_info).unwrap()
+        }
     }
 }
 

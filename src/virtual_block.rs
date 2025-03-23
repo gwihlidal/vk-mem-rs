@@ -92,14 +92,22 @@ impl VirtualBlock {
     ) {
         ffi::vmaSetVirtualAllocationUserData(self.internal, allocation.0, user_data);
     }
+
+    pub fn destroy(&mut self) {
+        if self.internal.is_null() {
+            return;
+        }
+
+        unsafe {
+            ffi::vmaDestroyVirtualBlock(self.internal);
+            self.internal = std::ptr::null_mut();
+        }
+    }
 }
 
 /// Custom `Drop` implementation to clean up internal VirtualBlock instance
 impl Drop for VirtualBlock {
     fn drop(&mut self) {
-        unsafe {
-            ffi::vmaDestroyVirtualBlock(self.internal);
-            self.internal = std::ptr::null_mut();
-        }
+        self.destroy();
     }
 }
