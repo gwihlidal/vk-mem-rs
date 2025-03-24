@@ -139,9 +139,7 @@ impl TestHarness {
     pub fn create_allocator(&self) -> vk_mem::Allocator {
         let create_info =
             vk_mem::AllocatorCreateInfo::new(&self.instance, &self.device, self.physical_device);
-        unsafe {
-            vk_mem::Allocator::new(create_info).unwrap()
-        }
+        unsafe { vk_mem::Allocator::new(create_info).unwrap() }
     }
 }
 
@@ -258,7 +256,7 @@ fn test_gpu_stats() {
     };
 
     unsafe {
-        let stats_1 = allocator.calculate_statistics().unwrap();
+        let stats_1 = allocator.calculate_statistics();
         assert_eq!(stats_1.total.statistics.blockCount, 0);
         assert_eq!(stats_1.total.statistics.allocationCount, 0);
         assert_eq!(stats_1.total.statistics.allocationBytes, 0);
@@ -273,14 +271,14 @@ fn test_gpu_stats() {
             )
             .unwrap();
 
-        let stats_2 = allocator.calculate_statistics().unwrap();
+        let stats_2 = allocator.calculate_statistics();
         assert_eq!(stats_2.total.statistics.blockCount, 1);
         assert_eq!(stats_2.total.statistics.allocationCount, 1);
         assert_eq!(stats_2.total.statistics.allocationBytes, 16 * 1024);
 
         allocator.destroy_buffer(buffer, &mut allocation);
 
-        let stats_3 = allocator.calculate_statistics().unwrap();
+        let stats_3 = allocator.calculate_statistics();
         assert_eq!(stats_3.total.statistics.blockCount, 1);
         assert_eq!(stats_3.total.statistics.allocationCount, 0);
         assert_eq!(stats_3.total.statistics.allocationBytes, 0);

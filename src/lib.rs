@@ -170,14 +170,14 @@ impl Allocator {
 
     /// The allocator fetches `vk::PhysicalDeviceProperties` from the physical device.
     /// You can get it here, without fetching it again on your own.
-    pub unsafe fn get_physical_device_properties(&self) -> VkResult<vk::PhysicalDeviceProperties> {
+    pub unsafe fn get_physical_device_properties(&self) -> vk::PhysicalDeviceProperties {
         let mut properties = vk::PhysicalDeviceProperties::default();
         ffi::vmaGetPhysicalDeviceProperties(
             self.internal,
             &mut properties as *mut _ as *mut *const _,
         );
 
-        Ok(properties)
+        properties
     }
 
     /// The allocator fetches `vk::PhysicalDeviceMemoryProperties` from the physical device.
@@ -200,11 +200,11 @@ impl Allocator {
     }
 
     /// Retrieves statistics from current state of the `Allocator`.
-    pub fn calculate_statistics(&self) -> VkResult<ffi::VmaTotalStatistics> {
+    pub fn calculate_statistics(&self) -> ffi::VmaTotalStatistics {
         unsafe {
             let mut vma_stats: ffi::VmaTotalStatistics = mem::zeroed();
             ffi::vmaCalculateStatistics(self.internal, &mut vma_stats);
-            Ok(vma_stats)
+            vma_stats
         }
     }
 
@@ -215,13 +215,13 @@ impl Allocator {
     ///
     /// Note that when using allocator from multiple threads, returned information may immediately
     /// become outdated.
-    pub fn get_heap_budgets(&self) -> VkResult<Vec<ffi::VmaBudget>> {
+    pub fn get_heap_budgets(&self) -> Vec<ffi::VmaBudget> {
         unsafe {
             let len = self.get_memory_properties().memory_heap_count as usize;
             let mut vma_budgets: Vec<ffi::VmaBudget> = Vec::with_capacity(len);
             ffi::vmaGetHeapBudgets(self.internal, vma_budgets.as_mut_ptr());
             vma_budgets.set_len(len);
-            Ok(vma_budgets)
+            vma_budgets
         }
     }
 

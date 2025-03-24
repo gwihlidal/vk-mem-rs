@@ -77,20 +77,20 @@ impl AllocatorPool {
         }
     }
     /// Retrieves statistics of existing `AllocatorPool` object.
-    pub fn get_statistics(&self) -> VkResult<ffi::VmaStatistics> {
+    pub fn get_statistics(&self) -> ffi::VmaStatistics {
         unsafe {
             let mut pool_stats: ffi::VmaStatistics = std::mem::zeroed();
             ffi::vmaGetPoolStatistics(self.allocator.internal, self.pool.0, &mut pool_stats);
-            Ok(pool_stats)
+            pool_stats
         }
     }
 
     /// Retrieves statistics of existing `AllocatorPool` object.
-    pub fn calculate_statistics(&self) -> VkResult<ffi::VmaDetailedStatistics> {
+    pub fn calculate_statistics(&self) -> ffi::VmaDetailedStatistics {
         unsafe {
             let mut pool_stats: ffi::VmaDetailedStatistics = std::mem::zeroed();
             ffi::vmaCalculatePoolStatistics(self.allocator.internal, self.pool.0, &mut pool_stats);
-            Ok(pool_stats)
+            pool_stats
         }
     }
 
