@@ -109,7 +109,7 @@ pub enum MemoryUsage {
 
 bitflags! {
     /// Flags for configuring `Allocator` construction.
-    pub struct AllocatorCreateFlags: u32 {
+    #[derive(Clone)]pub struct AllocatorCreateFlags: u32 {
         /// No allocator configuration other than defaults.
         const NONE = 0;
 
@@ -226,7 +226,7 @@ bitflags! {
 
 bitflags! {
     /// Flags for configuring `Allocation` construction.
-    #[derive(Clone, Copy)]
+    #[derive(Debug, Clone, Copy)]
     pub struct AllocationCreateFlags: u32 {
         /// Set this flag if the allocation should have its own memory block.
         ///
@@ -386,6 +386,7 @@ bitflags! {
     }
 }
 
+#[derive(Clone)]
 pub struct AllocatorCreateInfo<'a> {
     /// Vulkan physical device. It must be valid throughout whole lifetime of created allocator.
     pub(crate) physical_device: PhysicalDevice,
@@ -537,7 +538,7 @@ impl Default for PoolCreateInfo<'_> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct AllocationCreateInfo {
     pub flags: AllocationCreateFlags,
     /// Intended usage of memory.
