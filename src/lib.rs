@@ -467,7 +467,8 @@ impl Allocator {
             != vk::MemoryPropertyFlags::HOST_VISIBLE
         {
             return Err(VmaError::MappingNotHostVisible(
-                "Attempted to map an allocation that is not HOST_VISIBLE", Location::caller(),
+                "Attempted to map an allocation that is not HOST_VISIBLE",
+                Location::caller(),
             ));
         }
 
@@ -480,7 +481,8 @@ impl Allocator {
             // Sanity check
             if mapped_data.is_null() {
                 return Err(VmaError::UnableToMapMemory(
-                    "Failed to map memory, returned null pointer", Location::caller(),
+                    "Failed to map memory, returned null pointer",
+                    Location::caller(),
                 ));
             }
 
@@ -499,12 +501,14 @@ impl Allocator {
         // - Make sure the allocation is actually mapped at least once excluding the 0th mapping
         // - as map_memory requires.
         //
-        let mapped_allocators = self.mapped_allocators.lock().unwrap();
+        let mut mapped_allocators = self.mapped_allocators.lock().unwrap();
         let found = mapped_allocators.iter().find(|&x| *x == allocation.id);
 
         if found.is_none() {
             return Err(VmaError::PreviouslyUnmapped(
-                "Attempted to unmap an allocation that was not previously mapped at {}", Location::caller()));
+                "Attempted to unmap an allocation that was not previously mapped at {}",
+                Location::caller(),
+            ));
         }
 
         if self.internal.is_null() {
@@ -522,9 +526,8 @@ impl Allocator {
         }
 
         // Remove only the first occurrence of this allocation id
-        let mut mapped = self.mapped_allocators.lock().unwrap();
-        if let Some(index) = mapped.iter().position(|x| *x == allocation.id) {
-            mapped.remove(index);
+        if let Some(index) = mapped_allocators.iter().position(|x| *x == allocation.id) {
+            mapped_allocators.remove(index);
         }
 
         Ok(())
