@@ -269,6 +269,19 @@ impl Allocator {
         }
     }
 
+    /// Returns extended information about specified allocation.
+    ///
+    /// Extended parameters in structure AllocationInfo2 include memory block size
+    /// and a flag telling whether the allocation has dedicated memory.
+    /// It can be useful e.g. for interop with OpenGL.
+    pub fn get_allocation_info2(&self, allocation: &Allocation) -> AllocationInfo2 {
+        unsafe {
+            let mut allocation_info: ffi::VmaAllocationInfo2 = mem::zeroed();
+            ffi::vmaGetAllocationInfo2(self.internal, allocation.0, &mut allocation_info);
+            allocation_info.into()
+        }
+    }
+
     /// Sets user data in given allocation to new value.
     ///
     /// If the allocation was created with `AllocationCreateFlags::USER_DATA_COPY_STRING`,

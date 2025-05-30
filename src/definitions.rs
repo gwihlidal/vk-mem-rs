@@ -688,6 +688,39 @@ impl From<ffi::VmaAllocationInfo> for AllocationInfo {
     }
 }
 
+/// Extended parameters of a VmaAllocation object that can be retrieved using `Allocation::get_allocation_info2`.
+#[derive(Debug, Clone)]
+pub struct AllocationInfo2 {
+    /// Basic parameters of the allocation.
+    /// 
+    /// If you need only these, you can use function vmaGetAllocationInfo() and structure #VmaAllocationInfo instead.
+    pub allocation_info: AllocationInfo,
+    /// Size of the `VkDeviceMemory` block that the allocation belongs to.
+    /// 
+    /// In case of an allocation with dedicated memory, it will be equal to `allocationInfo.size`.
+    pub block_size: u64,
+    /// `true` if the allocation has dedicated memory, `false` if it was placed as part of a larger memory block.
+    /// 
+    /// When `true`, it also means `VkMemoryDedicatedAllocateInfo` was used when creating the allocation
+    /// (if VK_KHR_dedicated_allocation extension or Vulkan version >= 1.1 is enabled).
+    pub dedicated_memory: bool,
+}
+
+impl From<&ffi::VmaAllocationInfo2> for AllocationInfo2 {
+    fn from(info: &ffi::VmaAllocationInfo2) -> Self {
+        Self {
+            allocation_info: info.allocationInfo.into(),
+            block_size: info.blockSize,
+            dedicated_memory: info.dedicatedMemory != 0
+        }
+    }
+}
+impl From<ffi::VmaAllocationInfo2> for AllocationInfo2 {
+    fn from(info: ffi::VmaAllocationInfo2) -> Self {
+        (&info).into()
+    }
+}
+
 bitflags! {
     /// Flags for configuring `VirtualBlock` construction
     #[derive(Default)]
