@@ -1,5 +1,6 @@
+use ash::VkResult;
+
 use crate::ffi;
-use ash::prelude::VkResult;
 use std::mem;
 
 use crate::definitions::*;

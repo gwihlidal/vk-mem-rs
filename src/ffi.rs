@@ -311,7 +311,7 @@ pub struct VmaAllocatorCreateInfo {
     #[doc = " Preferred size of a single `VkDeviceMemory` block to be allocated from large heaps > 1 GiB. Optional.\n** Set to 0 to use default, which is currently 256 MiB. */"]
     pub preferredLargeHeapBlockSize: DeviceSize,
     #[doc = " Custom CPU memory allocation callbacks. Optional.\n** Optional, can be null. When specified, will also be used for all CPU-side memory allocations. */"]
-    pub pAllocationCallbacks: *const AllocationCallbacks<'static>,
+    pub pAllocationCallbacks: *const AllocationCallbacks,
     #[doc = " Informative callbacks for `vkAllocateMemory`, `vkFreeMemory`. Optional.\n** Optional, can be null. */"]
     pub pDeviceMemoryCallbacks: *const VmaDeviceMemoryCallbacks,
     #[doc = " \\brief Either null or a pointer to an array of limits on maximum number of bytes that can be allocated out of particular Vulkan memory heap.\n\nIf not NULL, it must be a pointer to an array of\n`VkPhysicalDeviceMemoryProperties::memoryHeapCount` elements, defining limit on\nmaximum number of bytes that can be allocated out of particular Vulkan memory\nheap.\n\nAny of the elements may be equal to `VK_WHOLE_SIZE`, which means no limit on that\nheap. This is also the default in case of `pHeapSizeLimit` = NULL.\n\nIf there is a limit defined for a heap:\n\n- If user tries to allocate more memory from that heap using this allocator,\nthe allocation fails with `VK_ERROR_OUT_OF_DEVICE_MEMORY`.\n- If the limit is smaller than heap size reported in `VkMemoryHeap::size`, the\nvalue of this limit will be reported instead when using vmaGetMemoryProperties().\n\nWarning! Using this feature may not be equivalent to installing a GPU with\nsmaller amount of memory, because graphics driver doesn't necessary fail new\nallocations with `VK_ERROR_OUT_OF_DEVICE_MEMORY` result when memory capacity is\nexceeded. It may return success and just silently migrate some device memory\nblocks to system RAM. This driver behavior can also be controlled using\nVK_AMD_memory_overallocation_behavior extension."]
@@ -510,7 +510,7 @@ pub struct VmaVirtualBlockCreateInfo {
     #[doc = " \\brief Use combination of #VmaVirtualBlockCreateFlagBits."]
     pub flags: VmaVirtualBlockCreateFlags,
     #[doc = " \\brief Custom CPU memory allocation callbacks. Optional.\n\nOptional, can be null. When specified, they will be used for all CPU-side memory allocations."]
-    pub pAllocationCallbacks: *const AllocationCallbacks<'static>,
+    pub pAllocationCallbacks: *const AllocationCallbacks,
 }
 #[doc = " Parameters of created virtual allocation to be passed to vmaVirtualAllocate()."]
 #[repr(C)]

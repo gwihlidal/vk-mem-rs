@@ -10,8 +10,7 @@ pub use defragmentation::*;
 pub use pool::*;
 pub use virtual_block::*;
 
-use ash::prelude::VkResult;
-use ash::vk;
+use ash::{vk, VkResult};
 use std::mem;
 
 /// Main allocator object
