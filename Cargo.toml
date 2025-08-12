@@ -27,6 +27,7 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 ash = { version = "0.38", default-features = false }
+thiserror = "2.0.12"
 bitflags = "2.5"
 
 [build-dependencies]
@@ -43,7 +44,7 @@ codegen-units = 1
 
 [features]
 default = ["loaded"]
-generate_bindings=["bindgen"]
-linked=["ash/linked"]
-loaded=["ash/loaded"]
-recording=[]
+generate_bindings = ["bindgen"]
+linked = ["ash/linked"]
+loaded = ["ash/loaded"]
+recording = []

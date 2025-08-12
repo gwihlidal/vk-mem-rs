@@ -10,25 +10,25 @@ fn extension_names() -> Vec<*const i8> {
 }
 
 unsafe extern "system" fn vulkan_debug_callback(
-    _message_severity: ash::vk::DebugUtilsMessageSeverityFlagsEXT,
-    _message_types: ash::vk::DebugUtilsMessageTypeFlagsEXT,
-    p_callback_data: *const ash::vk::DebugUtilsMessengerCallbackDataEXT,
+    _message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
+    _message_types: vk::DebugUtilsMessageTypeFlagsEXT,
+    p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
     _p_user_data: *mut c_void,
-) -> ash::vk::Bool32 {
+) -> vk::Bool32 {
     let p_callback_data = &*p_callback_data;
     println!(
         "{:?}",
-        ::std::ffi::CStr::from_ptr(p_callback_data.p_message)
+        std::ffi::CStr::from_ptr(p_callback_data.p_message)
     );
-    ash::vk::FALSE
+    vk::FALSE
 }
 
 pub struct TestHarness {
     pub entry: ash::Entry,
     pub instance: ash::Instance,
     pub device: ash::Device,
-    pub physical_device: ash::vk::PhysicalDevice,
-    pub debug_callback: ash::vk::DebugUtilsMessengerEXT,
+    pub physical_device: vk::PhysicalDevice,
+    pub debug_callback: vk::DebugUtilsMessengerEXT,
     pub debug_report_loader: debug_utils::Instance,
 }
 
@@ -45,22 +45,22 @@ impl Drop for TestHarness {
 }
 impl TestHarness {
     pub fn new() -> Self {
-        let app_name = ::std::ffi::CString::new("vk-mem testing").unwrap();
-        let app_info = ash::vk::ApplicationInfo::default()
+        let app_name = std::ffi::CString::new("vk-mem testing").unwrap();
+        let app_info = vk::ApplicationInfo::default()
             .application_name(&app_name)
             .application_version(0)
             .engine_name(&app_name)
             .engine_version(0)
-            .api_version(ash::vk::make_api_version(0, 1, 3, 0));
+            .api_version(vk::make_api_version(0, 1, 3, 0));
 
-        let layer_names = [::std::ffi::CString::new("VK_LAYER_KHRONOS_validation").unwrap()];
+        let layer_names = [std::ffi::CString::new("VK_LAYER_KHRONOS_validation").unwrap()];
         let layers_names_raw: Vec<*const i8> = layer_names
             .iter()
             .map(|raw_name| raw_name.as_ptr())
             .collect();
 
         let extension_names_raw = extension_names();
-        let create_info = ash::vk::InstanceCreateInfo::default()
+        let create_info = vk::InstanceCreateInfo::default()
             .application_info(&app_info)
             .enabled_layer_names(&layers_names_raw)
             .enabled_extension_names(&extension_names_raw);
@@ -72,10 +72,10 @@ impl TestHarness {
                 .expect("Instance creation error")
         };
 
-        let debug_info = ash::vk::DebugUtilsMessengerCreateInfoEXT::default()
+        let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::default()
             .message_severity(
-                ash::vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-                    | ash::vk::DebugUtilsMessageSeverityFlagsEXT::WARNING,
+                vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+                    | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING,
             )
             .message_type(
                 vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
@@ -104,8 +104,8 @@ impl TestHarness {
                     let version = instance
                         .get_physical_device_properties(**physical_device)
                         .api_version;
-                    ash::vk::api_version_major(version) == 1
-                        && ash::vk::api_version_minor(version) == 3
+                    vk::api_version_major(version) == 1
+                        && vk::api_version_minor(version) == 3
                 })
                 .next()
                 .expect("Couldn't find suitable device.")
@@ -113,12 +113,12 @@ impl TestHarness {
 
         let priorities = [1.0];
 
-        let queue_info = [ash::vk::DeviceQueueCreateInfo::default()
+        let queue_info = [vk::DeviceQueueCreateInfo::default()
             .queue_family_index(0)
             .queue_priorities(&priorities)];
 
         let device_create_info =
-            ash::vk::DeviceCreateInfo::default().queue_create_infos(&queue_info);
+            vk::DeviceCreateInfo::default().queue_create_infos(&queue_info);
 
         let device: ash::Device = unsafe {
             instance
@@ -166,16 +166,18 @@ fn create_gpu_buffer() {
     unsafe {
         let (buffer, mut allocation) = allocator
             .create_buffer(
-                &ash::vk::BufferCreateInfo::default().size(16 * 1024).usage(
-                    ash::vk::BufferUsageFlags::VERTEX_BUFFER
-                        | ash::vk::BufferUsageFlags::TRANSFER_DST,
+                &vk::BufferCreateInfo::default().size(16 * 1024).usage(
+                    vk::BufferUsageFlags::VERTEX_BUFFER
+                        | vk::BufferUsageFlags::TRANSFER_DST,
                 ),
                 &allocation_info,
             )
             .unwrap();
-        let allocation_info = allocator.get_allocation_info(&allocation);
+        let allocation_info = allocator.get_allocation_info(&allocation).unwrap();
         assert_eq!(allocation_info.mapped_data, std::ptr::null_mut());
-        allocator.destroy_buffer(buffer, &mut allocation);
+        allocator
+            .destroy_buffer(buffer, &mut allocation)
+            .expect("Unable to destroy buffer");
     }
 }
 
@@ -184,25 +186,27 @@ fn create_cpu_buffer_preferred() {
     let harness = TestHarness::new();
     let allocator = harness.create_allocator();
     let allocation_info = vk_mem::AllocationCreateInfo {
-        required_flags: ash::vk::MemoryPropertyFlags::HOST_VISIBLE,
-        preferred_flags: ash::vk::MemoryPropertyFlags::HOST_COHERENT
-            | ash::vk::MemoryPropertyFlags::HOST_CACHED,
+        required_flags: vk::MemoryPropertyFlags::HOST_VISIBLE,
+        preferred_flags: vk::MemoryPropertyFlags::HOST_COHERENT
+            | vk::MemoryPropertyFlags::HOST_CACHED,
         flags: vk_mem::AllocationCreateFlags::MAPPED,
         ..Default::default()
     };
     unsafe {
         let (buffer, mut allocation) = allocator
             .create_buffer(
-                &ash::vk::BufferCreateInfo::default().size(16 * 1024).usage(
-                    ash::vk::BufferUsageFlags::VERTEX_BUFFER
-                        | ash::vk::BufferUsageFlags::TRANSFER_DST,
+                &vk::BufferCreateInfo::default().size(16 * 1024).usage(
+                    vk::BufferUsageFlags::VERTEX_BUFFER
+                        | vk::BufferUsageFlags::TRANSFER_DST,
                 ),
                 &allocation_info,
             )
             .unwrap();
-        let allocation_info = allocator.get_allocation_info(&allocation);
+        let allocation_info = allocator.get_allocation_info(&allocation).unwrap();
         assert_ne!(allocation_info.mapped_data, std::ptr::null_mut());
-        allocator.destroy_buffer(buffer, &mut allocation);
+        allocator
+            .destroy_buffer(buffer, &mut allocation)
+            .expect("Unable to destroy buffer");
     }
 }
 
@@ -212,14 +216,14 @@ fn create_gpu_buffer_pool() {
     let allocator = harness.create_allocator();
     let allocator = Arc::new(allocator);
 
-    let buffer_info = ash::vk::BufferCreateInfo::default()
+    let buffer_info = vk::BufferCreateInfo::default()
         .size(16 * 1024)
-        .usage(ash::vk::BufferUsageFlags::UNIFORM_BUFFER | ash::vk::BufferUsageFlags::TRANSFER_DST);
+        .usage(vk::BufferUsageFlags::UNIFORM_BUFFER | vk::BufferUsageFlags::TRANSFER_DST);
 
     let allocation_info = vk_mem::AllocationCreateInfo {
-        required_flags: ash::vk::MemoryPropertyFlags::HOST_VISIBLE,
-        preferred_flags: ash::vk::MemoryPropertyFlags::HOST_COHERENT
-            | ash::vk::MemoryPropertyFlags::HOST_CACHED,
+        required_flags: vk::MemoryPropertyFlags::HOST_VISIBLE,
+        preferred_flags: vk::MemoryPropertyFlags::HOST_COHERENT
+            | vk::MemoryPropertyFlags::HOST_CACHED,
         flags: vk_mem::AllocationCreateFlags::MAPPED,
 
         ..Default::default()
@@ -240,9 +244,11 @@ fn create_gpu_buffer_pool() {
         let pool = allocator.create_pool(&pool_info).unwrap();
 
         let (buffer, mut allocation) = pool.create_buffer(&buffer_info, &allocation_info).unwrap();
-        let allocation_info = allocator.get_allocation_info(&allocation);
+        let allocation_info = allocator.get_allocation_info(&allocation).unwrap();
         assert_ne!(allocation_info.mapped_data, std::ptr::null_mut());
-        allocator.destroy_buffer(buffer, &mut allocation);
+        allocator
+            .destroy_buffer(buffer, &mut allocation)
+            .expect("Unable to destroy buffer");
     }
 }
 
@@ -256,29 +262,37 @@ fn test_gpu_stats() {
     };
 
     unsafe {
-        let stats_1 = allocator.calculate_statistics().unwrap();
+        let stats_1 = allocator
+            .calculate_statistics()
+            .expect("Unable to calculate stats");
         assert_eq!(stats_1.total.statistics.blockCount, 0);
         assert_eq!(stats_1.total.statistics.allocationCount, 0);
         assert_eq!(stats_1.total.statistics.allocationBytes, 0);
 
         let (buffer, mut allocation) = allocator
             .create_buffer(
-                &ash::vk::BufferCreateInfo::default().size(16 * 1024).usage(
-                    ash::vk::BufferUsageFlags::VERTEX_BUFFER
-                        | ash::vk::BufferUsageFlags::TRANSFER_DST,
+                &vk::BufferCreateInfo::default().size(16 * 1024).usage(
+                    vk::BufferUsageFlags::VERTEX_BUFFER
+                        | vk::BufferUsageFlags::TRANSFER_DST,
                 ),
                 &allocation_info,
             )
             .unwrap();
 
-        let stats_2 = allocator.calculate_statistics().unwrap();
+        let stats_2 = allocator
+            .calculate_statistics()
+            .expect("Unable to calculate stats");
         assert_eq!(stats_2.total.statistics.blockCount, 1);
         assert_eq!(stats_2.total.statistics.allocationCount, 1);
         assert_eq!(stats_2.total.statistics.allocationBytes, 16 * 1024);
 
-        allocator.destroy_buffer(buffer, &mut allocation);
+        allocator
+            .destroy_buffer(buffer, &mut allocation)
+            .expect("Unable to destroy buffer");
 
-        let stats_3 = allocator.calculate_statistics().unwrap();
+        let stats_3 = allocator
+            .calculate_statistics()
+            .expect("Unable to destroy stats");
         assert_eq!(stats_3.total.statistics.blockCount, 1);
         assert_eq!(stats_3.total.statistics.allocationCount, 0);
         assert_eq!(stats_3.total.statistics.allocationBytes, 0);
@@ -381,7 +395,7 @@ fn virtual_block_out_of_space() {
     unsafe {
         match virtual_block.allocate(allocation_info) {
             Ok(_) => panic!("Created VirtualAllocation larger than VirtualBlock"),
-            Err(ash::vk::Result::ERROR_OUT_OF_DEVICE_MEMORY) => {}
+            Err(vk::Result::ERROR_OUT_OF_DEVICE_MEMORY) => {}
             Err(_) => panic!("Unexpected VirtualBlock error"),
         }
     }

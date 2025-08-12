@@ -12,12 +12,12 @@ use ash::vk;
 pub struct PoolHandle(ffi::VmaPool);
 
 /// Represents custom memory pool handle.
-pub struct AllocatorPool {
-    allocator: Arc<Allocator>,
+pub struct AllocatorPool<'a> {
+    allocator: &'a Allocator,
     pub(crate) pool: PoolHandle,
 }
-unsafe impl Send for AllocatorPool {}
-unsafe impl Sync for AllocatorPool {}
+unsafe impl Send for AllocatorPool<'_> {}
+unsafe impl Sync for AllocatorPool<'_> {}
 
 impl Allocator {
     /// Allocates Vulkan device memory and creates `AllocatorPool` object.
@@ -37,7 +37,7 @@ impl Allocator {
             ffi::vmaCreatePool(self.internal, &raw_info, &mut ffi_pool).result()?;
             Ok(AllocatorPool {
                 pool: PoolHandle(ffi_pool),
-                allocator: self.clone(),
+                allocator: self,
             })
         }
     }
@@ -45,20 +45,12 @@ impl Allocator {
     pub fn default_pool(self: &Arc<Self>) -> AllocatorPool {
         AllocatorPool {
             pool: PoolHandle(std::ptr::null_mut()),
-            allocator: self.clone(),
+            allocator: self,
         }
     }
 }
 
-impl Drop for AllocatorPool {
-    fn drop(&mut self) {
-        unsafe {
-            ffi::vmaDestroyPool(self.allocator.internal, self.pool.0);
-        }
-    }
-}
-
-impl AllocatorPool {
+impl AllocatorPool<'_> {
     pub fn set_name(&self, name: Option<&CStr>) {
         if self.pool.0.is_null() {
             return;
@@ -85,20 +77,20 @@ impl AllocatorPool {
         }
     }
     /// Retrieves statistics of existing `AllocatorPool` object.
-    pub fn get_statistics(&self) -> VkResult<ffi::VmaStatistics> {
+    pub fn get_statistics(&self) -> ffi::VmaStatistics {
         unsafe {
             let mut pool_stats: ffi::VmaStatistics = std::mem::zeroed();
             ffi::vmaGetPoolStatistics(self.allocator.internal, self.pool.0, &mut pool_stats);
-            Ok(pool_stats)
+            pool_stats
         }
     }
 
     /// Retrieves statistics of existing `AllocatorPool` object.
-    pub fn calculate_statistics(&self) -> VkResult<ffi::VmaDetailedStatistics> {
+    pub fn calculate_statistics(&self) -> ffi::VmaDetailedStatistics {
         unsafe {
             let mut pool_stats: ffi::VmaDetailedStatistics = std::mem::zeroed();
             ffi::vmaCalculatePoolStatistics(self.allocator.internal, self.pool.0, &mut pool_stats);
-            Ok(pool_stats)
+            pool_stats
         }
     }
 
@@ -116,6 +108,22 @@ impl AllocatorPool {
     /// - Other value: Error returned by Vulkan, e.g. memory mapping failure.
     pub fn check_corruption(&self) -> VkResult<()> {
         unsafe { ffi::vmaCheckPoolCorruption(self.allocator.internal, self.pool.0).result() }
+    }
+
+    pub fn destroy(&mut self) {
+        if self.pool.0.is_null() {
+            return;
+        }
+        unsafe {
+            ffi::vmaDestroyPool(self.allocator.internal, self.pool.0);
+            self.pool.0 = std::ptr::null_mut();
+        }
+    }
+}
+
+impl Drop for AllocatorPool<'_> {
+    fn drop(&mut self) {
+        self.destroy();
     }
 }
 
@@ -224,19 +232,21 @@ pub trait Alloc {
         memory_requirements: &ash::vk::MemoryRequirements,
         create_info: &AllocationCreateInfo,
     ) -> VkResult<Allocation> {
-        let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
-        create_info.pool = self.pool().0;
+        let mut c_info: ffi::VmaAllocationCreateInfo = create_info.into();
+        c_info.pool = self.pool().0;
         let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
         ffi::vmaAllocateMemory(
             self.allocator().internal,
             memory_requirements,
-            &create_info,
+            &c_info,
             &mut allocation,
             std::ptr::null_mut(),
         )
         .result()?;
 
-        Ok(Allocation(allocation))
+        let id = self.allocator().generate_allocation_id();
+
+        Ok(Allocation::new(allocation, id, *create_info))
     }
 
     /// General purpose memory allocation for multiple allocation objects at once.
@@ -250,26 +260,28 @@ pub trait Alloc {
     /// All allocations are made using same parameters. All of them are created out of the same memory pool and type.
     unsafe fn allocate_memory_pages(
         &self,
-        memory_requirements: &ash::vk::MemoryRequirements,
+        memory_requirements: &vk::MemoryRequirements,
         create_info: &AllocationCreateInfo,
         allocation_count: usize,
     ) -> VkResult<Vec<Allocation>> {
-        let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
-        create_info.pool = self.pool().0;
+        let mut c_info: ffi::VmaAllocationCreateInfo = create_info.into();
+        c_info.pool = self.pool().0;
         let mut allocations: Vec<ffi::VmaAllocation> = vec![std::mem::zeroed(); allocation_count];
         ffi::vmaAllocateMemoryPages(
             self.allocator().internal,
             memory_requirements,
-            &create_info,
+            &c_info,
             allocation_count,
             allocations.as_mut_ptr(),
             std::ptr::null_mut(),
         )
         .result()?;
 
+        let id = self.allocator().generate_allocation_id();
+
         let allocations: Vec<Allocation> = allocations
             .into_iter()
-            .map(|alloc| Allocation(alloc))
+            .map(|alloc| Allocation::new(alloc, id, *create_info))
             .collect();
 
         Ok(allocations)
@@ -280,23 +292,25 @@ pub trait Alloc {
     /// You should free the memory using `Allocator::free_memory` or 'Allocator::free_memory_pages'.
     unsafe fn allocate_memory_for_buffer(
         &self,
-        buffer: ash::vk::Buffer,
+        buffer: vk::Buffer,
         create_info: &AllocationCreateInfo,
     ) -> VkResult<Allocation> {
-        let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
-        create_info.pool = self.pool().0;
+        let mut c_info: ffi::VmaAllocationCreateInfo = create_info.into();
+        c_info.pool = self.pool().0;
         let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
         let mut allocation_info: ffi::VmaAllocationInfo = std::mem::zeroed();
         ffi::vmaAllocateMemoryForBuffer(
             self.allocator().internal,
             buffer,
-            &create_info,
+            &c_info,
             &mut allocation,
             &mut allocation_info,
         )
         .result()?;
 
-        Ok(Allocation(allocation))
+        let id = self.allocator().generate_allocation_id();
+
+        Ok(Allocation::new(allocation, id, *create_info))
     }
 
     /// Image specialized memory allocation.
@@ -304,22 +318,24 @@ pub trait Alloc {
     /// You should free the memory using `Allocator::free_memory` or 'Allocator::free_memory_pages'.
     unsafe fn allocate_memory_for_image(
         &self,
-        image: ash::vk::Image,
+        image: vk::Image,
         create_info: &AllocationCreateInfo,
     ) -> VkResult<Allocation> {
-        let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
-        create_info.pool = self.pool().0;
+        let mut c_info: ffi::VmaAllocationCreateInfo = create_info.into();
+        c_info.pool = self.pool().0;
         let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
         ffi::vmaAllocateMemoryForImage(
             self.allocator().internal,
             image,
-            &create_info,
+            &c_info,
             &mut allocation,
             std::ptr::null_mut(),
         )
         .result()?;
 
-        Ok(Allocation(allocation))
+        let id = self.allocator().generate_allocation_id();
+
+        Ok(Allocation::new(allocation, id, *create_info))
     }
 
     /// This function automatically creates a buffer, allocates appropriate memory
@@ -337,24 +353,26 @@ pub trait Alloc {
     /// allocation for this buffer, just like when using `AllocationCreateFlags::DEDICATED_MEMORY`.
     unsafe fn create_buffer(
         &self,
-        buffer_info: &ash::vk::BufferCreateInfo,
+        buffer_info: &vk::BufferCreateInfo,
         create_info: &AllocationCreateInfo,
-    ) -> VkResult<(ash::vk::Buffer, Allocation)> {
-        let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
-        create_info.pool = self.pool().0;
+    ) -> VkResult<(vk::Buffer, Allocation)> {
+        let mut c_info: ffi::VmaAllocationCreateInfo = create_info.into();
+        c_info.pool = self.pool().0;
         let mut buffer = vk::Buffer::null();
         let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
         ffi::vmaCreateBuffer(
             self.allocator().internal,
             &*buffer_info,
-            &create_info,
+            &c_info,
             &mut buffer,
             &mut allocation,
             std::ptr::null_mut(),
         )
         .result()?;
 
-        Ok((buffer, Allocation(allocation)))
+        let id = self.allocator().generate_allocation_id();
+
+        Ok((buffer, Allocation::new(allocation, id, *create_info)))
     }
     /// brief Creates a buffer with additional minimum alignment.
     ///
@@ -363,18 +381,18 @@ pub trait Alloc {
     /// for interop with OpenGL.
     unsafe fn create_buffer_with_alignment(
         &self,
-        buffer_info: &ash::vk::BufferCreateInfo,
+        buffer_info: &vk::BufferCreateInfo,
         create_info: &AllocationCreateInfo,
         min_alignment: vk::DeviceSize,
-    ) -> VkResult<(ash::vk::Buffer, Allocation)> {
-        let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
-        create_info.pool = self.pool().0;
+    ) -> VkResult<(vk::Buffer, Allocation)> {
+        let mut c_info: ffi::VmaAllocationCreateInfo = create_info.into();
+        c_info.pool = self.pool().0;
         let mut buffer = vk::Buffer::null();
         let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
         ffi::vmaCreateBufferWithAlignment(
             self.allocator().internal,
             &*buffer_info,
-            &create_info,
+            &c_info,
             min_alignment,
             &mut buffer,
             &mut allocation,
@@ -382,7 +400,9 @@ pub trait Alloc {
         )
         .result()?;
 
-        Ok((buffer, Allocation(allocation)))
+        let id = self.allocator().generate_allocation_id();
+
+        Ok((buffer, Allocation::new(allocation, id, *create_info)))
     }
     /// This function automatically creates an image, allocates appropriate memory
     /// for it, and binds the image with the memory.
@@ -403,30 +423,32 @@ pub trait Alloc {
     /// image, a panic will occur and `VK_ERROR_VALIDAITON_FAILED_EXT` is thrown.
     unsafe fn create_image(
         &self,
-        image_info: &ash::vk::ImageCreateInfo,
+        image_info: &vk::ImageCreateInfo,
         create_info: &AllocationCreateInfo,
-    ) -> VkResult<(ash::vk::Image, Allocation)> {
-        let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
-        create_info.pool = self.pool().0;
+    ) -> VkResult<(vk::Image, Allocation)> {
+        let mut c_info: ffi::VmaAllocationCreateInfo = create_info.into();
+        c_info.pool = self.pool().0;
         let mut image = vk::Image::null();
         let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
         ffi::vmaCreateImage(
             self.allocator().internal,
             &*image_info,
-            &create_info,
+            &c_info,
             &mut image,
             &mut allocation,
             std::ptr::null_mut(),
         )
         .result()?;
 
-        Ok((image, Allocation(allocation)))
+        let id = self.allocator().generate_allocation_id();
+
+        Ok((image, Allocation::new(allocation, id, *create_info)))
     }
 }
 
-impl Alloc for AllocatorPool {
+impl Alloc for AllocatorPool<'_> {
     fn allocator(&self) -> &Allocator {
-        self.allocator.as_ref()
+        &self.allocator
     }
 
     fn pool(&self) -> PoolHandle {
