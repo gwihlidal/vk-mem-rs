@@ -155,6 +155,7 @@ impl Allocator {
                 .device
                 .fp_v1_3()
                 .get_device_image_memory_requirements,
+            vkGetMemoryWin32HandleKHR: std::ptr::null_mut(),
         };
         #[cfg(feature = "loaded")]
         {
