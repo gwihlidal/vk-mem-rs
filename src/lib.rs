@@ -14,10 +14,16 @@ use ash::prelude::VkResult;
 use ash::vk;
 use std::mem;
 
+pub type RawAllocatorHandle = ffi::VmaAllocator;
+pub type RawAllocationHandle = ffi::VmaAllocation;
+pub type RawPoolHandle = ffi::VmaPool;
+pub type RawVirtualBlockHandle = ffi::VmaVirtualBlock;
+pub type RawVirtualAllocationHandle = ffi::VmaVirtualAllocation;
+
 /// Main allocator object
 pub struct Allocator {
     /// Pointer to internal VmaAllocator instance
-    internal: ffi::VmaAllocator,
+    internal: RawAllocatorHandle,
 }
 
 // Allocator is internally thread safe unless AllocatorCreateFlags::EXTERNALLY_SYNCHRONIZED is used (then you need to add synchronization!)
@@ -41,9 +47,25 @@ unsafe impl Sync for Allocator {}
 ///
 /// Some kinds allocations can be in lost state.
 #[derive(Clone, Copy, Debug)]
-pub struct Allocation(ffi::VmaAllocation);
+pub struct Allocation(RawAllocationHandle);
 unsafe impl Send for Allocation {}
 unsafe impl Sync for Allocation {}
+
+impl Allocation {
+    /// Returns the raw handle of this allocation
+    pub fn get_raw(&self) -> RawAllocationHandle {
+        self.0
+    }
+
+    /// Imports an allocation from a raw handle
+    ///
+    /// # Safety
+    ///
+    /// The handle must be a valid allocation
+    pub unsafe fn from_raw(handle: RawAllocationHandle) -> Self {
+        Allocation(handle)
+    }
+}
 
 impl Allocator {
     /// Construct a new `Allocator` using the provided options.
@@ -167,6 +189,32 @@ impl Allocator {
 
             Ok(Allocator { internal })
         }
+    }
+
+    /// Consumes the allocator without dropping it and returns the underlying handle.
+    ///
+    /// Ownership is transferred to the caller.
+    pub fn into_raw(self) -> RawAllocatorHandle {
+        let handle = self.get_raw();
+        mem::forget(self);
+        handle
+    }
+
+    /// Gets the underlying raw handle
+    pub fn get_raw(&self) -> RawAllocatorHandle {
+        self.internal
+    }
+
+    /// Imports an allocator from a raw handle.
+    ///
+    /// # Safety
+    ///
+    /// `handle` is a valid allocator handle.
+    ///
+    /// Either the ownership of the allocator needs to be transferred,
+    /// or the caller must make sure that the returned value never gets dropped.
+    pub unsafe fn from_raw(handle: RawAllocatorHandle) -> Self {
+        Self { internal: handle }
     }
 
     /// The allocator fetches `vk::PhysicalDeviceProperties` from the physical device.

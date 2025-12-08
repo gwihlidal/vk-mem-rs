@@ -1,4 +1,7 @@
 use std::ffi::CStr;
+use std::mem::ManuallyDrop;
+use std::ops::Deref;
+use std::ptr::null_mut;
 use std::sync::Arc;
 
 use crate::ffi;
@@ -6,22 +9,30 @@ use crate::Allocation;
 use crate::AllocationCreateInfo;
 use crate::Allocator;
 use crate::PoolCreateInfo;
+use crate::RawPoolHandle;
 use ash::prelude::VkResult;
 use ash::vk;
-#[derive(Clone, Copy)]
-pub struct PoolHandle(ffi::VmaPool);
 
-/// Represents custom memory pool handle.
-pub struct AllocatorPool {
-    allocator: Arc<Allocator>,
-    pub(crate) pool: PoolHandle,
+/// Represents a custom memory pool.
+pub struct AllocatorPool<A: Deref<Target = Allocator> = Arc<Allocator>> {
+    pub(crate) allocator: A,
+    pub(crate) pool: ffi::VmaPool,
 }
-unsafe impl Send for AllocatorPool {}
-unsafe impl Sync for AllocatorPool {}
+unsafe impl<A: Deref<Target = Allocator> + Send> Send for AllocatorPool<A> {}
+unsafe impl<A: Deref<Target = Allocator> + Sync> Sync for AllocatorPool<A> {}
 
 impl Allocator {
-    /// Allocates Vulkan device memory and creates `AllocatorPool` object.
+    /// Allocates Vulkan device memory and creates an `AllocatorPool` object.
     pub fn create_pool(self: &Arc<Self>, create_info: &PoolCreateInfo) -> VkResult<AllocatorPool> {
+        let (pool, _) = self.create_pool_with_ref(create_info)?.into_raw_parts();
+        Ok(unsafe { AllocatorPool::from_raw_parts(pool, self.clone()) })
+    }
+
+    /// Allocates Vulkan device memory and creates an `AllocatorPool` object.
+    pub fn create_pool_with_ref(
+        &self,
+        create_info: &PoolCreateInfo,
+    ) -> VkResult<AllocatorPool<&Self>> {
         unsafe {
             let mut ffi_pool: ffi::VmaPool = std::mem::zeroed();
             let raw_info = ffi::VmaPoolCreateInfo {
@@ -35,49 +46,47 @@ impl Allocator {
                 pMemoryAllocateNext: create_info.memory_allocate_next as *mut std::ffi::c_void,
             };
             ffi::vmaCreatePool(self.internal, &raw_info, &mut ffi_pool).result()?;
-            Ok(AllocatorPool {
-                pool: PoolHandle(ffi_pool),
-                allocator: self.clone(),
-            })
+            Ok(AllocatorPool::from_raw_parts(ffi_pool, self))
         }
     }
 
     pub fn default_pool(self: &Arc<Self>) -> AllocatorPool {
-        AllocatorPool {
-            pool: PoolHandle(std::ptr::null_mut()),
-            allocator: self.clone(),
-        }
+        unsafe { AllocatorPool::from_raw_parts(null_mut(), self.clone()) }
+    }
+
+    pub fn default_pool_with_ref(self: &Self) -> AllocatorPool<&Self> {
+        unsafe { AllocatorPool::from_raw_parts(null_mut(), self) }
     }
 }
 
-impl Drop for AllocatorPool {
+impl<A: Deref<Target = Allocator>> Drop for AllocatorPool<A> {
     fn drop(&mut self) {
         unsafe {
-            ffi::vmaDestroyPool(self.allocator.internal, self.pool.0);
+            ffi::vmaDestroyPool(self.allocator.internal, self.pool);
         }
     }
 }
 
-impl AllocatorPool {
+impl<A: Deref<Target = Allocator>> AllocatorPool<A> {
     pub fn set_name(&self, name: Option<&CStr>) {
-        if self.pool.0.is_null() {
+        if self.pool.is_null() {
             return;
         }
         unsafe {
             ffi::vmaSetPoolName(
                 self.allocator.internal,
-                self.pool.0,
+                self.pool,
                 name.map_or(std::ptr::null(), CStr::as_ptr),
             );
         }
     }
     pub fn name(&self) -> Option<&CStr> {
-        if self.pool.0.is_null() {
+        if self.pool.is_null() {
             return None;
         }
         let mut ptr: *const ::std::os::raw::c_char = std::ptr::null();
         unsafe {
-            ffi::vmaGetPoolName(self.allocator.internal, self.pool.0, &mut ptr);
+            ffi::vmaGetPoolName(self.allocator.internal, self.pool, &mut ptr);
             if ptr.is_null() {
                 return None;
             }
@@ -88,7 +97,7 @@ impl AllocatorPool {
     pub fn get_statistics(&self) -> VkResult<ffi::VmaStatistics> {
         unsafe {
             let mut pool_stats: ffi::VmaStatistics = std::mem::zeroed();
-            ffi::vmaGetPoolStatistics(self.allocator.internal, self.pool.0, &mut pool_stats);
+            ffi::vmaGetPoolStatistics(self.allocator.internal, self.pool, &mut pool_stats);
             Ok(pool_stats)
         }
     }
@@ -97,7 +106,7 @@ impl AllocatorPool {
     pub fn calculate_statistics(&self) -> VkResult<ffi::VmaDetailedStatistics> {
         unsafe {
             let mut pool_stats: ffi::VmaDetailedStatistics = std::mem::zeroed();
-            ffi::vmaCalculatePoolStatistics(self.allocator.internal, self.pool.0, &mut pool_stats);
+            ffi::vmaCalculatePoolStatistics(self.allocator.internal, self.pool, &mut pool_stats);
             Ok(pool_stats)
         }
     }
@@ -115,13 +124,41 @@ impl AllocatorPool {
     ///   `VMA_ASSERT` is also fired in that case.
     /// - Other value: Error returned by Vulkan, e.g. memory mapping failure.
     pub fn check_corruption(&self) -> VkResult<()> {
-        unsafe { ffi::vmaCheckPoolCorruption(self.allocator.internal, self.pool.0).result() }
+        unsafe { ffi::vmaCheckPoolCorruption(self.allocator.internal, self.pool).result() }
+    }
+
+    /// Decomposes the `AllocatorPool` into a raw handle and a pointer to the allocator the pool is
+    /// allocated from.
+    ///
+    /// Onwership of the pool is transferred to the caller.
+    pub fn into_raw_parts(self) -> (RawPoolHandle, A) {
+        let pool = ManuallyDrop::new(self);
+        let p = pool.pool;
+        let a = unsafe { (&raw const pool.allocator).read() };
+        (p, a)
+    }
+
+    /// Imports an already existing allocator pool.
+    ///
+    /// # Safety
+    ///
+    /// `handle` must be a valid pool that has been allocated from `allocator`.
+    ///
+    /// `allocator` must have a well-behaved [`Deref`]-implementation.
+    ///
+    /// Either the ownership of the pool needs to be transferred,
+    /// or the caller must make sure that the returned value never gets dropped.
+    pub unsafe fn from_raw_parts(pool_handle: RawPoolHandle, allocator: A) -> Self {
+        Self {
+            allocator,
+            pool: pool_handle,
+        }
     }
 }
 
 pub trait Alloc {
     fn allocator(&self) -> &Allocator;
-    fn pool(&self) -> PoolHandle;
+    fn pool(&self) -> RawPoolHandle;
     /// Helps to find memory type index, given memory type bits and allocation info.
     ///
     /// This algorithm tries to find a memory type that:
@@ -143,7 +180,7 @@ pub trait Alloc {
     ) -> VkResult<u32> {
         let mut memory_type_index: u32 = 0;
         let mut allocation_info: ffi::VmaAllocationCreateInfo = allocation_info.into();
-        allocation_info.pool = self.pool().0;
+        allocation_info.pool = self.pool();
         ffi::vmaFindMemoryTypeIndex(
             self.allocator().internal,
             memory_type_bits,
@@ -171,7 +208,7 @@ pub trait Alloc {
         allocation_info: &AllocationCreateInfo,
     ) -> VkResult<u32> {
         let mut allocation_info: ffi::VmaAllocationCreateInfo = allocation_info.into();
-        allocation_info.pool = self.pool().0;
+        allocation_info.pool = self.pool();
         let mut memory_type_index: u32 = 0;
         ffi::vmaFindMemoryTypeIndexForBufferInfo(
             self.allocator().internal,
@@ -200,7 +237,7 @@ pub trait Alloc {
         allocation_info: &AllocationCreateInfo,
     ) -> VkResult<u32> {
         let mut allocation_info: ffi::VmaAllocationCreateInfo = allocation_info.into();
-        allocation_info.pool = self.pool().0;
+        allocation_info.pool = self.pool();
         let mut memory_type_index: u32 = 0;
         ffi::vmaFindMemoryTypeIndexForImageInfo(
             self.allocator().internal,
@@ -225,7 +262,7 @@ pub trait Alloc {
         create_info: &AllocationCreateInfo,
     ) -> VkResult<Allocation> {
         let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
-        create_info.pool = self.pool().0;
+        create_info.pool = self.pool();
         let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
         ffi::vmaAllocateMemory(
             self.allocator().internal,
@@ -255,7 +292,7 @@ pub trait Alloc {
         allocation_count: usize,
     ) -> VkResult<Vec<Allocation>> {
         let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
-        create_info.pool = self.pool().0;
+        create_info.pool = self.pool();
         let mut allocations: Vec<ffi::VmaAllocation> = vec![std::mem::zeroed(); allocation_count];
         ffi::vmaAllocateMemoryPages(
             self.allocator().internal,
@@ -284,7 +321,7 @@ pub trait Alloc {
         create_info: &AllocationCreateInfo,
     ) -> VkResult<Allocation> {
         let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
-        create_info.pool = self.pool().0;
+        create_info.pool = self.pool();
         let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
         let mut allocation_info: ffi::VmaAllocationInfo = std::mem::zeroed();
         ffi::vmaAllocateMemoryForBuffer(
@@ -308,7 +345,7 @@ pub trait Alloc {
         create_info: &AllocationCreateInfo,
     ) -> VkResult<Allocation> {
         let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
-        create_info.pool = self.pool().0;
+        create_info.pool = self.pool();
         let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
         ffi::vmaAllocateMemoryForImage(
             self.allocator().internal,
@@ -341,7 +378,7 @@ pub trait Alloc {
         create_info: &AllocationCreateInfo,
     ) -> VkResult<(ash::vk::Buffer, Allocation)> {
         let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
-        create_info.pool = self.pool().0;
+        create_info.pool = self.pool();
         let mut buffer = vk::Buffer::null();
         let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
         ffi::vmaCreateBuffer(
@@ -368,7 +405,7 @@ pub trait Alloc {
         min_alignment: vk::DeviceSize,
     ) -> VkResult<(ash::vk::Buffer, Allocation)> {
         let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
-        create_info.pool = self.pool().0;
+        create_info.pool = self.pool();
         let mut buffer = vk::Buffer::null();
         let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
         ffi::vmaCreateBufferWithAlignment(
@@ -407,7 +444,7 @@ pub trait Alloc {
         create_info: &AllocationCreateInfo,
     ) -> VkResult<(ash::vk::Image, Allocation)> {
         let mut create_info: ffi::VmaAllocationCreateInfo = create_info.into();
-        create_info.pool = self.pool().0;
+        create_info.pool = self.pool();
         let mut image = vk::Image::null();
         let mut allocation: ffi::VmaAllocation = std::mem::zeroed();
         ffi::vmaCreateImage(
@@ -424,12 +461,12 @@ pub trait Alloc {
     }
 }
 
-impl Alloc for AllocatorPool {
+impl<A: Deref<Target = Allocator>> Alloc for AllocatorPool<A> {
     fn allocator(&self) -> &Allocator {
-        self.allocator.as_ref()
+        self.allocator.deref()
     }
 
-    fn pool(&self) -> PoolHandle {
+    fn pool(&self) -> RawPoolHandle {
         self.pool
     }
 }
@@ -438,7 +475,7 @@ impl Alloc for Allocator {
         self
     }
 
-    fn pool(&self) -> PoolHandle {
-        PoolHandle(std::ptr::null_mut())
+    fn pool(&self) -> RawPoolHandle {
+        std::ptr::null_mut()
     }
 }
