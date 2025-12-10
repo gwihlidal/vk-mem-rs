@@ -1,4 +1,6 @@
 use crate::ffi;
+use crate::RawVirtualAllocationHandle;
+use crate::RawVirtualBlockHandle;
 use ash::prelude::VkResult;
 use std::mem;
 
@@ -8,14 +10,36 @@ use crate::definitions::*;
 ///
 /// For more info: <https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/virtual_allocator.html>
 pub struct VirtualBlock {
-    internal: ffi::VmaVirtualBlock,
+    internal: RawVirtualBlockHandle,
 }
 
 /// Represents single memory allocation done inside VirtualBlock.
+///
+/// # Use with foreign code
+///
+/// The layout of this type is compatible with
+/// [`VmaVirtualAllocation`](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/struct_vma_virtual_allocation.html)
+/// in C.
 #[derive(Debug)]
-pub struct VirtualAllocation(ffi::VmaVirtualAllocation);
+pub struct VirtualAllocation(RawVirtualAllocationHandle);
 unsafe impl Send for VirtualAllocation {}
 unsafe impl Sync for VirtualAllocation {}
+
+impl VirtualAllocation {
+    /// Returns the raw handle of this virtual allocation
+    pub fn get_raw(&self) -> RawVirtualAllocationHandle {
+        self.0
+    }
+
+    /// Imports a virtual allocation from a raw handle
+    ///
+    /// # Safety
+    ///
+    /// The handle must be a valid virtual allocation
+    pub unsafe fn from_raw(handle: RawVirtualAllocationHandle) -> Self {
+        VirtualAllocation(handle)
+    }
+}
 
 impl VirtualBlock {
     /// Creates new VirtualBlock object.
@@ -34,6 +58,32 @@ impl VirtualBlock {
 
             Ok(VirtualBlock { internal })
         }
+    }
+
+    /// Consumes the virtual block without dropping it and returns the underlying handle.
+    ///
+    /// Ownership is transferred to the caller.
+    pub fn into_raw(self) -> RawVirtualBlockHandle {
+        let handle = self.get_raw();
+        mem::forget(self);
+        handle
+    }
+
+    /// Gets the underlying raw handle
+    pub fn get_raw(&self) -> RawVirtualBlockHandle {
+        self.internal
+    }
+
+    /// Imports a virtual block from a raw handle.
+    ///
+    /// # Safety
+    ///
+    /// `handle` is a valid virtual block handle.
+    ///
+    /// Either the ownership of the virtual block needs to be transferred,
+    /// or the caller must make sure that the returned value never gets dropped.
+    pub unsafe fn from_raw(handle: RawVirtualBlockHandle) -> Self {
+        Self { internal: handle }
     }
 
     /// Allocates new virtual allocation inside given VirtualBlock.
