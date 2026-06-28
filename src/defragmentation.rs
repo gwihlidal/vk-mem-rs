@@ -69,7 +69,7 @@ impl Allocator {
     pub unsafe fn begin_defragmentation(
         &self,
         info: &ffi::VmaDefragmentationInfo,
-    ) -> VkResult<DefragmentationContext> {
+    ) -> VkResult<DefragmentationContext<'_>> {
         let mut context: ffi::VmaDefragmentationContext = std::ptr::null_mut();
 
         ffi::vmaBeginDefragmentation(self.internal, info, &mut context).result()?;

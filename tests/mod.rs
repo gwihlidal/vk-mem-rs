@@ -30,6 +30,7 @@ pub struct TestHarness {
     pub physical_device: ash::vk::PhysicalDevice,
     pub debug_callback: ash::vk::DebugUtilsMessengerEXT,
     pub debug_report_loader: debug_utils::Instance,
+    pub has_validation_layer: bool,
 }
 
 impl Drop for TestHarness {
@@ -45,27 +46,46 @@ impl Drop for TestHarness {
 }
 impl TestHarness {
     pub fn new() -> Self {
+        let entry = unsafe { ash::Entry::load().unwrap() };
+
+        let instance_version = unsafe {
+            entry
+                .try_enumerate_instance_version()
+                .unwrap_or(Some(ash::vk::API_VERSION_1_0))
+                .unwrap()
+        };
+
         let app_name = ::std::ffi::CString::new("vk-mem testing").unwrap();
         let app_info = ash::vk::ApplicationInfo::default()
             .application_name(&app_name)
             .application_version(0)
             .engine_name(&app_name)
             .engine_version(0)
-            .api_version(ash::vk::make_api_version(0, 1, 3, 0));
+            .api_version(instance_version);
 
-        let layer_names = [::std::ffi::CString::new("VK_LAYER_KHRONOS_validation").unwrap()];
-        let layers_names_raw: Vec<*const i8> = layer_names
-            .iter()
-            .map(|raw_name| raw_name.as_ptr())
-            .collect();
-
+        let mut layer_names_raw: Vec<*const i8> = vec![];
         let extension_names_raw = extension_names();
+
+        let validation_layer_raw = std::ffi::CString::new("VK_LAYER_KHRONOS_validation").unwrap();
+        let has_validation_layer = unsafe {
+            entry
+                .enumerate_instance_layer_properties()
+                .unwrap()
+                .iter()
+                .any(|layer| {
+                    std::ffi::CStr::from_ptr(layer.layer_name.as_ptr())
+                        == validation_layer_raw.as_c_str()
+                })
+        };
+        if has_validation_layer {
+            layer_names_raw.push(validation_layer_raw.as_ptr());
+        }
+
         let create_info = ash::vk::InstanceCreateInfo::default()
             .application_info(&app_info)
-            .enabled_layer_names(&layers_names_raw)
-            .enabled_extension_names(&extension_names_raw);
+            .enabled_extension_names(&extension_names_raw)
+            .enabled_layer_names(&layer_names_raw);
 
-        let entry = unsafe { ash::Entry::load().unwrap() };
         let instance: ash::Instance = unsafe {
             entry
                 .create_instance(&create_info, None)
@@ -105,7 +125,7 @@ impl TestHarness {
                         .get_physical_device_properties(**physical_device)
                         .api_version;
                     ash::vk::api_version_major(version) == 1
-                        && ash::vk::api_version_minor(version) == 3
+                        && ash::vk::api_version_minor(version) >= 3
                 })
                 .next()
                 .expect("Couldn't find suitable device.")
@@ -133,13 +153,14 @@ impl TestHarness {
             physical_device,
             debug_report_loader,
             debug_callback,
+            has_validation_layer,
         }
     }
 
     pub fn create_allocator(&self) -> vk_mem::Allocator {
         let create_info =
             vk_mem::AllocatorCreateInfo::new(&self.instance, &self.device, self.physical_device);
-        vk_mem::Allocator::new(create_info).unwrap()
+        unsafe { vk_mem::Allocator::new(create_info).unwrap() }
     }
 }
 
