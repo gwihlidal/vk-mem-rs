@@ -179,6 +179,10 @@ impl Allocator {
                 .fp_v1_3()
                 .get_device_image_memory_requirements,
             vkGetMemoryWin32HandleKHR: std::ptr::null_mut(),
+            vkGetPhysicalDeviceProperties2KHR: create_info
+                .instance
+                .fp_v1_1()
+                .get_physical_device_properties2,
         };
         #[cfg(feature = "loaded")]
         {
@@ -440,8 +444,20 @@ impl Allocator {
     /// This function should be called only for allocations created in a memory type that has VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT and VK_MEMORY_PROPERTY_HOST_CACHED_BIT flag. It can be ensured e.g. by using VMA_MEMORY_USAGE_AUTO and VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT. Otherwise, the function may fail and generate a Validation Layers error. It may also work very slowly when reading from an uncached memory.
     ///
     /// - `src_allocation_offset` is relative to the contents of given src_allocation. If you mean whole allocation, you should pass 0. Do not pass allocation's offset within device memory block as this parameter!
-    pub unsafe fn copy_allocation_to_memory(&self, src_allocation: &Allocation, src_allocation_offset: vk::DeviceSize, dst_ref: &mut [u8]) -> VkResult<()> {
-        ffi::vmaCopyAllocationToMemory(self.internal, src_allocation.0, src_allocation_offset, dst_ref.as_mut_ptr() as *mut std::ffi::c_void, dst_ref.len() as vk::DeviceSize).result()
+    pub unsafe fn copy_allocation_to_memory(
+        &self,
+        src_allocation: &Allocation,
+        src_allocation_offset: vk::DeviceSize,
+        dst_ref: &mut [u8],
+    ) -> VkResult<()> {
+        ffi::vmaCopyAllocationToMemory(
+            self.internal,
+            src_allocation.0,
+            src_allocation_offset,
+            dst_ref.as_mut_ptr() as *mut std::ffi::c_void,
+            dst_ref.len() as vk::DeviceSize,
+        )
+        .result()
     }
 
     /// Maps the allocation temporarily if needed, copies data from specified host pointer to it, and flushes the memory from the host caches if needed.
@@ -450,8 +466,20 @@ impl Allocator {
     /// This function can be called only for allocations created in a memory type that has VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT flag. It can be ensured e.g. by using VMA_MEMORY_USAGE_AUTO and VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT or VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT. Otherwise, the function will fail and generate a Validation Layers error.
     ///
     /// - `dst_allocation_offset` is relative to the contents of given dstAllocation. If you mean whole allocation, you should pass 0. Do not pass allocation's offset within device memory block this parameter!
-    pub unsafe fn copy_memory_to_allocation(&self, dst_allocation: &Allocation, src_data: &[u8], dst_allocation_offset: vk::DeviceSize) -> VkResult<()> {
-        ffi::vmaCopyMemoryToAllocation(self.internal, src_data.as_ptr() as *const std::ffi::c_void, dst_allocation.0, dst_allocation_offset, src_data.len() as vk::DeviceSize).result()
+    pub unsafe fn copy_memory_to_allocation(
+        &self,
+        dst_allocation: &Allocation,
+        src_data: &[u8],
+        dst_allocation_offset: vk::DeviceSize,
+    ) -> VkResult<()> {
+        ffi::vmaCopyMemoryToAllocation(
+            self.internal,
+            src_data.as_ptr() as *const std::ffi::c_void,
+            dst_allocation.0,
+            dst_allocation_offset,
+            src_data.len() as vk::DeviceSize,
+        )
+        .result()
     }
 
     /// Checks magic number in margins around all allocations in given memory types (in both default and custom pools) in search for corruptions.
