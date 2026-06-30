@@ -27,9 +27,9 @@ pub enum VmaAllocatorCreateFlagBits {
     VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE4_BIT = 128,
     #[doc = "Enables usage of VK_KHR_maintenance5 extension in the library.\n\nYou should set this flag if you found available and enabled this device extension,\nwhile creating Vulkan device passed as VmaAllocatorCreateInfo::device."]
     VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE5_BIT = 256,
-    #[doc = "Enables usage of VK_KHR_external_memory_win32 extension in the library.\n\nYou should set this flag if you found available and enabled this device extension,\nwhile creating Vulkan device passed as VmaAllocatorCreateInfo::device.\nFor more information, see \\ref vk_khr_external_memory_win32."]
+    #[doc = "Enables usage of VK_KHR_external_memory_win32 extension in the library.\n\nYou should set this flag if you found available and enabled this device extension,\nwhile creating Vulkan device passed as VmaAllocatorCreateInfo::device.\nFor more information, see \\ref other_api_interop."]
     VMA_ALLOCATOR_CREATE_KHR_EXTERNAL_MEMORY_WIN32_BIT = 512,
-    #[doc = "Enables usage of VK_KHR_external_memory_win32 extension in the library.\n\nYou should set this flag if you found available and enabled this device extension,\nwhile creating Vulkan device passed as VmaAllocatorCreateInfo::device.\nFor more information, see \\ref vk_khr_external_memory_win32."]
+    #[doc = "Enables usage of VK_KHR_external_memory_win32 extension in the library.\n\nYou should set this flag if you found available and enabled this device extension,\nwhile creating Vulkan device passed as VmaAllocatorCreateInfo::device.\nFor more information, see \\ref other_api_interop."]
     VMA_ALLOCATOR_CREATE_FLAG_BITS_MAX_ENUM = 2147483647,
 }
 #[doc = " See #VmaAllocatorCreateFlagBits."]
@@ -298,6 +298,8 @@ pub struct VmaVulkanFunctions {
     #[doc = " Fetch from \"vkGetDeviceImageMemoryRequirements\" on Vulkan >= 1.3, but you can also fetch it from \"vkGetDeviceImageMemoryRequirementsKHR\" if you enabled extension VK_KHR_maintenance4."]
     pub vkGetDeviceImageMemoryRequirements: PFN_vkGetDeviceImageMemoryRequirements,
     pub vkGetMemoryWin32HandleKHR: *mut ::std::os::raw::c_void,
+    #[doc = " Fetch from \"vkGetPhysicalDeviceProperties2\" on Vulkan >= 1.1, but you can also fetch it from \"vkGetPhysicalDeviceProperties2KHR\" if you enabled extension VK_KHR_get_physical_device_properties2."]
+    pub vkGetPhysicalDeviceProperties2KHR: PFN_vkGetPhysicalDeviceProperties2,
 }
 #[doc = " Description of a Allocator to be created."]
 #[repr(C)]
@@ -399,6 +401,8 @@ pub struct VmaAllocationCreateInfo {
     pub pUserData: *mut ::std::os::raw::c_void,
     #[doc = " \\brief A floating-point value between 0 and 1, indicating the priority of the allocation relative to other memory allocations.\n\nIt is used only when #VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT flag was used during creation of the #VmaAllocator object\nand this allocation ends up as dedicated or is explicitly forced as dedicated using #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT.\nOtherwise, it has the priority of a memory block where it is placed and this variable is ignored."]
     pub priority: f32,
+    #[doc = " \\brief Additional minimum alignment to be used for this allocation. Can be 0.\n\nLeave 0 (default) not to impose any additional alignment. If not 0, it must be a power of two.\n\nWhen creating a buffer or an image, specifying a custom alignment is not needed in most cases,\nbecause Vulkan implementation inspects the `CreateInfo` structure (including intended usage flags)\nand returns required alignment through functions like `vkGetBufferMemoryRequirements2`, which VMA automatically\nuses and respects.\nExtra alignment may be needed in some cases, like when using a buffer for acceleration structure scratch\n(`VkPhysicalDeviceAccelerationStructurePropertiesKHR::minAccelerationStructureScratchOffsetAlignment`, see also issue #523)\nor when doing interop with OpenGL."]
+    pub minAlignment: DeviceSize,
 }
 #[doc = " Describes parameter of created #VmaPool."]
 #[repr(C)]
@@ -415,7 +419,7 @@ pub struct VmaPoolCreateInfo {
     pub maxBlockCount: usize,
     #[doc = " \\brief A floating-point value between 0 and 1, indicating the priority of the allocations in this pool relative to other memory allocations.\n\nIt is used only when #VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT flag was used during creation of the #VmaAllocator object.\nOtherwise, this variable is ignored."]
     pub priority: f32,
-    #[doc = " \\brief Additional minimum alignment to be used for all allocations created from this pool. Can be 0.\n\nLeave 0 (default) not to impose any additional alignment. If not 0, it must be a power of two.\nIt can be useful in cases where alignment returned by Vulkan by functions like `vkGetBufferMemoryRequirements` is not enough,\ne.g. when doing interop with OpenGL."]
+    #[doc = " \\brief Additional minimum alignment to be used for all allocations created from this pool. Can be 0.\n\nLeave 0 (default) not to impose any additional alignment. If not 0, it must be a power of two.\n\nWhen creating a buffer or an image, specifying a custom alignment is not needed in most cases,\nbecause Vulkan implementation inspects the `CreateInfo` structure (including intended usage flags)\nand returns required alignment through functions like `vkGetBufferMemoryRequirements2`, which VMA automatically\nuses and respects.\nExtra alignment may be needed in some cases, like when using a buffer for acceleration structure scratch\n(`VkPhysicalDeviceAccelerationStructurePropertiesKHR::minAccelerationStructureScratchOffsetAlignment`, see also issue #523)\nor when doing interop with OpenGL."]
     pub minAllocationAlignment: DeviceSize,
     #[doc = " \\brief Additional `pNext` chain to be attached to `VkMemoryAllocateInfo` used for every allocation made by this pool. Optional.\n\nOptional, can be null. If not null, it must point to a `pNext` chain of structures that can be attached to `VkMemoryAllocateInfo`.\nIt can be useful for special needs such as adding `VkExportMemoryAllocateInfoKHR`.\nStructures pointed by this member must remain alive and unchanged for the whole lifetime of the custom pool.\n\nPlease note that some structures, e.g. `VkMemoryPriorityAllocateInfoEXT`, `VkMemoryDedicatedAllocateInfoKHR`,\ncan be attached automatically by this library when using other, more convenient of its features."]
     pub pMemoryAllocateNext: *mut ::std::os::raw::c_void,
@@ -659,11 +663,22 @@ extern "C" {
     );
 }
 extern "C" {
-    #[doc = " \\brief General purpose memory allocation.\n\n\\param allocator\n\\param pVkMemoryRequirements\n\\param pCreateInfo\n\\param[out] pAllocation Handle to allocated memory.\n\\param[out] pAllocationInfo Optional. Information about allocated memory. It can be later fetched using function vmaGetAllocationInfo().\n\nYou should free the memory using vmaFreeMemory() or vmaFreeMemoryPages().\n\nIt is recommended to use vmaAllocateMemoryForBuffer(), vmaAllocateMemoryForImage(),\nvmaCreateBuffer(), vmaCreateImage() instead whenever possible."]
+    #[doc = " \\brief General purpose memory allocation.\n\n\\param allocator The main allocator object.\n\\param pVkMemoryRequirements Requirements for the allocated memory.\n\\param pCreateInfo Allocation creation parameters.\n\\param[out] pAllocation Handle to allocated memory.\n\\param[out] pAllocationInfo Optional, can be null. Information about allocated memory. It can be also fetched later using vmaGetAllocationInfo().\n\nThe function creates a #VmaAllocation object without creating a buffer or an image together with it.\n\n- It is recommended to use vmaAllocateMemoryForBuffer(), vmaAllocateMemoryForImage(),\nvmaCreateBuffer(), vmaCreateImage() instead whenever possible.\n- You can also create a buffer or an image later in an existing allocation using\nvmaCreateAliasingBuffer2(), vmaCreateAliasingImage2().\n- You can also create a buffer or an image on your own and bind it to an existing allocation\nusing vmaBindBufferMemory2(), vmaBindImageMemory2().\n\nYou must free the returned allocation object using vmaFreeMemory() or vmaFreeMemoryPages().\n\nThere is also extended version of this function: vmaAllocateDedicatedMemory()\nthat offers additional parameter `pMemoryAllocateNext`."]
     pub fn vmaAllocateMemory(
         allocator: VmaAllocator,
         pVkMemoryRequirements: *const MemoryRequirements,
         pCreateInfo: *const VmaAllocationCreateInfo,
+        pAllocation: *mut VmaAllocation,
+        pAllocationInfo: *mut VmaAllocationInfo,
+    ) -> Result;
+}
+extern "C" {
+    #[doc = " \\brief General purpose allocation of a dedicated memory.\n\nThis function is similar vmaAllocateMemory(), but\nit always allocates dedicated memory - flag #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT is implied.\nIt offers additional parameter `pMemoryAllocateNext`,\nwhich can be used to attach `pNext` chain to the `VkMemoryAllocateInfo` structure.\nIt can be useful for importing external memory. For more information, see \\ref other_api_interop."]
+    pub fn vmaAllocateDedicatedMemory(
+        allocator: VmaAllocator,
+        pVkMemoryRequirements: *const MemoryRequirements,
+        pCreateInfo: *const VmaAllocationCreateInfo,
+        pMemoryAllocateNext: *mut ::std::os::raw::c_void,
         pAllocation: *mut VmaAllocation,
         pAllocationInfo: *mut VmaAllocationInfo,
     ) -> Result;
@@ -894,7 +909,7 @@ extern "C" {
     ) -> Result;
 }
 extern "C" {
-    #[doc = " \\brief Creates a new `VkBuffer`, allocates and binds memory for it.\n\n\\param allocator\n\\param pBufferCreateInfo\n\\param pAllocationCreateInfo\n\\param[out] pBuffer Buffer that was created.\n\\param[out] pAllocation Allocation that was created.\n\\param[out] pAllocationInfo Optional. Information about allocated memory. It can be later fetched using function vmaGetAllocationInfo().\n\nThis function automatically:\n\n-# Creates buffer.\n-# Allocates appropriate memory for it.\n-# Binds the buffer with the memory.\n\nIf any of these operations fail, buffer and allocation are not created,\nreturned value is negative error code, `*pBuffer` and `*pAllocation` are null.\n\nIf the function succeeded, you must destroy both buffer and allocation when you\nno longer need them using either convenience function vmaDestroyBuffer() or\nseparately, using `vkDestroyBuffer()` and vmaFreeMemory().\n\nIf #VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT flag was used,\nVK_KHR_dedicated_allocation extension is used internally to query driver whether\nit requires or prefers the new buffer to have dedicated allocation. If yes,\nand if dedicated allocation is possible\n(#VMA_ALLOCATION_CREATE_NEVER_ALLOCATE_BIT is not used), it creates dedicated\nallocation for this buffer, just like when using\n#VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT.\n\n\\note This function creates a new `VkBuffer`. Sub-allocation of parts of one large buffer,\nalthough recommended as a good practice, is out of scope of this library and could be implemented\nby the user as a higher-level logic on top of VMA."]
+    #[doc = " \\brief Creates a new `VkBuffer`, allocates and binds memory for it.\n\n\\param allocator The main allocator object.\n\\param pBufferCreateInfo Buffer creation parameters.\n\\param pAllocationCreateInfo Allocation creation parameters.\n\\param[out] pBuffer Buffer that was created.\n\\param[out] pAllocation Allocation that was created.\n\\param[out] pAllocationInfo Optional, can be null. Information about allocated memory.\nIt can be also fetched later using vmaGetAllocationInfo().\n\nThis function automatically:\n\n-# Creates buffer.\n-# Allocates appropriate memory for it.\n-# Binds the buffer with the memory.\n\nIf any of these operations fail, buffer and allocation are not created,\nreturned value is negative error code, `*pBuffer` and `*pAllocation` are returned as null.\n\nIf the function succeeded, you must destroy both buffer and allocation when you\nno longer need them using either convenience function vmaDestroyBuffer() or\nseparately, using `vkDestroyBuffer()` and vmaFreeMemory().\n\nIf VK_KHR_dedicated_allocation extenion or Vulkan version >= 1.1 is used,\nthe function queries the driver whether\nit requires or prefers the new buffer to have dedicated allocation. If yes,\nand if dedicated allocation is possible\n(#VMA_ALLOCATION_CREATE_NEVER_ALLOCATE_BIT is not used), it creates dedicated\nallocation for this buffer, just like when using\n#VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT.\n\n\\note This function creates a new `VkBuffer`. Sub-allocation of parts of one large buffer,\nalthough recommended as a good practice, is out of scope of this library and could be implemented\nby the user as a higher-level logic on top of VMA.\n\nThere is also an extended versions of this function available with additional parameter `pMemoryAllocateNext` -\nsee vmaCreateDedicatedBuffer()."]
     pub fn vmaCreateBuffer(
         allocator: VmaAllocator,
         pBufferCreateInfo: *const BufferCreateInfo,
@@ -905,12 +920,24 @@ extern "C" {
     ) -> Result;
 }
 extern "C" {
-    #[doc = " \\brief Creates a buffer with additional minimum alignment.\n\nSimilar to vmaCreateBuffer() but provides additional parameter `minAlignment` which allows to specify custom,\nminimum alignment to be used when placing the buffer inside a larger memory block, which may be needed e.g.\nfor interop with OpenGL."]
+    #[doc = " \\brief Creates a buffer with additional minimum alignment.\n\nSimilar to vmaCreateBuffer() but provides additional parameter `minAlignment` which allows to specify custom,\nminimum alignment to be used when placing the buffer inside a larger memory block, which may be needed e.g.\nfor interop with OpenGL.\n\n\\deprecated\nThis function in obsolete since new VmaAllocationCreateInfo::minAlignment member allows specifying custom\nalignment while using any allocation function, like the standard vmaCreateBuffer()."]
     pub fn vmaCreateBufferWithAlignment(
         allocator: VmaAllocator,
         pBufferCreateInfo: *const BufferCreateInfo,
         pAllocationCreateInfo: *const VmaAllocationCreateInfo,
         minAlignment: DeviceSize,
+        pBuffer: *mut Buffer,
+        pAllocation: *mut VmaAllocation,
+        pAllocationInfo: *mut VmaAllocationInfo,
+    ) -> Result;
+}
+extern "C" {
+    #[doc = " \\brief Creates a dedicated buffer while offering extra parameter `pMemoryAllocateNext`.\n\nThis function is similar vmaCreateBuffer(), but\nit always allocates dedicated memory for the buffer - flag #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT is implied.\nIt offers additional parameter `pMemoryAllocateNext`,\nwhich can be used to attach `pNext` chain to the `VkMemoryAllocateInfo` structure.\nIt can be useful for importing external memory. For more information, see \\ref other_api_interop."]
+    pub fn vmaCreateDedicatedBuffer(
+        allocator: VmaAllocator,
+        pBufferCreateInfo: *const BufferCreateInfo,
+        pAllocationCreateInfo: *const VmaAllocationCreateInfo,
+        pMemoryAllocateNext: *mut ::std::os::raw::c_void,
         pBuffer: *mut Buffer,
         pAllocation: *mut VmaAllocation,
         pAllocationInfo: *mut VmaAllocationInfo,
@@ -940,11 +967,23 @@ extern "C" {
     pub fn vmaDestroyBuffer(allocator: VmaAllocator, buffer: Buffer, allocation: VmaAllocation);
 }
 extern "C" {
-    #[doc = " Function similar to vmaCreateBuffer()."]
+    #[doc = " \\brief Function similar to vmaCreateBuffer() but for images.\n\nThere is also an extended version of this function available: vmaCreateDedicatedImage()\nwhich offers additional parameter `pMemoryAllocateNext`."]
     pub fn vmaCreateImage(
         allocator: VmaAllocator,
         pImageCreateInfo: *const ImageCreateInfo,
         pAllocationCreateInfo: *const VmaAllocationCreateInfo,
+        pImage: *mut Image,
+        pAllocation: *mut VmaAllocation,
+        pAllocationInfo: *mut VmaAllocationInfo,
+    ) -> Result;
+}
+extern "C" {
+    #[doc = " \\brief Function similar to vmaCreateDedicatedBuffer() but for images.\n\nThis function is similar vmaCreateImage(), but\nit always allocates dedicated memory for the image - flag #VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT is implied.\nIt offers additional parameter `pMemoryAllocateNext`,\nwhich can be used to attach `pNext` chain to the `VkMemoryAllocateInfo` structure.\nIt can be useful for importing external memory. For more information, see \\ref other_api_interop."]
+    pub fn vmaCreateDedicatedImage(
+        allocator: VmaAllocator,
+        pImageCreateInfo: *const ImageCreateInfo,
+        pAllocationCreateInfo: *const VmaAllocationCreateInfo,
+        pMemoryAllocateNext: *mut ::std::os::raw::c_void,
         pImage: *mut Image,
         pAllocation: *mut VmaAllocation,
         pAllocationInfo: *mut VmaAllocationInfo,
